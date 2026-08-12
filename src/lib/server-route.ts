@@ -22,7 +22,7 @@ export type ServerHandler = (
 ) => Response | Promise<Response>
 
 export type ServerHandlers = Partial<
-  Record<'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', ServerHandler>
+  Record<'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS', ServerHandler>
 >
 
 export function serverRoute(handlers: ServerHandlers) {

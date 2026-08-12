@@ -1,22 +1,62 @@
+import { useEffect, useState } from 'react'
+
+import { FEATURE_CATALOG } from '#/lib/feature-catalog'
+
+export interface FeatureRow {
+  id: number
+  key: string
+  enabled: boolean
+}
+
 /**
- * Which features this node runs.
+ * Reads this node's live feature state.
  *
- * Master is the source of truth for this. At step 5 the value will arrive from
- * master — pushed into the node at provision time and again on every toggle —
- * and this module becomes the single place that reads it. Until then it comes
- * from `VITE_FEATURES` so the gate can be exercised in dev without a code
- * change.
+ * The node decides for itself, so the answer lives in its database and has to
+ * be fetched — it cannot be a build-time constant, or a toggle would need a
+ * redeploy.
  *
- * Anything gated here must ALSO be gated on the server. Hiding a `<Resource>`
- * only removes the UI; the API routes stay reachable unless they check too.
+ * Cached as a single in-flight promise so mounting `<Admin>` twice (the `/` and
+ * `/$` routes both render it) does not fetch twice.
  */
-const configured = import.meta.env.VITE_FEATURES as string | undefined
+let pending: Promise<Array<string>> | null = null
 
-export const enabledFeatures: Array<string> = (configured ?? 'forms')
-  .split(',')
-  .map((key) => key.trim())
-  .filter(Boolean)
+export function loadEnabledFeatures(): Promise<Array<string>> {
+  if (!pending) {
+    pending = fetch('/api/features?range=%5B0%2C99%5D')
+      .then((response) => (response.ok ? response.json() : []))
+      .then((rows: Array<FeatureRow>) =>
+        rows.filter((row) => row.enabled).map((row) => row.key),
+      )
+      .catch(() => [])
+  }
+  return pending
+}
 
-export function hasFeature(key: string): boolean {
-  return enabledFeatures.includes(key)
+/** Call after a toggle, so the next read sees the new state. */
+export function invalidateFeatures() {
+  pending = null
+}
+
+export function useEnabledFeatures() {
+  const [enabled, setEnabled] = useState<Array<string> | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    loadEnabledFeatures().then((keys) => {
+      if (!cancelled) setEnabled(keys)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return enabled
+}
+
+/** Catalog entries paired with whether they are currently on. */
+export function describeFeatures(enabled: Array<string>) {
+  return FEATURE_CATALOG.map((feature) => ({
+    ...feature,
+    enabled: enabled.includes(feature.key),
+  }))
 }

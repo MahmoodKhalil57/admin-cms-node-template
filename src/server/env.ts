@@ -16,13 +16,36 @@ export interface NodeEnv {
   DB: D1Database
   MEDIA: R2Bucket
   KV: KVNamespace
+  /**
+   * Shared hostname -> node map, read by the dispatch Worker.
+   *
+   * Every node binds the same namespace and writes only its own hostname keys,
+   * because the dispatcher has no database and has to resolve custom domains on
+   * the hot path.
+   */
+  ROUTING?: KVNamespace
   /** identity, set per node as plain_text vars */
   NODE_ID: string
   NODE_NAME: string
-  /** comma-separated feature keys master has enabled for this node */
-  FEATURES: string
-  /** guards the provisioning endpoints; secret_text, rotated after first use */
+  /** signs this node's sessions; secret_text, unique per node */
+  BETTER_AUTH_SECRET: string
+  /** guards the provisioning endpoint; secret_text */
   PROVISION_TOKEN: string
+  /** comma-separated origins allowed to post to the public form API; `*` by default */
+  ALLOWED_ORIGINS?: string
+  /** platform-wide GitHub OAuth app, supplied by master */
+  GITHUB_CLIENT_ID?: string
+  GITHUB_CLIENT_SECRET?: string
+  /** the template repo new sites are generated from, as `owner/repo` */
+  GITHUB_TEMPLATE_REPO?: string
+  /**
+   * This node's own public address.
+   *
+   * Supplied by master, because the dispatch Worker strips the `/n/<slug>`
+   * prefix before forwarding — the node cannot work its own URL out from an
+   * incoming request.
+   */
+  PUBLIC_URL?: string
 }
 
 type CloudflareRequest = Request & {
@@ -59,10 +82,3 @@ export function getExecutionContext(
     ?.context
 }
 
-/** Feature keys master has enabled for this node. */
-export function enabledFeatures(env: NodeEnv): Array<string> {
-  return (env.FEATURES ?? '')
-    .split(',')
-    .map((key) => key.trim())
-    .filter(Boolean)
-}

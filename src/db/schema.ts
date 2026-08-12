@@ -1,6 +1,70 @@
 import { sqliteTable, integer, text, index } from 'drizzle-orm/sqlite-core'
 import { sql } from 'drizzle-orm'
 
+/**
+ * Which features this node runs.
+ *
+ * The node owns this outright — master does not grant, gate or even know about
+ * it. A toggle here takes effect on the next request, with no redeploy and no
+ * round trip to the control plane, which is the whole point of the node
+ * deciding for itself.
+ *
+ * Rows are keyed by `key` against `FEATURE_CATALOG`; a catalog entry with no row
+ * yet reads as disabled, which is how a newly shipped feature behaves on an
+ * existing node.
+ */
+export const features = sqliteTable('features', {
+  id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+  key: text().notNull().unique(),
+  enabled: integer({ mode: 'boolean' }).notNull().default(false),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).default(
+    sql`(unixepoch())`,
+  ),
+})
+
+/**
+ * Node-wide settings. One row.
+ *
+ * Custom domains live here rather than on the features that use them, because a
+ * node's addresses are a property of the node — the API keeps its domain even
+ * if the frontend feature is switched off.
+ *
+ * `*Verified` records whether DNS was seen pointing at the right target, so the
+ * UI can tell "not set up" from "set up and waiting for propagation" without
+ * re-querying on every render.
+ */
+export const settings = sqliteTable('settings', {
+  id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+  apiDomain: text('api_domain'),
+  apiVerified: integer('api_verified', { mode: 'boolean' }).notNull().default(false),
+  frontendDomain: text('frontend_domain'),
+  frontendVerified: integer('frontend_verified', { mode: 'boolean' })
+    .notNull()
+    .default(false),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).default(
+    sql`(unixepoch())`,
+  ),
+})
+
+/**
+ * The GitHub account this node is connected to, and the site it publishes.
+ *
+ * At most one row: a node publishes one site. The access token is stored so the
+ * node can push config changes and manage Pages later, and is never returned by
+ * any API — see `redactConnection`.
+ */
+export const githubConnections = sqliteTable('github_connections', {
+  id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+  login: text().notNull(),
+  accessToken: text('access_token').notNull(),
+  repoOwner: text('repo_owner'),
+  repoName: text('repo_name'),
+  pagesUrl: text('pages_url'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(
+    sql`(unixepoch())`,
+  ),
+})
+
 /** One field in a form's definition. Stored as JSON on the form row. */
 export interface FormFieldDef {
   name: string

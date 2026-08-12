@@ -11,7 +11,7 @@ import {
 import type { SQL } from 'drizzle-orm'
 
 import type { NodeDb } from '#/db'
-import { formSubmissions, forms } from '#/db/schema'
+import { features, formSubmissions, forms } from '#/db/schema'
 
 /**
  * A generic REST layer speaking ra-data-simple-rest's dialect, so the admin's
@@ -26,6 +26,9 @@ import { formSubmissions, forms } from '#/db/schema'
  * the rows stay readable over HTTP.
  */
 const RESOURCES = {
+  // `feature: null` means always available. The features table itself must be,
+  // or switching one off would take away the means to switch it back on.
+  features: { table: features, feature: null },
   forms: { table: forms, feature: 'forms' },
   submissions: { table: formSubmissions, feature: 'forms' },
 }
@@ -35,12 +38,13 @@ const RESOURCES = {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type LooseTable = any
 
-function resolveResource(resource: string, features: Array<string>) {
+function resolveResource(resource: string, enabled: Array<string>) {
   if (!Object.prototype.hasOwnProperty.call(RESOURCES, resource)) return null
   const entry = RESOURCES[resource as keyof typeof RESOURCES]
+  if (entry.feature === null) return entry.table
   // A disabled feature is indistinguishable from a resource that does not
   // exist, on purpose — a node should not advertise what it is not running.
-  if (!features.includes(entry.feature)) return null
+  if (!enabled.includes(entry.feature)) return null
   return entry.table
 }
 

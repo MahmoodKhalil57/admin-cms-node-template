@@ -11,8 +11,18 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SplatRouteImport } from './routes/$'
+import { Route as ApiSettingsRouteImport } from './routes/api.settings'
 import { Route as ApiResourceIndexRouteImport } from './routes/api.$resource.index'
 import { Route as ApiResourceIdRouteImport } from './routes/api.$resource.$id'
+import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
+import { Route as ApiGithubAuthorizeRouteImport } from './routes/api.github.authorize'
+import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
+import { Route as ApiGithubSiteRouteImport } from './routes/api.github.site'
+import { Route as ApiGithubStatusRouteImport } from './routes/api.github.status'
+import { Route as ApiInternalProvisionRouteImport } from './routes/api.internal.provision'
+import { Route as ApiSettingsVerifyRouteImport } from './routes/api.settings.verify'
+import { Route as ApiPublicFormsSlugIndexRouteImport } from './routes/api.public.forms.$slug.index'
+import { Route as ApiPublicFormsSlugSubmissionsRouteImport } from './routes/api.public.forms.$slug.submissions'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,6 +32,11 @@ const IndexRoute = IndexRouteImport.update({
 const SplatRoute = SplatRouteImport.update({
   id: '/$',
   path: '/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSettingsRoute = ApiSettingsRouteImport.update({
+  id: '/api/settings',
+  path: '/api/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiResourceIndexRoute = ApiResourceIndexRouteImport.update({
@@ -34,39 +49,167 @@ const ApiResourceIdRoute = ApiResourceIdRouteImport.update({
   path: '/api/$resource/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGithubAuthorizeRoute = ApiGithubAuthorizeRouteImport.update({
+  id: '/api/github/authorize',
+  path: '/api/github/authorize',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGithubCallbackRoute = ApiGithubCallbackRouteImport.update({
+  id: '/api/github/callback',
+  path: '/api/github/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGithubSiteRoute = ApiGithubSiteRouteImport.update({
+  id: '/api/github/site',
+  path: '/api/github/site',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGithubStatusRoute = ApiGithubStatusRouteImport.update({
+  id: '/api/github/status',
+  path: '/api/github/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiInternalProvisionRoute = ApiInternalProvisionRouteImport.update({
+  id: '/api/internal/provision',
+  path: '/api/internal/provision',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSettingsVerifyRoute = ApiSettingsVerifyRouteImport.update({
+  id: '/verify',
+  path: '/verify',
+  getParentRoute: () => ApiSettingsRoute,
+} as any)
+const ApiPublicFormsSlugIndexRoute = ApiPublicFormsSlugIndexRouteImport.update({
+  id: '/api/public/forms/$slug/',
+  path: '/api/public/forms/$slug/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicFormsSlugSubmissionsRoute =
+  ApiPublicFormsSlugSubmissionsRouteImport.update({
+    id: '/api/public/forms/$slug/submissions',
+    path: '/api/public/forms/$slug/submissions',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/api/settings': typeof ApiSettingsRouteWithChildren
   '/api/$resource/$id': typeof ApiResourceIdRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/github/authorize': typeof ApiGithubAuthorizeRoute
+  '/api/github/callback': typeof ApiGithubCallbackRoute
+  '/api/github/site': typeof ApiGithubSiteRoute
+  '/api/github/status': typeof ApiGithubStatusRoute
+  '/api/internal/provision': typeof ApiInternalProvisionRoute
+  '/api/settings/verify': typeof ApiSettingsVerifyRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
+  '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
+  '/api/public/forms/$slug/': typeof ApiPublicFormsSlugIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/api/settings': typeof ApiSettingsRouteWithChildren
   '/api/$resource/$id': typeof ApiResourceIdRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/github/authorize': typeof ApiGithubAuthorizeRoute
+  '/api/github/callback': typeof ApiGithubCallbackRoute
+  '/api/github/site': typeof ApiGithubSiteRoute
+  '/api/github/status': typeof ApiGithubStatusRoute
+  '/api/internal/provision': typeof ApiInternalProvisionRoute
+  '/api/settings/verify': typeof ApiSettingsVerifyRoute
   '/api/$resource': typeof ApiResourceIndexRoute
+  '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
+  '/api/public/forms/$slug': typeof ApiPublicFormsSlugIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/api/settings': typeof ApiSettingsRouteWithChildren
   '/api/$resource/$id': typeof ApiResourceIdRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/github/authorize': typeof ApiGithubAuthorizeRoute
+  '/api/github/callback': typeof ApiGithubCallbackRoute
+  '/api/github/site': typeof ApiGithubSiteRoute
+  '/api/github/status': typeof ApiGithubStatusRoute
+  '/api/internal/provision': typeof ApiInternalProvisionRoute
+  '/api/settings/verify': typeof ApiSettingsVerifyRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
+  '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
+  '/api/public/forms/$slug/': typeof ApiPublicFormsSlugIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/$' | '/api/$resource/$id' | '/api/$resource/'
+  fullPaths:
+    | '/'
+    | '/$'
+    | '/api/settings'
+    | '/api/$resource/$id'
+    | '/api/auth/$'
+    | '/api/github/authorize'
+    | '/api/github/callback'
+    | '/api/github/site'
+    | '/api/github/status'
+    | '/api/internal/provision'
+    | '/api/settings/verify'
+    | '/api/$resource/'
+    | '/api/public/forms/$slug/submissions'
+    | '/api/public/forms/$slug/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/$' | '/api/$resource/$id' | '/api/$resource'
-  id: '__root__' | '/' | '/$' | '/api/$resource/$id' | '/api/$resource/'
+  to:
+    | '/'
+    | '/$'
+    | '/api/settings'
+    | '/api/$resource/$id'
+    | '/api/auth/$'
+    | '/api/github/authorize'
+    | '/api/github/callback'
+    | '/api/github/site'
+    | '/api/github/status'
+    | '/api/internal/provision'
+    | '/api/settings/verify'
+    | '/api/$resource'
+    | '/api/public/forms/$slug/submissions'
+    | '/api/public/forms/$slug'
+  id:
+    | '__root__'
+    | '/'
+    | '/$'
+    | '/api/settings'
+    | '/api/$resource/$id'
+    | '/api/auth/$'
+    | '/api/github/authorize'
+    | '/api/github/callback'
+    | '/api/github/site'
+    | '/api/github/status'
+    | '/api/internal/provision'
+    | '/api/settings/verify'
+    | '/api/$resource/'
+    | '/api/public/forms/$slug/submissions'
+    | '/api/public/forms/$slug/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SplatRoute: typeof SplatRoute
+  ApiSettingsRoute: typeof ApiSettingsRouteWithChildren
   ApiResourceIdRoute: typeof ApiResourceIdRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiGithubAuthorizeRoute: typeof ApiGithubAuthorizeRoute
+  ApiGithubCallbackRoute: typeof ApiGithubCallbackRoute
+  ApiGithubSiteRoute: typeof ApiGithubSiteRoute
+  ApiGithubStatusRoute: typeof ApiGithubStatusRoute
+  ApiInternalProvisionRoute: typeof ApiInternalProvisionRoute
   ApiResourceIndexRoute: typeof ApiResourceIndexRoute
+  ApiPublicFormsSlugSubmissionsRoute: typeof ApiPublicFormsSlugSubmissionsRoute
+  ApiPublicFormsSlugIndexRoute: typeof ApiPublicFormsSlugIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -85,6 +228,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/settings': {
+      id: '/api/settings'
+      path: '/api/settings'
+      fullPath: '/api/settings'
+      preLoaderRoute: typeof ApiSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/$resource/': {
       id: '/api/$resource/'
       path: '/api/$resource'
@@ -99,14 +249,98 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiResourceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/github/authorize': {
+      id: '/api/github/authorize'
+      path: '/api/github/authorize'
+      fullPath: '/api/github/authorize'
+      preLoaderRoute: typeof ApiGithubAuthorizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/github/callback': {
+      id: '/api/github/callback'
+      path: '/api/github/callback'
+      fullPath: '/api/github/callback'
+      preLoaderRoute: typeof ApiGithubCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/github/site': {
+      id: '/api/github/site'
+      path: '/api/github/site'
+      fullPath: '/api/github/site'
+      preLoaderRoute: typeof ApiGithubSiteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/github/status': {
+      id: '/api/github/status'
+      path: '/api/github/status'
+      fullPath: '/api/github/status'
+      preLoaderRoute: typeof ApiGithubStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/internal/provision': {
+      id: '/api/internal/provision'
+      path: '/api/internal/provision'
+      fullPath: '/api/internal/provision'
+      preLoaderRoute: typeof ApiInternalProvisionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/settings/verify': {
+      id: '/api/settings/verify'
+      path: '/verify'
+      fullPath: '/api/settings/verify'
+      preLoaderRoute: typeof ApiSettingsVerifyRouteImport
+      parentRoute: typeof ApiSettingsRoute
+    }
+    '/api/public/forms/$slug/': {
+      id: '/api/public/forms/$slug/'
+      path: '/api/public/forms/$slug'
+      fullPath: '/api/public/forms/$slug/'
+      preLoaderRoute: typeof ApiPublicFormsSlugIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/forms/$slug/submissions': {
+      id: '/api/public/forms/$slug/submissions'
+      path: '/api/public/forms/$slug/submissions'
+      fullPath: '/api/public/forms/$slug/submissions'
+      preLoaderRoute: typeof ApiPublicFormsSlugSubmissionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
+
+interface ApiSettingsRouteChildren {
+  ApiSettingsVerifyRoute: typeof ApiSettingsVerifyRoute
+}
+
+const ApiSettingsRouteChildren: ApiSettingsRouteChildren = {
+  ApiSettingsVerifyRoute: ApiSettingsVerifyRoute,
+}
+
+const ApiSettingsRouteWithChildren = ApiSettingsRoute._addFileChildren(
+  ApiSettingsRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
+  ApiSettingsRoute: ApiSettingsRouteWithChildren,
   ApiResourceIdRoute: ApiResourceIdRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiGithubAuthorizeRoute: ApiGithubAuthorizeRoute,
+  ApiGithubCallbackRoute: ApiGithubCallbackRoute,
+  ApiGithubSiteRoute: ApiGithubSiteRoute,
+  ApiGithubStatusRoute: ApiGithubStatusRoute,
+  ApiInternalProvisionRoute: ApiInternalProvisionRoute,
   ApiResourceIndexRoute: ApiResourceIndexRoute,
+  ApiPublicFormsSlugSubmissionsRoute: ApiPublicFormsSlugSubmissionsRoute,
+  ApiPublicFormsSlugIndexRoute: ApiPublicFormsSlugIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

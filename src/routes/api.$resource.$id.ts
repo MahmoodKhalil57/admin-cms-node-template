@@ -3,37 +3,28 @@ import { createFileRoute } from '@tanstack/react-router'
 import { getDb } from '#/db'
 import { deleteResource, getResource, updateResource } from '#/lib/rest'
 import { serverRoute } from '#/lib/server-route'
-import { enabledFeatures, getEnv } from '#/server/env'
+import { getEnv } from '#/server/env'
+import { getEnabledFeatures } from '#/server/features'
 
 export const Route = createFileRoute('/api/$resource/$id')(
   serverRoute({
-    GET: ({ request, params }) => {
-      const env = getEnv(request)
-      return getResource(
-        getDb(env),
-        enabledFeatures(env),
-        params.resource,
-        params.id,
-      )
+    GET: async ({ request, params }) => {
+      const db = getDb(getEnv(request))
+      return getResource(db, await getEnabledFeatures(db), params.resource, params.id)
     },
-    PUT: ({ request, params }) => {
-      const env = getEnv(request)
+    PUT: async ({ request, params }) => {
+      const db = getDb(getEnv(request))
       return updateResource(
-        getDb(env),
-        enabledFeatures(env),
+        db,
+        await getEnabledFeatures(db),
         params.resource,
         params.id,
         request,
       )
     },
-    DELETE: ({ request, params }) => {
-      const env = getEnv(request)
-      return deleteResource(
-        getDb(env),
-        enabledFeatures(env),
-        params.resource,
-        params.id,
-      )
+    DELETE: async ({ request, params }) => {
+      const db = getDb(getEnv(request))
+      return deleteResource(db, await getEnabledFeatures(db), params.resource, params.id)
     },
   }),
 )
