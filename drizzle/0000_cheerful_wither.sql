@@ -39,9 +39,8 @@ CREATE TABLE `github_connections` (
 --> statement-breakpoint
 CREATE TABLE `settings` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`api_domain` text,
-	`api_verified` integer DEFAULT false NOT NULL,
-	`frontend_domain` text,
+	`custom_domain` text,
 	`frontend_verified` integer DEFAULT false NOT NULL,
+	`api_verified` integer DEFAULT false NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch())
 );

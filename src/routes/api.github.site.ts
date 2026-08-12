@@ -14,6 +14,7 @@ import {
   ensureExampleForm,
 } from '#/server/github-site'
 import { currentConnection, redactConnection } from '#/server/github-store'
+import { getSettings, publicApiBase } from '#/server/settings'
 
 const DEFAULT_TEMPLATE = 'MahmoodKhalil57/pure-frontend-saastarter'
 
@@ -60,10 +61,15 @@ export const Route = createFileRoute('/api/github/site')(
         ? await ensureExampleForm(db)
         : 'early-access'
 
+      // Whatever address the API answers on right now — a verified custom
+      // domain if there is one, so a published site follows the domain instead
+      // of being pinned to the dispatcher path it was created with.
+      const backendUrl = publicApiBase(env, await getSettings(db))
+
       const shared = {
         token: connection.accessToken,
         templateRepo: env.GITHUB_TEMPLATE_REPO ?? DEFAULT_TEMPLATE,
-        backendUrl: env.PUBLIC_URL.replace(/\/+$/, ''),
+        backendUrl,
         formSlug,
         name: body.name ?? `${env.NODE_ID ?? 'site'}-website`,
       }

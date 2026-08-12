@@ -25,9 +25,9 @@ export const features = sqliteTable('features', {
 /**
  * Node-wide settings. One row.
  *
- * Custom domains live here rather than on the features that use them, because a
- * node's addresses are a property of the node — the API keeps its domain even
- * if the frontend feature is switched off.
+ * The custom domain lives here rather than on the features that use it, because
+ * a node's address is a property of the node — the API keeps its domain even if
+ * the frontend feature is switched off.
  *
  * `*Verified` records whether DNS was seen pointing at the right target, so the
  * UI can tell "not set up" from "set up and waiting for propagation" without
@@ -35,12 +35,19 @@ export const features = sqliteTable('features', {
  */
 export const settings = sqliteTable('settings', {
   id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
-  apiDomain: text('api_domain'),
-  apiVerified: integer('api_verified', { mode: 'boolean' }).notNull().default(false),
-  frontendDomain: text('frontend_domain'),
+  /**
+   * One registrable domain for the whole node.
+   *
+   * Every hostname the node needs is derived from it — the site on the apex,
+   * the API on `api.`, and email later — so the operator sets this once rather
+   * than keeping several fields in step. See `domain-plan.ts`.
+   */
+  customDomain: text('custom_domain'),
+  /** per-use verification, because the records are added and spread separately */
   frontendVerified: integer('frontend_verified', { mode: 'boolean' })
     .notNull()
     .default(false),
+  apiVerified: integer('api_verified', { mode: 'boolean' }).notNull().default(false),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(
     sql`(unixepoch())`,
   ),

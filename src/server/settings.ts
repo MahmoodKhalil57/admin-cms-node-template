@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 
 import type { NodeDb } from '#/db'
 import { settings } from '#/db/schema'
+import { apiHostname } from './domain-plan'
 import type { NodeEnv } from './env'
 
 export type NodeSettings = typeof settings.$inferSelect
@@ -15,25 +16,20 @@ export async function getSettings(db: NodeDb): Promise<NodeSettings> {
   return created
 }
 
-export async function saveSettings(
+export async function saveCustomDomain(
   db: NodeDb,
-  patch: Partial<Pick<NodeSettings, 'apiDomain' | 'frontendDomain'>>,
+  domain: string | null,
 ): Promise<NodeSettings> {
   const current = await getSettings(db)
 
-  // Changing a domain invalidates the check that was done against the old one.
-  const apiChanged =
-    patch.apiDomain !== undefined && patch.apiDomain !== current.apiDomain
-  const frontendChanged =
-    patch.frontendDomain !== undefined &&
-    patch.frontendDomain !== current.frontendDomain
+  // Changing the domain invalidates every check made against the old one.
+  const changed = domain !== current.customDomain
 
   const [updated] = await db
     .update(settings)
     .set({
-      ...patch,
-      ...(apiChanged ? { apiVerified: false } : {}),
-      ...(frontendChanged ? { frontendVerified: false } : {}),
+      customDomain: domain,
+      ...(changed ? { frontendVerified: false, apiVerified: false } : {}),
       updatedAt: new Date(),
     })
     .where(eq(settings.id, current.id))
@@ -42,7 +38,13 @@ export async function saveSettings(
   return updated
 }
 
-/** Normalises what someone types into a bare hostname. */
+/**
+ * Normalises what someone types into a bare registrable domain.
+ *
+ * Strips a scheme, a path and a leading `www.`, because someone pasting their
+ * site's address means the domain, and storing `www.example.com` would put the
+ * API on `api.www.example.com`.
+ */
 export function cleanDomain(value: string | null | undefined): string | null {
   if (!value) return null
   const trimmed = value
@@ -51,10 +53,9 @@ export function cleanDomain(value: string | null | undefined): string | null {
     .replace(/^https?:\/\//, '')
     .replace(/\/.*$/, '')
     .replace(/\.$/, '')
+    .replace(/^www\./, '')
   if (trimmed === '') return null
-  // Reject anything that is not plausibly a hostname rather than storing it and
-  // failing later at the DNS lookup.
-  return /^[a-z0-9.-]+\.[a-z]{2,}$/.test(trimmed) ? trimmed : null
+  return /^[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(trimmed) ? trimmed : null
 }
 
 /**
@@ -62,11 +63,19 @@ export function cleanDomain(value: string | null | undefined): string | null {
  *
  * A verified custom domain wins; otherwise it is the dispatcher path form the
  * node was provisioned with. This is what gets written into a published site's
- * `config.js`, so the site follows the domain automatically.
+ * `config.js`, so the site follows the domain automatically once it verifies.
  */
 export function publicApiBase(env: NodeEnv, current: NodeSettings): string {
-  if (current.apiDomain && current.apiVerified) {
-    return `https://${current.apiDomain}`
+  if (current.customDomain && current.apiVerified) {
+    return `https://${apiHostname(current.customDomain)}`
   }
   return (env.PUBLIC_URL ?? '').replace(/\/+$/, '')
+}
+
+export function dispatcherHost(env: NodeEnv): string {
+  try {
+    return new URL(env.PUBLIC_URL ?? '').hostname
+  } catch {
+    return ''
+  }
 }

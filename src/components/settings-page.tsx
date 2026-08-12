@@ -11,71 +11,71 @@ interface Requirement {
   expected: Array<string>
 }
 
-interface Check extends Requirement {
+interface Purpose {
+  key: string
+  label: string
+  description: string
+  hostname: string
+  requirement: Requirement | null
+  blocked?: string
+  verified: boolean
+}
+
+interface Result {
+  key: string
   ok: boolean
   found: Array<string>
   message: string
-  applied?: boolean
+  applied: boolean
   note?: string
 }
 
 interface SettingsState {
-  apiDomain: string | null
-  apiVerified: boolean
-  frontendDomain: string | null
-  frontendVerified: boolean
+  customDomain: string | null
   apiBase: string
-  githubOwner: string | null
+  defaultApiBase: string
   pagesUrl: string | null
-  apiTarget: string
-  requirements: { api: Requirement | null; frontend: Requirement | null }
+  githubOwner: string | null
+  purposes: Array<Purpose>
 }
 
-/** The record the user has to create, spelled out so it can be copied. */
-const RecordHint = ({ requirement }: { requirement: Requirement | null }) => {
-  if (!requirement) return null
-  return (
-    <div className="bg-muted rounded-md p-3 font-mono text-xs">
-      <div>
-        <span className="text-muted-foreground">Type&nbsp;&nbsp;</span>
-        {requirement.type}
-      </div>
-      <div>
-        <span className="text-muted-foreground">Name&nbsp;&nbsp;</span>
-        {requirement.name}
-      </div>
-      <div>
-        <span className="text-muted-foreground">Value&nbsp;</span>
-        {requirement.expected.join(requirement.type === 'A' ? ' , ' : '')}
-      </div>
+/** The record to create, spelled out so it can be copied. */
+const RecordRow = ({ requirement }: { requirement: Requirement }) => (
+  <div className="bg-muted mt-2 rounded-md p-3 font-mono text-xs">
+    <div>
+      <span className="text-muted-foreground">Type&nbsp;&nbsp;</span>
+      {requirement.type}
     </div>
-  )
-}
-
-const CheckResult = ({ check }: { check: Check | undefined }) => {
-  if (!check) return null
-  return (
-    <p className={check.ok ? 'text-sm' : 'text-sm text-destructive'}>
-      {check.ok ? '✓ ' : '✗ '}
-      {check.message}
-      {check.note ? ` ${check.note}` : ''}
-    </p>
-  )
-}
+    <div>
+      <span className="text-muted-foreground">Name&nbsp;&nbsp;</span>
+      {requirement.name}
+    </div>
+    {requirement.expected.map((value) => (
+      <div key={value}>
+        <span className="text-muted-foreground">Value&nbsp;</span>
+        {value}
+      </div>
+    ))}
+    {requirement.type === 'A' && requirement.expected.length > 1 && (
+      <div className="text-muted-foreground mt-1">
+        (all four, as separate records)
+      </div>
+    )}
+  </div>
+)
 
 /**
  * Node settings.
  *
- * Domains live here rather than on the features that use them: a node's
- * addresses belong to the node, and the API keeps its domain whether or not the
- * frontend feature is switched on.
+ * One domain for the whole node: the site, the API, and email when it lands.
+ * Every hostname is derived from it, so there is one thing to type and one
+ * place for it to be wrong.
  */
 export const SettingsPage = () => {
   const notify = useNotify()
   const [state, setState] = useState<SettingsState | null>(null)
-  const [apiDomain, setApiDomain] = useState('')
-  const [frontendDomain, setFrontendDomain] = useState('')
-  const [checks, setChecks] = useState<{ api?: Check; frontend?: Check }>({})
+  const [domain, setDomain] = useState('')
+  const [results, setResults] = useState<Record<string, Result>>({})
   const [busy, setBusy] = useState(false)
 
   const load = async () => {
@@ -83,8 +83,7 @@ export const SettingsPage = () => {
     if (!response.ok) return
     const body = (await response.json()) as SettingsState
     setState(body)
-    setApiDomain(body.apiDomain ?? '')
-    setFrontendDomain(body.frontendDomain ?? '')
+    setDomain(body.customDomain ?? '')
   }
 
   useEffect(() => {
@@ -97,19 +96,19 @@ export const SettingsPage = () => {
       const response = await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          apiDomain: apiDomain.trim() || null,
-          frontendDomain: frontendDomain.trim() || null,
-        }),
+        body: JSON.stringify({ customDomain: domain.trim() || null }),
       })
       const body = (await response.json()) as { error?: string }
       if (!response.ok) {
         notify(body.error ?? 'Could not save.', { type: 'error' })
       } else {
-        notify('Saved. Add the records below, then check them.', {
-          type: 'success',
-        })
-        setChecks({})
+        notify(
+          domain.trim()
+            ? 'Saved. Add the records below, then check them.'
+            : 'Custom domain removed.',
+          { type: 'success' },
+        )
+        setResults({})
         await load()
       }
     } finally {
@@ -121,10 +120,10 @@ export const SettingsPage = () => {
     setBusy(true)
     try {
       const response = await fetch('/api/settings/verify', { method: 'POST' })
-      const body = (await response.json()) as {
-        checks?: { api?: Check; frontend?: Check }
-      }
-      setChecks(body.checks ?? {})
+      const body = (await response.json()) as { results?: Array<Result> }
+      const byKey: Record<string, Result> = {}
+      for (const result of body.results ?? []) byKey[result.key] = result
+      setResults(byKey)
       await load()
     } finally {
       setBusy(false)
@@ -137,91 +136,88 @@ export const SettingsPage = () => {
     <div className="flex max-w-2xl flex-col gap-4 p-6">
       <Card>
         <CardHeader>
-          <CardTitle>API domain</CardTitle>
+          <CardTitle>Custom domain</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm">
           <p className="text-muted-foreground">
-            The address your website posts form submissions to. Currently{' '}
-            <code className="break-all">{state.apiBase}</code>.
+            One domain for the whole node. Your website goes on it, the API goes
+            on a subdomain, and email will use it too.
           </p>
-          <Input
-            placeholder="api.example.com"
-            value={apiDomain}
-            onChange={(event) => setApiDomain(event.target.value)}
-            className="max-w-sm"
-          />
-          {state.apiDomain && (
-            <>
-              <RecordHint requirement={state.requirements.api} />
-              <p className="text-muted-foreground text-xs">
-                A CNAME cannot sit on a bare domain, so use a subdomain such as
-                <code> api.</code> unless your DNS provider flattens them.
+          <div className="flex flex-wrap gap-2">
+            <Input
+              placeholder="example.com"
+              value={domain}
+              onChange={(event) => setDomain(event.target.value)}
+              className="max-w-sm"
+            />
+            <Button type="button" onClick={save} disabled={busy}>
+              {busy ? 'Working…' : 'Save'}
+            </Button>
+          </div>
+          <p className="text-muted-foreground text-xs">
+            Currently serving the API at{' '}
+            <code className="break-all">{state.apiBase}</code>
+            {state.apiBase === state.defaultApiBase && ' (the default address)'}.
+          </p>
+        </CardContent>
+      </Card>
+
+      {state.customDomain && (
+        <Card>
+          <CardHeader>
+            <CardTitle>DNS records</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-5 text-sm">
+            {state.purposes.map((purpose) => {
+              const result = results[purpose.key]
+              return (
+                <div key={purpose.key} className="flex flex-col gap-1">
+                  <p className="font-medium">
+                    {purpose.label}{' '}
+                    {purpose.verified && !result && (
+                      <span className="font-normal">— ✓ verified</span>
+                    )}
+                  </p>
+                  <p className="text-muted-foreground">{purpose.description}</p>
+
+                  {purpose.requirement ? (
+                    <RecordRow requirement={purpose.requirement} />
+                  ) : (
+                    <p className="text-muted-foreground italic">
+                      {purpose.blocked}
+                    </p>
+                  )}
+
+                  {result && (
+                    <p className={result.ok ? '' : 'text-destructive'}>
+                      {result.ok ? '✓ ' : '✗ '}
+                      {result.message}
+                      {result.note ? ` ${result.note}` : ''}
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+
+            <div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={verify}
+                disabled={busy}
+              >
+                {busy ? 'Checking…' : 'Check DNS'}
+              </Button>
+              <p className="text-muted-foreground mt-2 text-xs">
+                DNS changes take a few minutes to spread, so a check that fails
+                right after you add a record is normal — try again shortly. Each
+                record is checked on its own, so the website can go live while
+                the API record is still propagating.
               </p>
-              <CheckResult check={checks.api} />
-              {state.apiVerified && !checks.api && (
-                <p className="text-sm">✓ Verified.</p>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Website domain</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm">
-          {state.pagesUrl ? (
-            <p className="text-muted-foreground">
-              Your site is published at{' '}
-              <a className="underline" href={state.pagesUrl} target="_blank" rel="noreferrer">
-                {state.pagesUrl}
-              </a>
-              .
-            </p>
-          ) : (
-            <p className="text-muted-foreground">
-              Publish a site from the GitHub Pages feature first, then point a
-              domain at it here.
-            </p>
-          )}
-          <Input
-            placeholder="www.example.com"
-            value={frontendDomain}
-            onChange={(event) => setFrontendDomain(event.target.value)}
-            className="max-w-sm"
-            disabled={!state.pagesUrl}
-          />
-          {state.frontendDomain && (
-            <>
-              <RecordHint requirement={state.requirements.frontend} />
-              <CheckResult check={checks.frontend} />
-              {state.frontendVerified && !checks.frontend && (
-                <p className="text-sm">✓ Verified.</p>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="flex gap-2">
-        <Button type="button" onClick={save} disabled={busy}>
-          {busy ? 'Working…' : 'Save'}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={verify}
-          disabled={busy || (!state.apiDomain && !state.frontendDomain)}
-        >
-          {busy ? 'Checking…' : 'Check DNS'}
-        </Button>
-      </div>
-
-      <p className="text-muted-foreground text-xs">
-        DNS changes can take a few minutes to spread, so a check that fails
-        straight after you add a record is normal — try again shortly.
-      </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

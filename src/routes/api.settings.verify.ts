@@ -6,18 +6,33 @@ import { settings } from '#/db/schema'
 import { serverRoute } from '#/lib/server-route'
 import { getAuth } from '#/server/auth'
 import { getEnv } from '#/server/env'
-import type { DnsCheck } from '#/server/dns'
-import { apiRequirement, checkRecord, frontendRequirement } from '#/server/dns'
-import { currentConnection } from '#/server/github-store'
-import { getSettings, publicApiBase } from '#/server/settings'
+import { checkRecord } from '#/server/dns'
+import type { PurposeKey } from '#/server/domain-plan'
+import { planDomain } from '#/server/domain-plan'
 import { applyPagesDomain, registerApiHostname } from '#/server/domains'
+import { currentConnection } from '#/server/github-store'
+import { dispatcherHost, getSettings, publicApiBase } from '#/server/settings'
+
+interface PurposeResult {
+  key: PurposeKey
+  label: string
+  hostname: string
+  ok: boolean
+  found: Array<string>
+  message: string
+  applied: boolean
+  note?: string
+}
 
 /**
- * Checks the DNS for whichever domains are set, and applies the ones that pass.
+ * Checks every record the custom domain needs, and wires up the ones that pass.
  *
- * Verification and application are deliberately the same request: a domain that
- * resolves correctly but was never wired up is a worse state to be in than
- * either extreme, because the UI would say "verified" while nothing served it.
+ * Verification and application are the same request on purpose: a record that
+ * resolves correctly but was never wired up is a worse state than either
+ * extreme, because the screen would say "verified" while nothing served it.
+ *
+ * Each use is independent — the website can be live while the API's record is
+ * still spreading — so one failing check never blocks the others.
  */
 export const Route = createFileRoute('/api/settings/verify')(
   serverRoute({
@@ -29,90 +44,91 @@ export const Route = createFileRoute('/api/settings/verify')(
 
       const db = getDb(env)
       const current = await getSettings(db)
-      const connection = await currentConnection(db)
-
-      let host = ''
-      try {
-        host = new URL(env.PUBLIC_URL ?? '').hostname
-      } catch {
-        host = ''
+      if (!current.customDomain) {
+        return Response.json({ error: 'Set a domain first.' }, { status: 400 })
       }
 
-      const result: {
-        api?: DnsCheck & { applied?: boolean; note?: string }
-        frontend?: DnsCheck & { applied?: boolean; note?: string }
-      } = {}
+      const connection = await currentConnection(db)
+      const purposes = planDomain({
+        root: current.customDomain,
+        dispatcherHost: dispatcherHost(env),
+        githubOwner: connection?.login,
+      })
 
-      let apiVerified = current.apiVerified
-      let frontendVerified = current.frontendVerified
+      const results: Array<PurposeResult> = []
+      const verified: Record<string, boolean> = {
+        frontend: current.frontendVerified,
+        api: current.apiVerified,
+      }
 
-      if (current.apiDomain) {
-        const check = await checkRecord(apiRequirement(current.apiDomain, host))
-        apiVerified = check.ok
+      for (const purpose of purposes) {
+        if (!purpose.requirement) {
+          results.push({
+            key: purpose.key,
+            label: purpose.label,
+            hostname: purpose.hostname,
+            ok: false,
+            found: [],
+            message: purpose.blocked ?? 'Not available yet.',
+            applied: false,
+          })
+          continue
+        }
+
+        const check = await checkRecord(purpose.requirement)
+        verified[purpose.key] = check.ok
 
         let applied = false
         let note: string | undefined
+
         if (check.ok) {
-          const registered = await registerApiHostname(
-            env,
-            current.apiDomain,
-            env.NODE_ID,
-          )
-          applied = registered.ok
-          note = registered.note
-        }
-        result.api = { ...check, applied, note }
-      }
-
-      if (current.frontendDomain) {
-        if (!connection?.login || !connection.repoOwner || !connection.repoName) {
-          result.frontend = {
-            ok: false,
-            type: 'CNAME',
-            name: current.frontendDomain,
-            expected: [],
-            found: [],
-            message: 'Connect GitHub and publish a site before pointing a domain at it.',
-          }
-        } else {
-          const check = await checkRecord(
-            frontendRequirement(current.frontendDomain, connection.login),
-          )
-          frontendVerified = check.ok
-
-          let applied = false
-          let note: string | undefined
-          if (check.ok) {
-            const result_ = await applyPagesDomain(
+          if (purpose.key === 'frontend' && connection?.repoOwner && connection.repoName) {
+            const outcome = await applyPagesDomain(
               connection.accessToken,
               connection.repoOwner,
               connection.repoName,
-              current.frontendDomain,
+              purpose.hostname,
             )
-            applied = result_.ok
-            note = result_.note
+            applied = outcome.ok
+            note = outcome.note
+          } else if (purpose.key === 'api') {
+            const outcome = await registerApiHostname(
+              env,
+              purpose.hostname,
+              env.NODE_ID,
+            )
+            applied = outcome.ok
+            note = outcome.note
           }
-          result.frontend = { ...check, applied, note }
         }
+
+        results.push({
+          key: purpose.key,
+          label: purpose.label,
+          hostname: purpose.hostname,
+          ok: check.ok,
+          found: check.found,
+          message: check.message,
+          applied,
+          note,
+        })
       }
 
       await db
         .update(settings)
-        .set({ apiVerified, frontendVerified, updatedAt: new Date() })
+        .set({
+          frontendVerified: verified.frontend ?? false,
+          apiVerified: verified.api ?? false,
+          updatedAt: new Date(),
+        })
         .where(eq(settings.id, current.id))
 
       const saved = await getSettings(db)
 
       return Response.json({
         ok: true,
-        checks: result,
+        results,
         apiBase: publicApiBase(env, saved),
-        settings: {
-          apiDomain: saved.apiDomain,
-          apiVerified: saved.apiVerified,
-          frontendDomain: saved.frontendDomain,
-          frontendVerified: saved.frontendVerified,
-        },
       })
     },
   }),

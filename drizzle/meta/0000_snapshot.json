@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "66346f10-1f76-4a26-b41b-518e7f66de1c",
+  "id": "fa6699ed-3be0-4e08-90d4-1decc871341b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "features": {
@@ -263,23 +263,8 @@
           "notNull": true,
           "autoincrement": true
         },
-        "api_domain": {
-          "name": "api_domain",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "api_verified": {
-          "name": "api_verified",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
-        },
-        "frontend_domain": {
-          "name": "frontend_domain",
+        "custom_domain": {
+          "name": "custom_domain",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -287,6 +272,14 @@
         },
         "frontend_verified": {
           "name": "frontend_verified",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "api_verified": {
+          "name": "api_verified",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
