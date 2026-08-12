@@ -16,6 +16,11 @@ const config = defineConfig({
     tsconfigPaths: true
   },
   plugins: [devtools(), nitro({
+    // Each node ships as a Workers-for-Platforms user Worker. The preset emits
+    // multiple ES modules (inlineDynamicImports is false), which the upload has
+    // to send as separate parts.
+    preset: 'cloudflare-module',
+    compatibilityDate: '2025-07-13',
     rollupConfig: {
       external: [/^@sentry\//]
     }

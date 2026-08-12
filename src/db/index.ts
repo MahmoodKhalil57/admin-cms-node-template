@@ -1,5 +1,17 @@
-import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { drizzle } from 'drizzle-orm/d1'
 
-import * as schema from './schema.ts'
+import type { NodeEnv } from '#/server/env'
+import * as schema from './schema'
 
-export const db = drizzle(process.env.DATABASE_URL!, { schema })
+/**
+ * Builds a Drizzle client over this node's own D1 database.
+ *
+ * Deliberately a factory, not a module-level `db`: the binding only exists once
+ * a request is in flight, so a top-level client is `undefined` at isolate init
+ * on Workers.
+ */
+export function getDb(env: NodeEnv) {
+  return drizzle(env.DB, { schema })
+}
+
+export type NodeDb = ReturnType<typeof getDb>
