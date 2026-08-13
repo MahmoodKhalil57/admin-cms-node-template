@@ -4,6 +4,7 @@ import { getDb } from '#/db'
 import { createResource, listResource } from '#/lib/rest'
 import { serverRoute } from '#/lib/server-route'
 import { getEnv } from '#/server/env'
+import { withFormsSync } from '#/server/forms-hook'
 import { getEnabledFeatures } from '#/server/features'
 
 export const Route = createFileRoute('/api/$resource/')(
@@ -19,12 +20,13 @@ export const Route = createFileRoute('/api/$resource/')(
     },
     POST: async ({ request, params }) => {
       const db = getDb(getEnv(request))
-      return createResource(
+      const response = await createResource(
         db,
         await getEnabledFeatures(db),
         params.resource,
         request,
       )
+      return withFormsSync(db, params.resource, 'created', response)
     },
   }),
 )

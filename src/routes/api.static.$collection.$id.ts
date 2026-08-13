@@ -6,6 +6,7 @@ import { getAuth } from '#/server/auth'
 import { getEnv } from '#/server/env'
 import { collectionFor, errorResponse, repoRef } from '#/server/static-context'
 import { deleteEntry, getEntry, saveEntry } from '#/server/static-store'
+import { applyProjectToDb } from '#/server/forms-sync'
 
 export const Route = createFileRoute('/api/static/$collection/$id')(
   serverRoute({
@@ -32,7 +33,15 @@ export const Route = createFileRoute('/api/static/$collection/$id')(
         const ref = await repoRef(getDb(env))
         const { collection } = await collectionFor(ref, params.collection)
         const body = (await request.json()) as Record<string, unknown>
-        return Response.json(await saveEntry(ref, collection, params.id, body))
+        const saved = await saveEntry(ref, collection, params.id, body)
+
+        // The declaration is the point of this collection, so applying it is
+        // part of saving it rather than a later step someone has to remember.
+        if (collection.sync === 'forms') {
+          const applied = await applyProjectToDb(getDb(env), saved)
+          return Response.json({ ...saved, _sync: applied })
+        }
+        return Response.json(saved)
       } catch (error) {
         return errorResponse(error)
       }

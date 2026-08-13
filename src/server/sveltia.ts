@@ -70,6 +70,12 @@ export interface StaticCollection {
   /** whether entries in this collection can be opened in the visual builder */
   builder?: boolean
   /**
+   * What this collection is the other half of. `forms` means the entry declares
+   * the node's forms, so saving it applies the declaration and saving a form
+   * writes back here.
+   */
+  sync?: string
+  /**
    * For `files`: the fixed entries.
    *
    * Each carries its own fields, because Sveltia lets every file in a `files`
@@ -166,6 +172,7 @@ export function parseSveltiaConfig(yaml: string): Array<StaticCollection> {
         extension: String(raw.extension ?? 'json'),
         preview: raw.preview ? String(raw.preview) : undefined,
         builder: raw.builder === true,
+        sync: raw.sync ? String(raw.sync) : undefined,
         // A fixed set of files is a fixed set — nothing to add or remove.
         canCreate: false,
         canDelete: false,
@@ -188,6 +195,7 @@ export function parseSveltiaConfig(yaml: string): Array<StaticCollection> {
       folder: String(raw.folder ?? ''),
       preview: raw.preview ? String(raw.preview) : undefined,
       builder: raw.builder === true,
+      sync: raw.sync ? String(raw.sync) : undefined,
       extension: String(raw.extension ?? 'json'),
       slugField: slugFieldOf(raw),
       canCreate: raw.create === true,

@@ -92,7 +92,15 @@ export const githubConnections = sqliteTable('github_connections', {
   ),
 })
 
-/** One field in a form's definition. Stored as JSON on the form row. */
+/**
+ * One field in a form's definition. Stored as JSON on the form row.
+ *
+ * This is deliberately the same shape the site's `admin-cms.json` declares, so
+ * a field can move between the two without being translated. The node ignores
+ * `width` and `showWhen` — they say how the site draws the field, not what it
+ * accepts — but it stores them, because the alternative is dropping them every
+ * time a form is saved from the panel.
+ */
 export interface FormFieldDef {
   name: string
   label: string
@@ -108,8 +116,31 @@ export interface FormFieldDef {
     | 'date'
   required?: boolean
   placeholder?: string
-  /** for `select` */
-  options?: Array<string>
+  /** for `select`; older rows may hold plain strings */
+  options?: Array<FormChoice | string>
+  /** how wide the field sits on the site's form */
+  width?: 'full' | 'half'
+  /** the site shows this field only when a sibling matches */
+  showWhen?: {
+    field: string
+    is: 'equal' | 'not_equal' | 'filled' | 'empty'
+    value?: string
+  }
+}
+
+/** A choice on a select field: the value stored, the label shown. */
+export interface FormChoice {
+  value: string
+  label: string
+}
+
+/** Choices in one shape, whichever way the row was written. */
+export function choicesOf(field: FormFieldDef): Array<FormChoice> {
+  return (field.options ?? []).map((choice) =>
+    typeof choice === 'string'
+      ? { value: choice, label: choice }
+      : { value: String(choice.value), label: String(choice.label ?? choice.value) },
+  )
 }
 
 /**

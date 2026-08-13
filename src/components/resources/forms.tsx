@@ -23,7 +23,12 @@ export const FORM_STATUSES = [
 ]
 
 /** Field types a form can contain, matching `FormFieldDef` in the schema. */
-export const FIELD_TYPES = [
+export const WIDTHS = [
+  { id: 'full', name: 'Full' },
+  { id: 'half', name: 'Half' },
+]
+
+const FIELD_TYPES = [
   { id: 'text', name: 'Text' },
   { id: 'email', name: 'Email' },
   { id: 'tel', name: 'Phone' },
@@ -54,11 +59,28 @@ export const FormList = () => (
  */
 const FormFields = () => (
   <ArrayInput source="fields">
-    <SimpleFormIterator inline>
-      <TextInput source="name" helperText="Key used in submissions" />
-      <TextInput source="label" />
-      <SelectInput source="type" choices={FIELD_TYPES} />
-      <BooleanInput source="required" />
+    <SimpleFormIterator>
+      <div className="grid w-full gap-3 sm:grid-cols-2">
+        <TextInput
+          source="name"
+          label="Key"
+          helperText="How the value is stored in a submission"
+          className="[&_input]:font-mono"
+        />
+        <TextInput source="label" />
+        <SelectInput source="type" choices={FIELD_TYPES} />
+        <TextInput source="placeholder" helperText={false} />
+        <BooleanInput source="required" />
+        <SelectInput source="width" choices={WIDTHS} helperText="On the site" />
+      </div>
+      {/* Same shape the site's declaration uses, so a field survives a round
+          trip through either editor unchanged. */}
+      <ArrayInput source="options" label="Choices" helperText="Only for a Select field">
+        <SimpleFormIterator inline>
+          <TextInput source="value" className="[&_input]:font-mono" />
+          <TextInput source="label" />
+        </SimpleFormIterator>
+      </ArrayInput>
     </SimpleFormIterator>
   </ArrayInput>
 )

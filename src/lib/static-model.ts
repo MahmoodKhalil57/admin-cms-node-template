@@ -13,6 +13,8 @@ export interface StaticCollection {
   preview?: string
   /** entries here can be opened in the visual builder */
   builder?: boolean
+  /** `forms` when this entry declares the node's forms */
+  sync?: string
   files?: Array<{
     name: string
     label: string
