@@ -2,8 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { getDb } from '#/db'
 import { serverRoute } from '#/lib/server-route'
-import { getAuth } from '#/server/auth'
 import { getEnv } from '#/server/env'
+import { requirePermission } from '#/server/authz'
 import { getEnabledFeatures } from '#/server/features'
 import { currentConnection } from '#/server/github-store'
 import { errorResponse, repoRef } from '#/server/static-context'
@@ -15,9 +15,13 @@ export const Route = createFileRoute('/api/static/')(
   serverRoute({
     GET: async ({ request }) => {
       const env = getEnv(request)
-      if (!(await getAuth(env).api.getSession({ headers: request.headers }))) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+      const denied = await requirePermission(
+        env,
+        getDb(env),
+        request,
+        'content:read',
+      )
+      if (denied) return denied
 
       const db = getDb(env)
       // Editing the site's content only makes sense when the node publishes it.

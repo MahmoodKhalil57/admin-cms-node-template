@@ -15,6 +15,13 @@
       "when": 1786598169280,
       "tag": "0001_superb_tyrannus",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786601003904,
+      "tag": "0002_wet_quasimodo",
+      "breakpoints": true
     }
   ]
 }

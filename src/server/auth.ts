@@ -36,6 +36,12 @@ function createAuth(env: NodeEnv) {
     user: {
       additionalFields: {
         masterUserId: { type: 'string', required: false, input: false },
+        /**
+         * The key of a role row, not a fixed enum. What roles exist is the
+         * business's decision, so this column names one rather than defining
+         * it. `input: false` because nobody sets their own.
+         */
+        role: { type: 'string', required: false, input: false },
       },
     },
     session: {

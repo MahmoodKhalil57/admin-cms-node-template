@@ -4,8 +4,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import { getDb } from '#/db'
 import { settings } from '#/db/schema'
 import { serverRoute } from '#/lib/server-route'
-import { getAuth } from '#/server/auth'
 import { getEnv } from '#/server/env'
+import { requirePermission } from '#/server/authz'
 import { checkRecord } from '#/server/dns'
 import type { PurposeKey } from '#/server/domain-plan'
 import { planDomain } from '#/server/domain-plan'
@@ -42,9 +42,13 @@ export const Route = createFileRoute('/api/settings/verify')(
   serverRoute({
     POST: async ({ request }) => {
       const env = getEnv(request)
-      if (!(await getAuth(env).api.getSession({ headers: request.headers }))) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+      const denied = await requirePermission(
+        env,
+        getDb(env),
+        request,
+        'settings:write',
+      )
+      if (denied) return denied
 
       // The browser's own result, when it sent one.
       //
@@ -75,7 +79,10 @@ export const Route = createFileRoute('/api/settings/verify')(
 
       // One probe from master covers both purposes: it is the only vantage
       // point that sees what the public actually gets.
-      const registration = await registerCustomHostname(env, current.customDomain)
+      const registration = await registerCustomHostname(
+        env,
+        current.customDomain,
+      )
       const probe = registration.probe
 
       const results: Array<PurposeResult> = []

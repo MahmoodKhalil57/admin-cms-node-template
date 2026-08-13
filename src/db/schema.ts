@@ -93,6 +93,66 @@ export const githubConnections = sqliteTable('github_connections', {
 })
 
 /**
+ * A role, as the business defines it.
+ *
+ * Deliberately a row rather than a type in code. Whoever runs the business
+ * decides what its team looks like — a two-person shop with an owner and a
+ * bookkeeper, an agency with designers who may touch the site but not the
+ * submissions, a shift roster where each person only sees their own branch's
+ * enquiries. None of those shapes can be known here, so the catalog in code
+ * says what *can* be granted and rows like this say what *is*.
+ *
+ * `permissions` is the RBAC half: which keys from the catalog this role holds.
+ * `conditions` is the PBAC half: for a permission the role holds, an optional
+ * rule narrowing which records it reaches — `submissions:read` over every form
+ * is a different job from `submissions:read` over one.
+ */
+export const roles = sqliteTable('roles', {
+  id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+  /** stable id, stored on the user; renaming a role must not orphan anyone */
+  key: text().notNull().unique(),
+  name: text().notNull(),
+  description: text(),
+  permissions: text({ mode: 'json' }).$type<Array<string>>().notNull().default([]),
+  /** permission key -> field -> rule, e.g. { "submissions:read": { "formId": { "in": [3] } } } */
+  conditions: text({ mode: 'json' })
+    .$type<Record<string, RoleCondition>>()
+    .notNull()
+    .default({}),
+  /** seeded and not deletable — the node must always have a way back in */
+  builtin: integer({ mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(
+    sql`(unixepoch())`,
+  ),
+})
+
+/** How a permission is narrowed. Each entry is a field and what it must match. */
+export type RoleCondition = Record<
+  string,
+  { in?: Array<string | number>; eq?: string | number; self?: boolean }
+>
+
+/**
+ * An invitation to join this node's team.
+ *
+ * A link rather than an email, because a node has no mail sender of its own
+ * yet. The token is the credential: it is long, single-use, and expires, so a
+ * link that leaks is bounded rather than permanent.
+ */
+export const invitations = sqliteTable('invitations', {
+  id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+  email: text().notNull(),
+  roleKey: text('role_key').notNull(),
+  token: text().notNull().unique(),
+  invitedBy: text('invited_by'),
+  expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+  acceptedAt: integer('accepted_at', { mode: 'timestamp' }),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(
+    sql`(unixepoch())`,
+  ),
+})
+
+/**
  * The push webhook this node registered on the site's repository.
  *
  * Its own table rather than a column on `github_connections`, because node

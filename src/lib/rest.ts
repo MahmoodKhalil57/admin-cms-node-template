@@ -11,7 +11,10 @@ import {
 import type { SQL } from 'drizzle-orm'
 
 import type { NodeDb } from '#/db'
-import { features, formSubmissions, forms } from '#/db/schema'
+import { features, formSubmissions, forms, invitations, roles } from '#/db/schema'
+import { RESOURCE_PERMISSIONS } from '#/lib/permission-catalog'
+import type { Principal } from '#/server/authz'
+import { can, conditionFor, forbidden, matchesCondition } from '#/server/authz'
 
 /**
  * A generic REST layer speaking ra-data-simple-rest's dialect, so the admin's
@@ -31,6 +34,8 @@ const RESOURCES = {
   features: { table: features, feature: null },
   forms: { table: forms, feature: 'forms' },
   submissions: { table: formSubmissions, feature: 'forms' },
+  roles: { table: roles, feature: 'user-management' },
+  invitations: { table: invitations, feature: 'user-management' },
 }
 
 // Drizzle's table types are heavily generic; the generic handlers below work
@@ -71,6 +76,54 @@ function notFound(resource: string) {
  * is exact equality. Unknown keys are ignored rather than erroring, because
  * react-admin sends its own bookkeeping fields through the same object.
  */
+/**
+ * A narrowed grant, as SQL.
+ *
+ * Applied to the query rather than to its results, so the count and the pages
+ * agree with what the reader may actually see. Filtering afterwards would leave
+ * a list claiming forty submissions and showing three.
+ */
+function conditionWhere(
+  table: LooseTable,
+  principal: Principal,
+  permission: string,
+): SQL | undefined {
+  const condition = conditionFor(principal, permission)
+  if (!condition) return undefined
+
+  const columns = getTableColumns(table)
+  const parts: Array<SQL> = []
+
+  for (const [field, rule] of Object.entries(condition)) {
+    const column = columns[field]
+    if (!column) continue
+    if (rule.self) parts.push(eq(column, principal.userId))
+    else if (rule.eq !== undefined) parts.push(eq(column, rule.eq))
+    else if (rule.in?.length) parts.push(inArray(column, rule.in))
+  }
+
+  return parts.length > 0 ? and(...parts) : undefined
+}
+
+/** What this call needs, and whether the caller has it. */
+function guard(
+  resource: string,
+  action: 'read' | 'write' | 'delete',
+  principal: Principal | null,
+): { ok: true; permission: string } | { ok: false; response: Response } {
+  const required = RESOURCE_PERMISSIONS[resource]
+  // A resource nobody thought to map is refused rather than opened: forgetting
+  // an entry should cost a 403, not everything behind it.
+  const permission = required?.[action] ?? required?.write
+  if (!permission) {
+    return { ok: false, response: forbidden(`${resource}:${action}`) }
+  }
+  if (!can(principal, permission)) {
+    return { ok: false, response: forbidden(permission) }
+  }
+  return { ok: true, permission }
+}
+
 function buildWhere(
   table: LooseTable,
   filter: Record<string, unknown>,
@@ -101,9 +154,13 @@ export async function listResource(
   features: Array<string>,
   resource: string,
   url: URL,
+  principal: Principal | null,
 ) {
   const table = resolveResource(resource, features)
   if (!table) return notFound(resource)
+
+  const allowed = guard(resource, 'read', principal)
+  if (!allowed.ok) return allowed.response
 
   const columns = getTableColumns(table as LooseTable)
   const filter = parseJson<Record<string, unknown>>(
@@ -119,7 +176,10 @@ export async function listResource(
     [0, 24],
   )
 
-  const where = buildWhere(table, filter)
+  const where = and(
+    buildWhere(table, filter),
+    conditionWhere(table, principal!, allowed.permission),
+  )
   const sortColumn = columns[sortField] ?? columns.id
   const direction = String(sortOrder).toUpperCase() === 'DESC' ? desc : asc
 
@@ -152,9 +212,13 @@ export async function getResource(
   features: Array<string>,
   resource: string,
   id: string,
+  principal: Principal | null,
 ) {
   const table = resolveResource(resource, features)
   if (!table) return notFound(resource)
+
+  const allowed = guard(resource, 'read', principal)
+  if (!allowed.ok) return allowed.response
 
   const columns = getTableColumns(table as LooseTable)
   const [row] = await db
@@ -164,6 +228,11 @@ export async function getResource(
     .limit(1)
 
   if (!row) return Response.json({ error: 'Not found' }, { status: 404 })
+  // Outside a narrowed grant the record is not forbidden, it is absent: saying
+  // "you may not see submission 41" still says submission 41 exists.
+  if (!matchesCondition(conditionFor(principal, allowed.permission), row, principal!)) {
+    return Response.json({ error: 'Not found' }, { status: 404 })
+  }
   return Response.json(row)
 }
 
@@ -172,11 +241,20 @@ export async function createResource(
   features: Array<string>,
   resource: string,
   request: Request,
+  principal: Principal | null,
 ) {
   const table = resolveResource(resource, features)
   if (!table) return notFound(resource)
 
+  const allowed = guard(resource, 'write', principal)
+  if (!allowed.ok) return allowed.response
+
   const body = (await request.json()) as Record<string, unknown>
+  // Checked on the way in as well as the way out: a grant narrowed to one form
+  // that still let you file rows against another would not be narrowed at all.
+  if (!matchesCondition(conditionFor(principal, allowed.permission), body, principal!)) {
+    return forbidden(allowed.permission)
+  }
   const rows = (await db
     .insert(table as LooseTable)
     .values(stripReadOnly(table, body))
@@ -191,16 +269,27 @@ export async function updateResource(
   resource: string,
   id: string,
   request: Request,
+  principal: Principal | null,
 ) {
   const table = resolveResource(resource, features)
   if (!table) return notFound(resource)
+
+  const allowed = guard(resource, 'write', principal)
+  if (!allowed.ok) return allowed.response
 
   const columns = getTableColumns(table as LooseTable)
   const body = (await request.json()) as Record<string, unknown>
   const rows = (await db
     .update(table as LooseTable)
     .set(stripReadOnly(table, body))
-    .where(eq(columns.id, Number(id)))
+    // The narrowing rides on the WHERE, so a row outside the grant simply is
+    // not found — no read-then-write gap for it to slip through.
+    .where(
+      and(
+        eq(columns.id, Number(id)),
+        conditionWhere(table, principal!, allowed.permission),
+      ),
+    )
     .returning()) as Array<Record<string, unknown>>
 
   if (!rows[0]) return Response.json({ error: 'Not found' }, { status: 404 })
@@ -212,14 +301,23 @@ export async function deleteResource(
   features: Array<string>,
   resource: string,
   id: string,
+  principal: Principal | null,
 ) {
   const table = resolveResource(resource, features)
   if (!table) return notFound(resource)
 
+  const allowed = guard(resource, 'delete', principal)
+  if (!allowed.ok) return allowed.response
+
   const columns = getTableColumns(table as LooseTable)
   const rows = (await db
     .delete(table as LooseTable)
-    .where(eq(columns.id, Number(id)))
+    .where(
+      and(
+        eq(columns.id, Number(id)),
+        conditionWhere(table, principal!, allowed.permission),
+      ),
+    )
     .returning()) as Array<Record<string, unknown>>
 
   if (!rows[0]) return Response.json({ error: 'Not found' }, { status: 404 })

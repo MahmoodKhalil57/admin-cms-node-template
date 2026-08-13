@@ -2,21 +2,29 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { getDb } from '#/db'
 import { serverRoute } from '#/lib/server-route'
-import { getAuth } from '#/server/auth'
 import { getEnv } from '#/server/env'
+import { requirePermission } from '#/server/authz'
 import { getEnabledFeatures } from '#/server/features'
 import { currentConnection, redactConnection } from '#/server/github-store'
-import { currentHook, ensureRepoHook, HookError, HOOK_PATH } from '#/server/repo-hook'
+import {
+  currentHook,
+  ensureRepoHook,
+  HookError,
+  HOOK_PATH,
+} from '#/server/repo-hook'
 import { repoRef } from '#/server/static-context'
-
 
 export const Route = createFileRoute('/api/github/status')(
   serverRoute({
     GET: async ({ request }) => {
       const env = getEnv(request)
-      if (!(await getAuth(env).api.getSession({ headers: request.headers }))) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+      const denied = await requirePermission(
+        env,
+        getDb(env),
+        request,
+        'website:manage',
+      )
+      if (denied) return denied
 
       const db = getDb(env)
       if (!(await getEnabledFeatures(db)).includes('github-pages')) {
@@ -37,9 +45,13 @@ export const Route = createFileRoute('/api/github/status')(
     /** Register the push webhook, or point an existing one back at this node. */
     POST: async ({ request }) => {
       const env = getEnv(request)
-      if (!(await getAuth(env).api.getSession({ headers: request.headers }))) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+      const denied = await requirePermission(
+        env,
+        getDb(env),
+        request,
+        'website:manage',
+      )
+      if (denied) return denied
 
       const db = getDb(env)
       try {
@@ -63,9 +75,13 @@ export const Route = createFileRoute('/api/github/status')(
 
     DELETE: async ({ request }) => {
       const env = getEnv(request)
-      if (!(await getAuth(env).api.getSession({ headers: request.headers }))) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+      const denied = await requirePermission(
+        env,
+        getDb(env),
+        request,
+        'website:manage',
+      )
+      if (denied) return denied
 
       const db = getDb(env)
       const { githubConnections } = await import('#/db/schema')

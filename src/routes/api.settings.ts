@@ -2,8 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { getDb } from '#/db'
 import { serverRoute } from '#/lib/server-route'
-import { getAuth } from '#/server/auth'
 import { getEnv } from '#/server/env'
+import { requirePermission } from '#/server/authz'
 import { detectCloudflare } from '#/server/dns'
 import { currentCloudflare } from '#/server/cloudflare-store'
 import { planDomain } from '#/server/domain-plan'
@@ -20,9 +20,13 @@ export const Route = createFileRoute('/api/settings')(
   serverRoute({
     GET: async ({ request }) => {
       const env = getEnv(request)
-      if (!(await getAuth(env).api.getSession({ headers: request.headers }))) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+      const denied = await requirePermission(
+        env,
+        getDb(env),
+        request,
+        'settings:read',
+      )
+      if (denied) return denied
 
       const db = getDb(env)
       const current = await getSettings(db)
@@ -71,9 +75,13 @@ export const Route = createFileRoute('/api/settings')(
 
     PUT: async ({ request }) => {
       const env = getEnv(request)
-      if (!(await getAuth(env).api.getSession({ headers: request.headers }))) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+      const denied = await requirePermission(
+        env,
+        getDb(env),
+        request,
+        'settings:write',
+      )
+      if (denied) return denied
 
       const body = (await request.json().catch(() => ({}))) as {
         customDomain?: string | null

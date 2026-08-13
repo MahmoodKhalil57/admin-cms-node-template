@@ -2,8 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { getDb } from '#/db'
 import { serverRoute } from '#/lib/server-route'
-import { getAuth } from '#/server/auth'
 import { getEnv } from '#/server/env'
+import { requirePermission } from '#/server/authz'
 import { githubRedirectUri } from '#/server/github-oauth'
 import { getEnabledFeatures } from '#/server/features'
 import { buildAuthorizeUrl, signState } from '#/server/github-oauth'
@@ -24,9 +24,13 @@ export const Route = createFileRoute('/api/github/authorize')(
   serverRoute({
     GET: async ({ request }) => {
       const env = getEnv(request)
-      if (!(await getAuth(env).api.getSession({ headers: request.headers }))) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+      const denied = await requirePermission(
+        env,
+        getDb(env),
+        request,
+        'website:manage',
+      )
+      if (denied) return denied
       if (!(await getEnabledFeatures(getDb(env))).includes('github-pages')) {
         return Response.json({ error: 'Not found' }, { status: 404 })
       }

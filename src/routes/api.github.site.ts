@@ -4,8 +4,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import { getDb } from '#/db'
 import { githubConnections } from '#/db/schema'
 import { serverRoute } from '#/lib/server-route'
-import { getAuth } from '#/server/auth'
 import { getEnv } from '#/server/env'
+import { requirePermission } from '#/server/authz'
 import { getEnabledFeatures } from '#/server/features'
 import {
   SiteError,
@@ -29,9 +29,13 @@ export const Route = createFileRoute('/api/github/site')(
   serverRoute({
     POST: async ({ request }) => {
       const env = getEnv(request)
-      if (!(await getAuth(env).api.getSession({ headers: request.headers }))) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+      const denied = await requirePermission(
+        env,
+        getDb(env),
+        request,
+        'website:manage',
+      )
+      if (denied) return denied
 
       const db = getDb(env)
       const enabled = await getEnabledFeatures(db)
@@ -41,7 +45,10 @@ export const Route = createFileRoute('/api/github/site')(
 
       const connection = await currentConnection(db)
       if (!connection) {
-        return Response.json({ error: 'Connect GitHub first.' }, { status: 400 })
+        return Response.json(
+          { error: 'Connect GitHub first.' },
+          { status: 400 },
+        )
       }
       if (!env.PUBLIC_URL) {
         return Response.json(

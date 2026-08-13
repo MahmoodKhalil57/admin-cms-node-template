@@ -13,7 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminSplatRouteImport } from './routes/admin.$'
 import { Route as AdminBuilderRouteImport } from './routes/admin.builder'
+import { Route as AdminJoinRouteImport } from './routes/admin.join'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
+import { Route as ApiPermissionsRouteImport } from './routes/api.permissions'
 import { Route as ApiSettingsRouteImport } from './routes/api.settings'
 import { Route as ApiResourceIndexRouteImport } from './routes/api.$resource.index'
 import { Route as ApiResourceIdRouteImport } from './routes/api.$resource.$id'
@@ -29,8 +31,12 @@ import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callb
 import { Route as ApiGithubSiteRouteImport } from './routes/api.github.site'
 import { Route as ApiGithubStatusRouteImport } from './routes/api.github.status'
 import { Route as ApiInternalProvisionRouteImport } from './routes/api.internal.provision'
+import { Route as ApiInvitationsAcceptRouteImport } from './routes/api.invitations.accept'
+import { Route as ApiInvitationsCreateRouteImport } from './routes/api.invitations.create'
 import { Route as ApiSettingsVerifyRouteImport } from './routes/api.settings.verify'
 import { Route as ApiStaticIndexRouteImport } from './routes/api.static.index'
+import { Route as ApiTeamIndexRouteImport } from './routes/api.team.index'
+import { Route as ApiTeamIdRouteImport } from './routes/api.team.$id'
 import { Route as ApiWebhooksGithubRouteImport } from './routes/api.webhooks.github'
 import { Route as ApiStaticCollectionIndexRouteImport } from './routes/api.static.$collection.index'
 import { Route as ApiStaticCollectionIdRouteImport } from './routes/api.static.$collection.$id'
@@ -57,9 +63,19 @@ const AdminBuilderRoute = AdminBuilderRouteImport.update({
   path: '/admin/builder',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminJoinRoute = AdminJoinRouteImport.update({
+  id: '/admin/join',
+  path: '/admin/join',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPermissionsRoute = ApiPermissionsRouteImport.update({
+  id: '/api/permissions',
+  path: '/api/permissions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSettingsRoute = ApiSettingsRouteImport.update({
@@ -137,6 +153,16 @@ const ApiInternalProvisionRoute = ApiInternalProvisionRouteImport.update({
   path: '/api/internal/provision',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiInvitationsAcceptRoute = ApiInvitationsAcceptRouteImport.update({
+  id: '/api/invitations/accept',
+  path: '/api/invitations/accept',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiInvitationsCreateRoute = ApiInvitationsCreateRouteImport.update({
+  id: '/api/invitations/create',
+  path: '/api/invitations/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSettingsVerifyRoute = ApiSettingsVerifyRouteImport.update({
   id: '/verify',
   path: '/verify',
@@ -145,6 +171,16 @@ const ApiSettingsVerifyRoute = ApiSettingsVerifyRouteImport.update({
 const ApiStaticIndexRoute = ApiStaticIndexRouteImport.update({
   id: '/api/static/',
   path: '/api/static/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTeamIndexRoute = ApiTeamIndexRouteImport.update({
+  id: '/api/team/',
+  path: '/api/team/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTeamIdRoute = ApiTeamIdRouteImport.update({
+  id: '/api/team/$id',
+  path: '/api/team/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWebhooksGithubRoute = ApiWebhooksGithubRouteImport.update({
@@ -179,7 +215,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin/$': typeof AdminSplatRoute
   '/admin/builder': typeof AdminBuilderRoute
+  '/admin/join': typeof AdminJoinRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/permissions': typeof ApiPermissionsRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
@@ -195,10 +233,14 @@ export interface FileRoutesByFullPath {
   '/api/github/site': typeof ApiGithubSiteRoute
   '/api/github/status': typeof ApiGithubStatusRoute
   '/api/internal/provision': typeof ApiInternalProvisionRoute
+  '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
+  '/api/invitations/create': typeof ApiInvitationsCreateRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
+  '/api/team/$id': typeof ApiTeamIdRoute
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
   '/api/static/': typeof ApiStaticIndexRoute
+  '/api/team/': typeof ApiTeamIndexRoute
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
   '/api/static/$collection/': typeof ApiStaticCollectionIndexRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
@@ -208,7 +250,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin/$': typeof AdminSplatRoute
   '/admin/builder': typeof AdminBuilderRoute
+  '/admin/join': typeof AdminJoinRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/permissions': typeof ApiPermissionsRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
   '/admin': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
@@ -224,10 +268,14 @@ export interface FileRoutesByTo {
   '/api/github/site': typeof ApiGithubSiteRoute
   '/api/github/status': typeof ApiGithubStatusRoute
   '/api/internal/provision': typeof ApiInternalProvisionRoute
+  '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
+  '/api/invitations/create': typeof ApiInvitationsCreateRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
+  '/api/team/$id': typeof ApiTeamIdRoute
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
   '/api/$resource': typeof ApiResourceIndexRoute
   '/api/static': typeof ApiStaticIndexRoute
+  '/api/team': typeof ApiTeamIndexRoute
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
   '/api/static/$collection': typeof ApiStaticCollectionIndexRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
@@ -238,7 +286,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin/$': typeof AdminSplatRoute
   '/admin/builder': typeof AdminBuilderRoute
+  '/admin/join': typeof AdminJoinRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/permissions': typeof ApiPermissionsRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
@@ -254,10 +304,14 @@ export interface FileRoutesById {
   '/api/github/site': typeof ApiGithubSiteRoute
   '/api/github/status': typeof ApiGithubStatusRoute
   '/api/internal/provision': typeof ApiInternalProvisionRoute
+  '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
+  '/api/invitations/create': typeof ApiInvitationsCreateRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
+  '/api/team/$id': typeof ApiTeamIdRoute
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
   '/api/static/': typeof ApiStaticIndexRoute
+  '/api/team/': typeof ApiTeamIndexRoute
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
   '/api/static/$collection/': typeof ApiStaticCollectionIndexRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
@@ -269,7 +323,9 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/$'
     | '/admin/builder'
+    | '/admin/join'
     | '/api/health'
+    | '/api/permissions'
     | '/api/settings'
     | '/admin/'
     | '/api/$resource/$id'
@@ -285,10 +341,14 @@ export interface FileRouteTypes {
     | '/api/github/site'
     | '/api/github/status'
     | '/api/internal/provision'
+    | '/api/invitations/accept'
+    | '/api/invitations/create'
     | '/api/settings/verify'
+    | '/api/team/$id'
     | '/api/webhooks/github'
     | '/api/$resource/'
     | '/api/static/'
+    | '/api/team/'
     | '/api/static/$collection/$id'
     | '/api/static/$collection/'
     | '/api/public/forms/$slug/submissions'
@@ -298,7 +358,9 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/$'
     | '/admin/builder'
+    | '/admin/join'
     | '/api/health'
+    | '/api/permissions'
     | '/api/settings'
     | '/admin'
     | '/api/$resource/$id'
@@ -314,10 +376,14 @@ export interface FileRouteTypes {
     | '/api/github/site'
     | '/api/github/status'
     | '/api/internal/provision'
+    | '/api/invitations/accept'
+    | '/api/invitations/create'
     | '/api/settings/verify'
+    | '/api/team/$id'
     | '/api/webhooks/github'
     | '/api/$resource'
     | '/api/static'
+    | '/api/team'
     | '/api/static/$collection/$id'
     | '/api/static/$collection'
     | '/api/public/forms/$slug/submissions'
@@ -327,7 +393,9 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/$'
     | '/admin/builder'
+    | '/admin/join'
     | '/api/health'
+    | '/api/permissions'
     | '/api/settings'
     | '/admin/'
     | '/api/$resource/$id'
@@ -343,10 +411,14 @@ export interface FileRouteTypes {
     | '/api/github/site'
     | '/api/github/status'
     | '/api/internal/provision'
+    | '/api/invitations/accept'
+    | '/api/invitations/create'
     | '/api/settings/verify'
+    | '/api/team/$id'
     | '/api/webhooks/github'
     | '/api/$resource/'
     | '/api/static/'
+    | '/api/team/'
     | '/api/static/$collection/$id'
     | '/api/static/$collection/'
     | '/api/public/forms/$slug/submissions'
@@ -357,7 +429,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminSplatRoute: typeof AdminSplatRoute
   AdminBuilderRoute: typeof AdminBuilderRoute
+  AdminJoinRoute: typeof AdminJoinRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiPermissionsRoute: typeof ApiPermissionsRoute
   ApiSettingsRoute: typeof ApiSettingsRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
   ApiResourceIdRoute: typeof ApiResourceIdRoute
@@ -373,9 +447,13 @@ export interface RootRouteChildren {
   ApiGithubSiteRoute: typeof ApiGithubSiteRoute
   ApiGithubStatusRoute: typeof ApiGithubStatusRoute
   ApiInternalProvisionRoute: typeof ApiInternalProvisionRoute
+  ApiInvitationsAcceptRoute: typeof ApiInvitationsAcceptRoute
+  ApiInvitationsCreateRoute: typeof ApiInvitationsCreateRoute
+  ApiTeamIdRoute: typeof ApiTeamIdRoute
   ApiWebhooksGithubRoute: typeof ApiWebhooksGithubRoute
   ApiResourceIndexRoute: typeof ApiResourceIndexRoute
   ApiStaticIndexRoute: typeof ApiStaticIndexRoute
+  ApiTeamIndexRoute: typeof ApiTeamIndexRoute
   ApiStaticCollectionIdRoute: typeof ApiStaticCollectionIdRoute
   ApiStaticCollectionIndexRoute: typeof ApiStaticCollectionIndexRoute
   ApiPublicFormsSlugSubmissionsRoute: typeof ApiPublicFormsSlugSubmissionsRoute
@@ -412,11 +490,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBuilderRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/join': {
+      id: '/admin/join'
+      path: '/admin/join'
+      fullPath: '/admin/join'
+      preLoaderRoute: typeof AdminJoinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/health': {
       id: '/api/health'
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/permissions': {
+      id: '/api/permissions'
+      path: '/api/permissions'
+      fullPath: '/api/permissions'
+      preLoaderRoute: typeof ApiPermissionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/settings': {
@@ -524,6 +616,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiInternalProvisionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/invitations/accept': {
+      id: '/api/invitations/accept'
+      path: '/api/invitations/accept'
+      fullPath: '/api/invitations/accept'
+      preLoaderRoute: typeof ApiInvitationsAcceptRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/invitations/create': {
+      id: '/api/invitations/create'
+      path: '/api/invitations/create'
+      fullPath: '/api/invitations/create'
+      preLoaderRoute: typeof ApiInvitationsCreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/settings/verify': {
       id: '/api/settings/verify'
       path: '/verify'
@@ -536,6 +642,20 @@ declare module '@tanstack/react-router' {
       path: '/api/static'
       fullPath: '/api/static/'
       preLoaderRoute: typeof ApiStaticIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/team/': {
+      id: '/api/team/'
+      path: '/api/team'
+      fullPath: '/api/team/'
+      preLoaderRoute: typeof ApiTeamIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/team/$id': {
+      id: '/api/team/$id'
+      path: '/api/team/$id'
+      fullPath: '/api/team/$id'
+      preLoaderRoute: typeof ApiTeamIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/webhooks/github': {
@@ -592,7 +712,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminSplatRoute: AdminSplatRoute,
   AdminBuilderRoute: AdminBuilderRoute,
+  AdminJoinRoute: AdminJoinRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiPermissionsRoute: ApiPermissionsRoute,
   ApiSettingsRoute: ApiSettingsRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
   ApiResourceIdRoute: ApiResourceIdRoute,
@@ -608,9 +730,13 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGithubSiteRoute: ApiGithubSiteRoute,
   ApiGithubStatusRoute: ApiGithubStatusRoute,
   ApiInternalProvisionRoute: ApiInternalProvisionRoute,
+  ApiInvitationsAcceptRoute: ApiInvitationsAcceptRoute,
+  ApiInvitationsCreateRoute: ApiInvitationsCreateRoute,
+  ApiTeamIdRoute: ApiTeamIdRoute,
   ApiWebhooksGithubRoute: ApiWebhooksGithubRoute,
   ApiResourceIndexRoute: ApiResourceIndexRoute,
   ApiStaticIndexRoute: ApiStaticIndexRoute,
+  ApiTeamIndexRoute: ApiTeamIndexRoute,
   ApiStaticCollectionIdRoute: ApiStaticCollectionIdRoute,
   ApiStaticCollectionIndexRoute: ApiStaticCollectionIndexRoute,
   ApiPublicFormsSlugSubmissionsRoute: ApiPublicFormsSlugSubmissionsRoute,

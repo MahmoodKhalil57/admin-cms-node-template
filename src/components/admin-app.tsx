@@ -1,6 +1,12 @@
 import { Resource } from 'ra-core'
 import { tanStackRouterProvider } from 'ra-router-tanstack'
-import { FileText, Settings2, SlidersHorizontal } from 'lucide-react'
+import {
+  FileText,
+  Settings2,
+  ShieldCheck,
+  SlidersHorizontal,
+  Users,
+} from 'lucide-react'
 
 import { Admin } from '#/components/admin'
 import { NodeLayout } from '#/components/node-layout'
@@ -16,6 +22,9 @@ import {
   staticList,
 } from '#/components/static/screens'
 import { BuilderOverlay } from '#/components/static/builder'
+import { RoleCreate, RoleEdit, RoleList } from '#/components/resources/roles'
+import { TeamPage } from '#/components/resources/team'
+import { holds, useMyPermissions } from '#/lib/my-permissions'
 import { FeatureEdit, FeatureList } from '#/components/resources/features'
 import {
   FormCreate,
@@ -66,6 +75,11 @@ export function AdminApp() {
   }
 
   const forms = enabled.includes('forms')
+  const team = enabled.includes('user-management')
+  // What this person may reach. Cosmetic on its own — every one of these is
+  // checked again on the server — but a panel offering screens that answer 403
+  // is worse than one that does not offer them.
+  const mine = useMyPermissions()
 
   return (
     <>
@@ -85,7 +99,7 @@ export function AdminApp() {
         disableTelemetry
         title="Node admin"
       >
-        {forms && (
+        {forms && holds(mine, 'forms:read') && (
           <Resource
             name="forms"
             list={FormList}
@@ -95,7 +109,7 @@ export function AdminApp() {
             recordRepresentation="name"
           />
         )}
-        {forms && (
+        {forms && holds(mine, 'submissions:read') && (
           <Resource
             name="submissions"
             list={SubmissionList}
@@ -106,36 +120,63 @@ export function AdminApp() {
           files its static CMS writes, so either surface produces the same
           commits. Collections come from the repo at runtime, which is why they
           are mapped rather than listed. */}
-        {(staticModel?.collections ?? []).map((collection) => (
+        {holds(mine, 'content:read') &&
+          (staticModel?.collections ?? []).map((collection) => (
+            <Resource
+              key={collection.name}
+              name={`static/${collection.name}`}
+              options={{ label: collection.label, group: 'Static' }}
+              list={staticList(collection)}
+              edit={staticEdit(collection, staticModel?.siteUrl ?? '')}
+              create={
+                collection.canCreate ? staticCreate(collection) : undefined
+              }
+              icon={FileText}
+            />
+          ))}
+
+        {team && holds(mine, 'team:read') && (
           <Resource
-            key={collection.name}
-            name={`static/${collection.name}`}
-            options={{ label: collection.label, group: 'Static' }}
-            list={staticList(collection)}
-            edit={staticEdit(collection, staticModel?.siteUrl ?? '')}
-            create={collection.canCreate ? staticCreate(collection) : undefined}
-            icon={FileText}
+            name="team"
+            options={{ label: 'Team', group: 'Team' }}
+            list={TeamPage}
+            icon={Users}
           />
-        ))}
+        )}
+        {team && holds(mine, 'team:manage') && (
+          <Resource
+            name="roles"
+            options={{ label: 'Roles', group: 'Team' }}
+            list={RoleList}
+            edit={RoleEdit}
+            create={RoleCreate}
+            icon={ShieldCheck}
+            recordRepresentation="name"
+          />
+        )}
 
         {/* Node-wide, so always present: a node's addresses belong to the node,
           not to whichever feature happens to use them. */}
-        <Resource
-          name="settings"
-          options={{ label: 'Settings' }}
-          list={SettingsPage}
-          icon={SlidersHorizontal}
-        />
-        {/* Always registered — switching a feature off must not remove the way
-          to switch it back on. */}
-        <Resource
-          name="features"
-          options={{ label: 'Features' }}
-          list={FeatureList}
-          edit={FeatureEdit}
-          icon={Settings2}
-          recordRepresentation="key"
-        />
+        {holds(mine, 'settings:read') && (
+          <Resource
+            name="settings"
+            options={{ label: 'Settings' }}
+            list={SettingsPage}
+            icon={SlidersHorizontal}
+          />
+        )}
+        {/* Always registered for anyone who may manage them — switching a
+          feature off must not remove the way to switch it back on. */}
+        {holds(mine, 'features:manage') && (
+          <Resource
+            name="features"
+            options={{ label: 'Features' }}
+            list={FeatureList}
+            edit={FeatureEdit}
+            icon={Settings2}
+            recordRepresentation="key"
+          />
+        )}
       </Admin>
     </>
   )

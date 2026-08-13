@@ -2,8 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { getDb } from '#/db'
 import { serverRoute } from '#/lib/server-route'
-import { getAuth } from '#/server/auth'
 import { getEnv } from '#/server/env'
+import { requirePermission } from '#/server/authz'
 import { collectionFor, errorResponse, repoRef } from '#/server/static-context'
 import { deleteEntry, getEntry, saveEntry } from '#/server/static-store'
 
@@ -11,9 +11,13 @@ export const Route = createFileRoute('/api/static/$collection/$id')(
   serverRoute({
     GET: async ({ request, params }) => {
       const env = getEnv(request)
-      if (!(await getAuth(env).api.getSession({ headers: request.headers }))) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+      const denied = await requirePermission(
+        env,
+        getDb(env),
+        request,
+        'content:read',
+      )
+      if (denied) return denied
       try {
         const ref = await repoRef(getDb(env))
         const { collection } = await collectionFor(ref, params.collection)
@@ -25,9 +29,13 @@ export const Route = createFileRoute('/api/static/$collection/$id')(
 
     PUT: async ({ request, params }) => {
       const env = getEnv(request)
-      if (!(await getAuth(env).api.getSession({ headers: request.headers }))) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+      const denied = await requirePermission(
+        env,
+        getDb(env),
+        request,
+        'content:write',
+      )
+      if (denied) return denied
       try {
         const ref = await repoRef(getDb(env))
         const { collection } = await collectionFor(ref, params.collection)
@@ -43,9 +51,13 @@ export const Route = createFileRoute('/api/static/$collection/$id')(
 
     DELETE: async ({ request, params }) => {
       const env = getEnv(request)
-      if (!(await getAuth(env).api.getSession({ headers: request.headers }))) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+      const denied = await requirePermission(
+        env,
+        getDb(env),
+        request,
+        'content:write',
+      )
+      if (denied) return denied
       try {
         const ref = await repoRef(getDb(env))
         const { collection } = await collectionFor(ref, params.collection)

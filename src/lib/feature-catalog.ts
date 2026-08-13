@@ -36,6 +36,15 @@ export const FEATURE_CATALOG: Array<FeatureDefinition> = [
     resources: ['forms', 'submissions'],
   },
   {
+    key: 'user-management',
+    name: 'Team and permissions',
+    description:
+      'Invite the rest of the team and decide what each of them can reach. ' +
+      'Roles are yours to define — the node only says what can be granted, not who should have it.',
+    defaultEnabled: false,
+    resources: ['team', 'roles', 'invitations'],
+  },
+  {
     key: 'github-pages',
     name: 'GitHub Pages frontend',
     description:

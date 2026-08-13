@@ -2,8 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { getDb } from '#/db'
 import { serverRoute } from '#/lib/server-route'
-import { getAuth } from '#/server/auth'
 import { getEnv } from '#/server/env'
+import { requirePermission } from '#/server/authz'
 import { errorResponse, repoRef } from '#/server/static-context'
 import { listRepoDir, readRepoFile } from '#/server/builder-store'
 
@@ -17,9 +17,13 @@ export const Route = createFileRoute('/api/builder/file')(
   serverRoute({
     GET: async ({ request }) => {
       const env = getEnv(request)
-      if (!(await getAuth(env).api.getSession({ headers: request.headers }))) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+      const denied = await requirePermission(
+        env,
+        getDb(env),
+        request,
+        'content:write',
+      )
+      if (denied) return denied
       try {
         const url = new URL(request.url)
         const path = url.searchParams.get('path') ?? ''

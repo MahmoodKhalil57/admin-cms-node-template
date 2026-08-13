@@ -2,8 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { getDb } from '#/db'
 import { serverRoute } from '#/lib/server-route'
-import { getAuth } from '#/server/auth'
 import { getEnv } from '#/server/env'
+import { can, principalFrom } from '#/server/authz'
 import { currentConnection } from '#/server/github-store'
 import { getSettings } from '#/server/settings'
 
@@ -119,11 +119,12 @@ export const Route = createFileRoute('/admin/builder')(
   serverRoute({
     GET: async ({ request }) => {
       const env = getEnv(request)
-      if (!(await getAuth(env).api.getSession({ headers: request.headers }))) {
-        return new Response('Unauthorized', { status: 401 })
-      }
-
       const db = getDb(env)
+      const principal = await principalFrom(env, db, request)
+      if (!principal) return new Response('Unauthorized', { status: 401 })
+      if (!can(principal, 'content:write')) {
+        return new Response('Not allowed to edit this site.', { status: 403 })
+      }
       const connection = await currentConnection(db)
       const settings = await getSettings(db)
       // Same preference as the preview: on the custom domain the site, the
