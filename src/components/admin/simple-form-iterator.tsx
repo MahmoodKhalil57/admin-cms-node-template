@@ -219,9 +219,11 @@ export const SimpleFormIteratorItem = React.forwardRef(
         <li
           ref={ref}
           className={cn(
-            "flex flex-row items-start justify-between gap-2 pb-2 border-b border-border last:border-b-0",
-            // Align the buttons with the input
-            "[&:has(label)>.simple-form-iterator-item-actions]:pt-10",
+            "flex flex-row items-start justify-between gap-2",
+            // A plain stack of rows needs a rule between them; a row that has
+            // drawn its own border (see the static editor) already reads as
+            // separate, so it opts out with `border-0`.
+            "pb-2 border-b border-border last:border-b-0",
           )}
         >
           {label != null && label !== false && (
@@ -236,7 +238,7 @@ export const SimpleFormIteratorItem = React.forwardRef(
             {children}
           </div>
           {!disabled && (
-            <div className="simple-form-iterator-item-actions flex flex-row h-9 items-center gap-1">
+            <div className="simple-form-iterator-item-actions flex flex-row h-9 items-center gap-0.5 opacity-60 transition-opacity focus-within:opacity-100 hover:opacity-100">
               {!disableReordering && reOrderButtons}
               {!disableRemoveField(record) && removeButton}
             </div>

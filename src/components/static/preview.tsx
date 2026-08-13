@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useFormContext, useWatch } from 'react-hook-form'
 import { useRecordContext } from 'ra-core'
 
+import { cn } from '#/lib/utils'
+
 /**
  * The page, painted from the form as it is typed.
  *
@@ -66,20 +68,35 @@ export const StaticPreview = ({
   if (!siteUrl) return null
 
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-muted-foreground text-sm">Preview</p>
-      <iframe
-        ref={frame}
-        src={src}
-        title="Live preview"
-        className="bg-background h-[70vh] w-full rounded-md border"
-        // The frame is the operator's own site; it needs scripts to render, and
-        // same-origin so it can read its own content files.
-        sandbox="allow-scripts allow-same-origin"
-      />
-      {!ready && (
-        <p className="text-muted-foreground text-xs">Loading the page…</p>
-      )}
+    // Sticky, because the form beside it is long and the preview is the reason
+    // the form is worth filling in — scrolling to a field should not scroll the
+    // result off the screen.
+    <div className="min-w-0 xl:sticky xl:top-6 xl:self-start">
+      <div className="border-border/70 bg-card/60 overflow-hidden rounded-xl border shadow-sm">
+        <div className="border-border/70 flex items-center gap-2 border-b px-3 py-2">
+          <span
+            className={cn(
+              'size-1.5 rounded-full transition-colors',
+              ready ? 'bg-primary' : 'bg-muted-foreground/40',
+            )}
+          />
+          <span className="text-muted-foreground text-[0.7rem] font-semibold tracking-[0.08em] uppercase">
+            {ready ? 'Live preview' : 'Loading the page'}
+          </span>
+          <span className="text-muted-foreground/70 ml-auto truncate font-mono text-[0.7rem]">
+            {siteUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '')}
+          </span>
+        </div>
+        <iframe
+          ref={frame}
+          src={src}
+          title="Live preview"
+          className="bg-background block h-[calc(100vh-12rem)] max-h-[46rem] min-h-[28rem] w-full"
+          // The frame is the operator's own site; it needs scripts to render, and
+          // same-origin so it can read its own content files.
+          sandbox="allow-scripts allow-same-origin"
+        />
+      </div>
     </div>
   )
 }

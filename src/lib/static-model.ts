@@ -9,6 +9,8 @@ export interface StaticCollection {
   canCreate: boolean
   canDelete: boolean
   slugField?: string
+  /** `forms` for the built-in form preview; otherwise the site frame */
+  preview?: string
   files?: Array<{
     name: string
     label: string

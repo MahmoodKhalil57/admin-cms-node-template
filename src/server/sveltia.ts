@@ -36,6 +36,16 @@ export interface StaticField {
   options?: Array<string>
   /** for `list` and `object` */
   fields?: Array<StaticField>
+  /**
+   * An identifier rather than prose — rendered in mono, because the value
+   * becomes a JSON key or a URL segment rather than something a reader sees.
+   */
+  mono?: boolean
+  /**
+   * Only relevant when a sibling holds one of these values, e.g. a list of
+   * choices applies to a select and to nothing else. Drawn only when it applies.
+   */
+  condition?: { field: string; value: Array<string> }
 }
 
 export interface StaticCollection {
@@ -51,6 +61,12 @@ export interface StaticCollection {
   slugField?: string
   canCreate: boolean
   canDelete: boolean
+  /**
+   * Which preview this collection supports. The site frame can only paint what
+   * its pages actually render; `forms` asks for the built-in form preview
+   * instead, and the default is the site itself.
+   */
+  preview?: string
   /**
    * For `files`: the fixed entries.
    *
@@ -102,6 +118,16 @@ function toField(raw: Raw): StaticField {
     hint: raw.hint ? String(raw.hint) : undefined,
   }
 
+  if (raw.mono === true) field.mono = true
+
+  if (raw.condition?.field) {
+    const value = raw.condition.value
+    field.condition = {
+      field: String(raw.condition.field),
+      value: (Array.isArray(value) ? value : [value]).map(String),
+    }
+  }
+
   if (widget === 'select' && Array.isArray(raw.options)) {
     field.options = raw.options.map((option: Raw) =>
       typeof option === 'string' ? option : String(option?.value ?? option),
@@ -136,6 +162,7 @@ export function parseSveltiaConfig(yaml: string): Array<StaticCollection> {
         label: String(raw.label ?? raw.name),
         kind: 'files',
         extension: String(raw.extension ?? 'json'),
+        preview: raw.preview ? String(raw.preview) : undefined,
         // A fixed set of files is a fixed set — nothing to add or remove.
         canCreate: false,
         canDelete: false,
@@ -156,6 +183,7 @@ export function parseSveltiaConfig(yaml: string): Array<StaticCollection> {
       label: String(raw.label ?? raw.name),
       kind: 'folder',
       folder: String(raw.folder ?? ''),
+      preview: raw.preview ? String(raw.preview) : undefined,
       extension: String(raw.extension ?? 'json'),
       slugField: slugFieldOf(raw),
       canCreate: raw.create === true,

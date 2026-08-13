@@ -12,6 +12,7 @@ import {
 import type { StaticCollection } from '#/lib/static-model'
 import { columnsFor, inputFor } from '#/components/static/fields'
 import { StaticPreview } from '#/components/static/preview'
+import { FormPreview } from '#/components/static/form-preview'
 
 /**
  * List, edit and create screens built from a collection's declared fields.
@@ -21,9 +22,10 @@ import { StaticPreview } from '#/components/static/preview'
  * written against.
  */
 export function staticList(collection: StaticCollection) {
-  const only = collection.kind === 'files' && collection.files?.length === 1
-    ? collection.files[0].name
-    : undefined
+  const only =
+    collection.kind === 'files' && collection.files?.length === 1
+      ? collection.files[0].name
+      : undefined
 
   // A collection of exactly one file is a singleton: there is nothing to pick
   // between, so the list would be a single row standing between the operator
@@ -48,7 +50,7 @@ export function staticList(collection: StaticCollection) {
       >
         <DataTable>
           <DataTable.Col source="id" label="Name">
-            <TextField source="id" />
+            <TextField source="id" className="font-mono text-xs" />
           </DataTable.Col>
           {columnsFor(collection.fields)}
         </DataTable>
@@ -76,6 +78,16 @@ const EntryForm = ({ collection }: { collection: StaticCollection }) => {
 }
 
 export function staticEdit(collection: StaticCollection, siteUrl: string) {
+  // Which preview belongs beside this collection. The site frame can paint the
+  // pages it serves; it cannot paint a file the pages never read, so that
+  // collection says so in the config rather than being previewed misleadingly.
+  const preview =
+    collection.preview === 'forms' ? (
+      <FormPreview />
+    ) : siteUrl ? (
+      <StaticPreview collection={collection.name} siteUrl={siteUrl} />
+    ) : null
+
   return function StaticEdit() {
     return (
       <Edit resource={`static/${collection.name}`} mutationMode="pessimistic">
@@ -85,15 +97,23 @@ export function staticEdit(collection: StaticCollection, siteUrl: string) {
           those to the nearest form context. Putting the preview in a second
           <SimpleForm> gives it that form's (empty) state, so it renders once
           and then never moves again no matter what is typed on the left.
+
+          `max-w-none` undoes the kit's 32rem cap, which a two-pane editor
+          cannot live inside; `minmax(0, …)` on both tracks is what stops a
+          deeply nested field from pushing its column over the preview.
         */}
-        <SimpleForm>
-          <div className="grid w-full gap-6 xl:grid-cols-2">
-            <div className="flex flex-col gap-4">
+        <SimpleForm className="max-w-none gap-0">
+          <div
+            className={
+              preview
+                ? 'grid w-full min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,32rem)]'
+                : 'grid w-full min-w-0 gap-8'
+            }
+          >
+            <div className="flex min-w-0 flex-col gap-6">
               <EntryForm collection={collection} />
             </div>
-            {siteUrl ? (
-              <StaticPreview collection={collection.name} siteUrl={siteUrl} />
-            ) : null}
+            {preview}
           </div>
         </SimpleForm>
       </Edit>
@@ -105,8 +125,10 @@ export function staticCreate(collection: StaticCollection) {
   return function StaticCreate() {
     return (
       <Create resource={`static/${collection.name}`}>
-        <SimpleForm>
-          {collection.fields.map((field) => inputFor(field))}
+        <SimpleForm className="max-w-2xl">
+          <div className="flex w-full min-w-0 flex-col gap-6">
+            {collection.fields.map((field) => inputFor(field))}
+          </div>
         </SimpleForm>
       </Create>
     )
