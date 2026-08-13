@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth'
 import { emailOTP } from 'better-auth/plugins'
+import { passkey } from '@better-auth/passkey'
 import { APIError, createAuthMiddleware } from 'better-auth/api'
 
 import type { NodeEnv } from './env'
@@ -42,6 +43,29 @@ function createAuth(env: NodeEnv) {
     // hostname, so a baked-in URL would be wrong for all but one of them.
     basePath: '/api/auth',
     plugins: [
+      /**
+       * Passkeys, for the people who will use this every day.
+       *
+       * A code in an inbox is the floor: it always works, on any device, for
+       * someone who has just arrived. A passkey is the ceiling — nothing to
+       * type, nothing to intercept, and the private half never leaves the
+       * device it was made on. Both are offered because they answer different
+       * moments rather than competing.
+       *
+       * The relying party is left to be inferred from the request. Every node
+       * answers on its own hostname and an operator can move theirs to a domain
+       * they own, so a baked-in rpID would be wrong for all but one of them —
+       * the same reason baseURL is unset above.
+       */
+      passkey({
+        rpName: 'adminCms',
+        authenticatorSelection: {
+          // Let the device decide between its own biometrics and a security
+          // key; refusing either narrows who can use this for no gain.
+          residentKey: 'preferred',
+          userVerification: 'preferred',
+        },
+      }),
       emailOTP({
         otpLength: 6,
         expiresIn: 600,
