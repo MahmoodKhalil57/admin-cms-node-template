@@ -1,4 +1,6 @@
 import { betterAuth } from 'better-auth'
+import { emailOTP } from 'better-auth/plugins'
+import { APIError, createAuthMiddleware } from 'better-auth/api'
 
 import type { NodeEnv } from './env'
 
@@ -11,8 +13,18 @@ import type { NodeEnv } from './env'
  * account it came from, so the two can be related later without either side
  * having to trust the other at request time.
  *
- * Sign-up is disabled. The only account that exists is the one provisioning
- * seeds; anything else has to be created deliberately.
+ * People sign in with a code sent to their address, not a password. Passwords
+ * on a site like this are a liability someone else eventually pays for: they
+ * are reused, they are phished, and every one of them is a secret this node has
+ * to keep. A six-digit code that expires is not worth stealing.
+ *
+ * One exception, and it is deliberate. The account provisioning seeded — the
+ * root admin — can still sign in with its password, because the node has to be
+ * usable before anyone has wired mail up. It is the account that creates the
+ * roles, invites the team and mints the first keys; making that depend on a
+ * working mail sender means a node that cannot be set up until it can already
+ * send email. Everyone else, including anyone the root admin later invites,
+ * goes through the code.
  *
  * Built per-request rather than at module scope, because the D1 binding does
  * not exist until a request is in flight. The cache keeps it to one instance
@@ -29,6 +41,34 @@ function createAuth(env: NodeEnv) {
     // One built artifact serves every node, and each answers on its own
     // hostname, so a baked-in URL would be wrong for all but one of them.
     basePath: '/api/auth',
+    plugins: [
+      emailOTP({
+        otpLength: 6,
+        expiresIn: 600,
+        // A code is not an invitation. An address nobody has heard of gets an
+        // account at the lowest role, the same as signing up on the site does.
+        disableSignUp: false,
+        async sendVerificationOTP({ email, otp }) {
+          const [{ sendMail }, { getDb }, { getSettings }] = await Promise.all([
+            import('./mailer'),
+            import('#/db'),
+            import('./settings'),
+          ])
+          const settings = await getSettings(getDb(env))
+          const workspace = settings.customDomain ?? env.ORIGIN_HOST ?? 'this workspace'
+          await sendMail(
+            env,
+            {
+              to: email,
+              subject: `${otp} is your sign-in code`,
+              text: `Your sign-in code for ${workspace} is ${otp}.\n\nIt expires in ten minutes. If you did not ask for it, ignore this — it is useless on its own.`,
+              html: `<p>Your sign-in code for <strong>${workspace}</strong> is:</p><p style="font:600 30px/1.2 ui-monospace,Menlo,monospace;letter-spacing:.18em;margin:18px 0">${otp}</p><p style="font-size:13px;color:#4e737a">It expires in ten minutes. If you did not ask for it, ignore this — it is useless on its own.</p>`,
+            },
+            settings.customDomain,
+          )
+        },
+      }),
+    ],
     emailAndPassword: {
       enabled: true,
       disableSignUp: true,
@@ -69,6 +109,56 @@ function createAuth(env: NodeEnv) {
     },
     session: {
       cookieCache: { enabled: true, maxAge: 60 },
+    },
+    databaseHooks: {
+      user: {
+        create: {
+          /**
+           * Anyone arriving without a role arrives at the bottom.
+           *
+           * Signing up on the site and signing in with a code both create
+           * accounts, and neither asks what the account should be able to do.
+           * Deciding that here means there is no path that can be talked into
+           * creating a privileged account — the invitation flow sets the role
+           * explicitly, and everything else lands on `default`.
+           */
+          before: async (user) => ({
+            data: {
+              ...user,
+              role: (user as { role?: string }).role || 'default',
+            },
+          }),
+        },
+      },
+    },
+    hooks: {
+      /**
+       * Passwords are for the root admin only.
+       *
+       * Refused here rather than by leaving the endpoint off, because the
+       * endpoint is what the root admin uses. The check is on the account, not
+       * on the request, so there is nothing a caller can send to pass it.
+       */
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== '/sign-in/email') return
+        const email = String(
+          (ctx.body as { email?: string } | undefined)?.email ?? '',
+        ).toLowerCase()
+        if (!email) return
+
+        const found = (await ctx.context.adapter.findOne({
+          model: 'user',
+          where: [{ field: 'email', value: email }],
+        })) as { masterUserId?: string | null } | null
+
+        // Unknown addresses fall through: answering differently here would say
+        // which addresses have accounts.
+        if (found && !found.masterUserId) {
+          throw new APIError('BAD_REQUEST', {
+            message: 'Use the code we email you instead of a password.',
+          })
+        }
+      }),
     },
     /**
      * The website signs people in too, and on a custom domain it is the same

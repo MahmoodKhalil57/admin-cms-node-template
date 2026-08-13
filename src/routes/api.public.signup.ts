@@ -9,15 +9,13 @@ import { DEFAULT_ROLE } from '#/server/team'
 /**
  * Signing up from the website.
  *
- * The one door into this node that nobody had to be invited through, which is
- * why the role is not a parameter. It is fixed here, in the only place that can
- * decide it: a visitor asks for an account and gets `default`, which is signed
- * in and nothing more. Everything above that is granted by someone who already
- * had the standing to grant it.
+ * Kept for a caller that wants to create an account and set a password in one
+ * step — provisioning uses the same mechanism to seed the root admin. The site
+ * no longer uses it: signing up there is asking for a code, which creates the
+ * account on first use and never involves a password at all.
  *
- * Better Auth's own sign-up stays disabled. Going through the adapter directly
- * means there is no endpoint that accepts a role, rather than one that accepts
- * a role and is trusted not to be asked.
+ * The role is not a parameter here either. It is fixed to `default`, and the
+ * database hook in the auth config holds the same line for every other path.
  */
 
 const MAX_PER_HOUR = 10
