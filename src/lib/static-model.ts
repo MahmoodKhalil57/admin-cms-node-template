@@ -11,6 +11,8 @@ export interface StaticCollection {
   slugField?: string
   /** `forms` for the built-in form preview; otherwise the site frame */
   preview?: string
+  /** entries here can be opened in the visual builder */
+  builder?: boolean
   files?: Array<{
     name: string
     label: string

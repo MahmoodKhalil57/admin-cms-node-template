@@ -12,11 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminSplatRouteImport } from './routes/admin.$'
+import { Route as AdminBuilderRouteImport } from './routes/admin.builder'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiSettingsRouteImport } from './routes/api.settings'
 import { Route as ApiResourceIndexRouteImport } from './routes/api.$resource.index'
 import { Route as ApiResourceIdRouteImport } from './routes/api.$resource.$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
+import { Route as ApiBuilderCommitRouteImport } from './routes/api.builder.commit'
+import { Route as ApiBuilderFileRouteImport } from './routes/api.builder.file'
 import { Route as ApiCloudflareApplyRouteImport } from './routes/api.cloudflare.apply'
 import { Route as ApiCloudflareAuthorizeRouteImport } from './routes/api.cloudflare.authorize'
 import { Route as ApiCloudflareCallbackRouteImport } from './routes/api.cloudflare.callback'
@@ -48,6 +51,11 @@ const AdminSplatRoute = AdminSplatRouteImport.update({
   path: '/admin/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminBuilderRoute = AdminBuilderRouteImport.update({
+  id: '/admin/builder',
+  path: '/admin/builder',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
@@ -71,6 +79,16 @@ const ApiResourceIdRoute = ApiResourceIdRouteImport.update({
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBuilderCommitRoute = ApiBuilderCommitRouteImport.update({
+  id: '/api/builder/commit',
+  path: '/api/builder/commit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBuilderFileRoute = ApiBuilderFileRouteImport.update({
+  id: '/api/builder/file',
+  path: '/api/builder/file',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCloudflareApplyRoute = ApiCloudflareApplyRouteImport.update({
@@ -154,11 +172,14 @@ const ApiPublicFormsSlugSubmissionsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin/$': typeof AdminSplatRoute
+  '/admin/builder': typeof AdminBuilderRoute
   '/api/health': typeof ApiHealthRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/builder/commit': typeof ApiBuilderCommitRoute
+  '/api/builder/file': typeof ApiBuilderFileRoute
   '/api/cloudflare/apply': typeof ApiCloudflareApplyRoute
   '/api/cloudflare/authorize': typeof ApiCloudflareAuthorizeRoute
   '/api/cloudflare/callback': typeof ApiCloudflareCallbackRoute
@@ -179,11 +200,14 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin/$': typeof AdminSplatRoute
+  '/admin/builder': typeof AdminBuilderRoute
   '/api/health': typeof ApiHealthRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
   '/admin': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/builder/commit': typeof ApiBuilderCommitRoute
+  '/api/builder/file': typeof ApiBuilderFileRoute
   '/api/cloudflare/apply': typeof ApiCloudflareApplyRoute
   '/api/cloudflare/authorize': typeof ApiCloudflareAuthorizeRoute
   '/api/cloudflare/callback': typeof ApiCloudflareCallbackRoute
@@ -205,11 +229,14 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin/$': typeof AdminSplatRoute
+  '/admin/builder': typeof AdminBuilderRoute
   '/api/health': typeof ApiHealthRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/builder/commit': typeof ApiBuilderCommitRoute
+  '/api/builder/file': typeof ApiBuilderFileRoute
   '/api/cloudflare/apply': typeof ApiCloudflareApplyRoute
   '/api/cloudflare/authorize': typeof ApiCloudflareAuthorizeRoute
   '/api/cloudflare/callback': typeof ApiCloudflareCallbackRoute
@@ -232,11 +259,14 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin/$'
+    | '/admin/builder'
     | '/api/health'
     | '/api/settings'
     | '/admin/'
     | '/api/$resource/$id'
     | '/api/auth/$'
+    | '/api/builder/commit'
+    | '/api/builder/file'
     | '/api/cloudflare/apply'
     | '/api/cloudflare/authorize'
     | '/api/cloudflare/callback'
@@ -257,11 +287,14 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin/$'
+    | '/admin/builder'
     | '/api/health'
     | '/api/settings'
     | '/admin'
     | '/api/$resource/$id'
     | '/api/auth/$'
+    | '/api/builder/commit'
+    | '/api/builder/file'
     | '/api/cloudflare/apply'
     | '/api/cloudflare/authorize'
     | '/api/cloudflare/callback'
@@ -282,11 +315,14 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin/$'
+    | '/admin/builder'
     | '/api/health'
     | '/api/settings'
     | '/admin/'
     | '/api/$resource/$id'
     | '/api/auth/$'
+    | '/api/builder/commit'
+    | '/api/builder/file'
     | '/api/cloudflare/apply'
     | '/api/cloudflare/authorize'
     | '/api/cloudflare/callback'
@@ -308,11 +344,14 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminSplatRoute: typeof AdminSplatRoute
+  AdminBuilderRoute: typeof AdminBuilderRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiSettingsRoute: typeof ApiSettingsRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
   ApiResourceIdRoute: typeof ApiResourceIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiBuilderCommitRoute: typeof ApiBuilderCommitRoute
+  ApiBuilderFileRoute: typeof ApiBuilderFileRoute
   ApiCloudflareApplyRoute: typeof ApiCloudflareApplyRoute
   ApiCloudflareAuthorizeRoute: typeof ApiCloudflareAuthorizeRoute
   ApiCloudflareCallbackRoute: typeof ApiCloudflareCallbackRoute
@@ -353,6 +392,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/builder': {
+      id: '/admin/builder'
+      path: '/admin/builder'
+      fullPath: '/admin/builder'
+      preLoaderRoute: typeof AdminBuilderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/health': {
       id: '/api/health'
       path: '/api/health'
@@ -386,6 +432,20 @@ declare module '@tanstack/react-router' {
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/builder/commit': {
+      id: '/api/builder/commit'
+      path: '/api/builder/commit'
+      fullPath: '/api/builder/commit'
+      preLoaderRoute: typeof ApiBuilderCommitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/builder/file': {
+      id: '/api/builder/file'
+      path: '/api/builder/file'
+      fullPath: '/api/builder/file'
+      preLoaderRoute: typeof ApiBuilderFileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/cloudflare/apply': {
@@ -511,11 +571,14 @@ const ApiSettingsRouteWithChildren = ApiSettingsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminSplatRoute: AdminSplatRoute,
+  AdminBuilderRoute: AdminBuilderRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiSettingsRoute: ApiSettingsRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
   ApiResourceIdRoute: ApiResourceIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiBuilderCommitRoute: ApiBuilderCommitRoute,
+  ApiBuilderFileRoute: ApiBuilderFileRoute,
   ApiCloudflareApplyRoute: ApiCloudflareApplyRoute,
   ApiCloudflareAuthorizeRoute: ApiCloudflareAuthorizeRoute,
   ApiCloudflareCallbackRoute: ApiCloudflareCallbackRoute,

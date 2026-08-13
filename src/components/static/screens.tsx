@@ -13,6 +13,7 @@ import type { StaticCollection } from '#/lib/static-model'
 import { columnsFor, inputFor } from '#/components/static/fields'
 import { StaticPreview } from '#/components/static/preview'
 import { FormPreview } from '#/components/static/form-preview'
+import { OpenInBuilder } from '#/components/static/builder'
 
 /**
  * List, edit and create screens built from a collection's declared fields.
@@ -65,6 +66,18 @@ export function staticList(collection: StaticCollection) {
  * In a `files` collection each file declares its own shape, so the form has to
  * be chosen by which entry is open rather than fixed for the collection.
  */
+/** What the builder should open on: `page:<slug>` or `symbol:<id>`. */
+function focusFor(collection: StaticCollection, id?: string): string | undefined {
+  if (!collection.builder || !id) return undefined
+  return `${collection.name === 'pages' ? 'page' : 'symbol'}:${id}`
+}
+
+const BuilderAction = ({ collection }: { collection: StaticCollection }) => {
+  const record = useRecordContext<{ id: string }>()
+  if (!collection.builder) return null
+  return <OpenInBuilder focus={focusFor(collection, record?.id)} />
+}
+
 const EntryForm = ({ collection }: { collection: StaticCollection }) => {
   const record = useRecordContext<{ id: string }>()
 
@@ -111,6 +124,10 @@ export function staticEdit(collection: StaticCollection, siteUrl: string) {
             }
           >
             <div className="flex min-w-0 flex-col gap-6">
+              {/* The form covers what an entry *is*; the builder covers how it
+                  looks. Both belong to the entry, so the way across sits with
+                  it rather than in a separate corner of the panel. */}
+              <BuilderAction collection={collection} />
               <EntryForm collection={collection} />
             </div>
             {preview}

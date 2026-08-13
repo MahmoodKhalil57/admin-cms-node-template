@@ -37,7 +37,7 @@ export interface RepoRef {
   repo: string
 }
 
-async function gh(
+export async function gh(
   ref: RepoRef,
   method: string,
   path: string,
@@ -57,7 +57,7 @@ async function gh(
   return { status: response.status, json: await response.json().catch(() => null) }
 }
 
-function decode(base64: string): string {
+export function decode(base64: string): string {
   const binary = atob(base64.replace(/\n/g, ''))
   return new TextDecoder().decode(
     Uint8Array.from(binary, (character) => character.charCodeAt(0)),

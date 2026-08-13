@@ -15,10 +15,8 @@ import {
   staticEdit,
   staticList,
 } from '#/components/static/screens'
-import {
-  FeatureEdit,
-  FeatureList,
-} from '#/components/resources/features'
+import { BuilderOverlay } from '#/components/static/builder'
+import { FeatureEdit, FeatureList } from '#/components/resources/features'
 import {
   FormCreate,
   FormEdit,
@@ -70,68 +68,75 @@ export function AdminApp() {
   const forms = enabled.includes('forms')
 
   return (
-    <Admin
-      basename="/admin"
-      routerProvider={tanStackRouterProvider}
-      dataProvider={dataProvider}
-      authProvider={authProvider}
-      loginPage={NodeLoginPage}
-      layout={NodeLayout}
-      requireAuth
-      disableTelemetry
-      title="Node admin"
-    >
-      {forms && (
-        <Resource
-          name="forms"
-          list={FormList}
-          edit={FormEdit}
-          create={FormCreate}
-          show={FormShow}
-          recordRepresentation="name"
-        />
-      )}
-      {forms && (
-        <Resource
-          name="submissions"
-          list={SubmissionList}
-          show={SubmissionShow}
-        />
-      )}
-      {/* The site's own content, edited straight in its repository — the same
+    <>
+      {/* Outside <Admin>, which renders only the children it recognises —
+          a <Resource> or a <CustomRoutes>, and nothing else. One overlay for
+          the whole panel: any entry can open it, and it is the same surface
+          every time. */}
+      <BuilderOverlay />
+      <Admin
+        basename="/admin"
+        routerProvider={tanStackRouterProvider}
+        dataProvider={dataProvider}
+        authProvider={authProvider}
+        loginPage={NodeLoginPage}
+        layout={NodeLayout}
+        requireAuth
+        disableTelemetry
+        title="Node admin"
+      >
+        {forms && (
+          <Resource
+            name="forms"
+            list={FormList}
+            edit={FormEdit}
+            create={FormCreate}
+            show={FormShow}
+            recordRepresentation="name"
+          />
+        )}
+        {forms && (
+          <Resource
+            name="submissions"
+            list={SubmissionList}
+            show={SubmissionShow}
+          />
+        )}
+        {/* The site's own content, edited straight in its repository — the same
           files its static CMS writes, so either surface produces the same
           commits. Collections come from the repo at runtime, which is why they
           are mapped rather than listed. */}
-      {(staticModel?.collections ?? []).map((collection) => (
-        <Resource
-          key={collection.name}
-          name={`static/${collection.name}`}
-          options={{ label: collection.label, group: 'Static' }}
-          list={staticList(collection)}
-          edit={staticEdit(collection, staticModel?.siteUrl ?? '')}
-          create={collection.canCreate ? staticCreate(collection) : undefined}
-          icon={FileText}
-        />
-      ))}
+        {(staticModel?.collections ?? []).map((collection) => (
+          <Resource
+            key={collection.name}
+            name={`static/${collection.name}`}
+            options={{ label: collection.label, group: 'Static' }}
+            list={staticList(collection)}
+            edit={staticEdit(collection, staticModel?.siteUrl ?? '')}
+            create={collection.canCreate ? staticCreate(collection) : undefined}
+            icon={FileText}
+          />
+        ))}
 
-      {/* Node-wide, so always present: a node's addresses belong to the node,
+        {/* Node-wide, so always present: a node's addresses belong to the node,
           not to whichever feature happens to use them. */}
-      <Resource
-        name="settings"
-        options={{ label: 'Settings' }}
-        list={SettingsPage}
-        icon={SlidersHorizontal}
-      />
-      {/* Always registered — switching a feature off must not remove the way
+        <Resource
+          name="settings"
+          options={{ label: 'Settings' }}
+          list={SettingsPage}
+          icon={SlidersHorizontal}
+        />
+        {/* Always registered — switching a feature off must not remove the way
           to switch it back on. */}
-      <Resource
-        name="features"
-        options={{ label: 'Features' }}
-        list={FeatureList}
-        edit={FeatureEdit}
-        icon={Settings2}
-        recordRepresentation="key"
-      />
-    </Admin>
+        <Resource
+          name="features"
+          options={{ label: 'Features' }}
+          list={FeatureList}
+          edit={FeatureEdit}
+          icon={Settings2}
+          recordRepresentation="key"
+        />
+      </Admin>
+    </>
   )
 }

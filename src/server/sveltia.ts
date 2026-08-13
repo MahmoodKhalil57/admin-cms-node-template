@@ -67,6 +67,8 @@ export interface StaticCollection {
    * instead, and the default is the site itself.
    */
   preview?: string
+  /** whether entries in this collection can be opened in the visual builder */
+  builder?: boolean
   /**
    * For `files`: the fixed entries.
    *
@@ -163,6 +165,7 @@ export function parseSveltiaConfig(yaml: string): Array<StaticCollection> {
         kind: 'files',
         extension: String(raw.extension ?? 'json'),
         preview: raw.preview ? String(raw.preview) : undefined,
+        builder: raw.builder === true,
         // A fixed set of files is a fixed set — nothing to add or remove.
         canCreate: false,
         canDelete: false,
@@ -184,6 +187,7 @@ export function parseSveltiaConfig(yaml: string): Array<StaticCollection> {
       kind: 'folder',
       folder: String(raw.folder ?? ''),
       preview: raw.preview ? String(raw.preview) : undefined,
+      builder: raw.builder === true,
       extension: String(raw.extension ?? 'json'),
       slugField: slugFieldOf(raw),
       canCreate: raw.create === true,
