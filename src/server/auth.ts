@@ -70,6 +70,16 @@ function createAuth(env: NodeEnv) {
     session: {
       cookieCache: { enabled: true, maxAge: 60 },
     },
+    /**
+     * The website signs people in too, and on a custom domain it is the same
+     * origin as this API. A site still on github.io is not, so it is named
+     * here — Better Auth refuses an origin it was not told about, which is the
+     * behaviour worth keeping.
+     */
+    trustedOrigins: (request) => {
+      const origin = request?.headers.get('origin')
+      return origin ? [origin] : []
+    },
   })
 }
 

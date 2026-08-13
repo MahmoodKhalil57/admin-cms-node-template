@@ -35,6 +35,7 @@ import { Route as ApiGithubStatusRouteImport } from './routes/api.github.status'
 import { Route as ApiInternalProvisionRouteImport } from './routes/api.internal.provision'
 import { Route as ApiInvitationsAcceptRouteImport } from './routes/api.invitations.accept'
 import { Route as ApiInvitationsCreateRouteImport } from './routes/api.invitations.create'
+import { Route as ApiPublicSignupRouteImport } from './routes/api.public.signup'
 import { Route as ApiSettingsVerifyRouteImport } from './routes/api.settings.verify'
 import { Route as ApiStaticIndexRouteImport } from './routes/api.static.index'
 import { Route as ApiTeamIndexRouteImport } from './routes/api.team.index'
@@ -176,6 +177,11 @@ const ApiInvitationsCreateRoute = ApiInvitationsCreateRouteImport.update({
   path: '/api/invitations/create',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSignupRoute = ApiPublicSignupRouteImport.update({
+  id: '/api/public/signup',
+  path: '/api/public/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSettingsVerifyRoute = ApiSettingsVerifyRouteImport.update({
   id: '/verify',
   path: '/verify',
@@ -255,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/api/internal/provision': typeof ApiInternalProvisionRoute
   '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
   '/api/invitations/create': typeof ApiInvitationsCreateRoute
+  '/api/public/signup': typeof ApiPublicSignupRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
   '/api/team/$id': typeof ApiTeamIdRouteWithChildren
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
@@ -293,6 +300,7 @@ export interface FileRoutesByTo {
   '/api/internal/provision': typeof ApiInternalProvisionRoute
   '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
   '/api/invitations/create': typeof ApiInvitationsCreateRoute
+  '/api/public/signup': typeof ApiPublicSignupRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
   '/api/team/$id': typeof ApiTeamIdRouteWithChildren
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
@@ -332,6 +340,7 @@ export interface FileRoutesById {
   '/api/internal/provision': typeof ApiInternalProvisionRoute
   '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
   '/api/invitations/create': typeof ApiInvitationsCreateRoute
+  '/api/public/signup': typeof ApiPublicSignupRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
   '/api/team/$id': typeof ApiTeamIdRouteWithChildren
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
@@ -372,6 +381,7 @@ export interface FileRouteTypes {
     | '/api/internal/provision'
     | '/api/invitations/accept'
     | '/api/invitations/create'
+    | '/api/public/signup'
     | '/api/settings/verify'
     | '/api/team/$id'
     | '/api/webhooks/github'
@@ -410,6 +420,7 @@ export interface FileRouteTypes {
     | '/api/internal/provision'
     | '/api/invitations/accept'
     | '/api/invitations/create'
+    | '/api/public/signup'
     | '/api/settings/verify'
     | '/api/team/$id'
     | '/api/webhooks/github'
@@ -448,6 +459,7 @@ export interface FileRouteTypes {
     | '/api/internal/provision'
     | '/api/invitations/accept'
     | '/api/invitations/create'
+    | '/api/public/signup'
     | '/api/settings/verify'
     | '/api/team/$id'
     | '/api/webhooks/github'
@@ -487,6 +499,7 @@ export interface RootRouteChildren {
   ApiInternalProvisionRoute: typeof ApiInternalProvisionRoute
   ApiInvitationsAcceptRoute: typeof ApiInvitationsAcceptRoute
   ApiInvitationsCreateRoute: typeof ApiInvitationsCreateRoute
+  ApiPublicSignupRoute: typeof ApiPublicSignupRoute
   ApiTeamIdRoute: typeof ApiTeamIdRouteWithChildren
   ApiWebhooksGithubRoute: typeof ApiWebhooksGithubRoute
   ApiResourceIndexRoute: typeof ApiResourceIndexRoute
@@ -682,6 +695,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiInvitationsCreateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/signup': {
+      id: '/api/public/signup'
+      path: '/api/public/signup'
+      fullPath: '/api/public/signup'
+      preLoaderRoute: typeof ApiPublicSignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/settings/verify': {
       id: '/api/settings/verify'
       path: '/verify'
@@ -805,6 +825,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiInternalProvisionRoute: ApiInternalProvisionRoute,
   ApiInvitationsAcceptRoute: ApiInvitationsAcceptRoute,
   ApiInvitationsCreateRoute: ApiInvitationsCreateRoute,
+  ApiPublicSignupRoute: ApiPublicSignupRoute,
   ApiTeamIdRoute: ApiTeamIdRouteWithChildren,
   ApiWebhooksGithubRoute: ApiWebhooksGithubRoute,
   ApiResourceIndexRoute: ApiResourceIndexRoute,
