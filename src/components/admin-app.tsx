@@ -65,8 +65,11 @@ const NodeLoginPage = () => (
 export function AdminApp() {
   const enabled = useEnabledFeatures()
   const staticModel = useStaticModel()
+  // Every hook before the early return below. React counts them per render, and
+  // the loading branch would otherwise run fewer of them than the loaded one.
+  const mine = useMyPermissions()
 
-  if (enabled === null) {
+  if (enabled === null || mine === null) {
     return (
       <div className="text-muted-foreground flex min-h-screen items-center justify-center text-sm">
         Loading…
@@ -75,11 +78,10 @@ export function AdminApp() {
   }
 
   const forms = enabled.includes('forms')
+  // `mine` is what this person may reach. Cosmetic on its own — every one of
+  // these is checked again on the server — but a panel offering screens that
+  // answer 403 is worse than one that does not offer them.
   const team = enabled.includes('user-management')
-  // What this person may reach. Cosmetic on its own — every one of these is
-  // checked again on the server — but a panel offering screens that answer 403
-  // is worse than one that does not offer them.
-  const mine = useMyPermissions()
 
   return (
     <>

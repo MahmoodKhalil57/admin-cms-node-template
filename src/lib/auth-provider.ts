@@ -38,6 +38,14 @@ export const authProvider: AuthProvider = {
     }
     cached = null
     await currentSession(true)
+
+    // A full load rather than a client-side redirect. ra-core reads its
+    // `<Resource>` children once, when `<Admin>` mounts, so the feature and
+    // permission sets have to be known before that happens — and both were
+    // fetched while nobody was signed in.
+    if (typeof window !== 'undefined') {
+      window.location.assign('/admin')
+    }
   },
 
   async logout() {

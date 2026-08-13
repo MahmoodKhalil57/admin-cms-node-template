@@ -57,6 +57,14 @@ export const LoginPage = ({
                 {busy ? 'Signing in…' : 'Sign in'}
               </Button>
             </div>
+            {/* The way back in. Without it a reset link can be sent but never
+                asked for, which is the same as not having one. */}
+            <a
+              href="/admin/forgot"
+              className="text-muted-foreground hover:text-foreground mt-4 block text-center text-sm underline"
+            >
+              Forgotten your password?
+            </a>
           </Form>
         </CardContent>
       </Card>

@@ -11,6 +11,12 @@ export interface MyPermissions {
   mine: Array<string>
   isOwner: boolean
   roleKey: string | null
+  /**
+   * Whether anyone is signed in. Signed out there is nothing to filter by, and
+   * filtering anyway leaves `<Admin>` with no children at all — which renders
+   * the kit's "ready" splash instead of the login form.
+   */
+  authed: boolean
 }
 
 let pending: Promise<MyPermissions> | null = null
@@ -18,15 +24,23 @@ let pending: Promise<MyPermissions> | null = null
 export function loadMyPermissions(): Promise<MyPermissions> {
   if (!pending) {
     pending = fetch('/api/permissions')
-      .then((response) =>
-        response.ok ? response.json() : { mine: [], isOwner: false, roleKey: null },
+      .then(async (response) =>
+        response.ok
+          ? { ...((await response.json()) as Partial<MyPermissions>), authed: true }
+          : { mine: [], isOwner: false, roleKey: null, authed: false },
       )
-      .then((body: Partial<MyPermissions>) => ({
+      .then((body) => ({
         mine: body.mine ?? [],
         isOwner: body.isOwner ?? false,
         roleKey: body.roleKey ?? null,
+        authed: body.authed ?? false,
       }))
-      .catch(() => ({ mine: [], isOwner: false, roleKey: null }))
+      .catch(() => ({
+        mine: [],
+        isOwner: false,
+        roleKey: null,
+        authed: false,
+      }))
   }
   return pending
 }
@@ -54,5 +68,8 @@ export function holds(
   key: string,
 ): boolean {
   if (!permissions) return false
+  // Signed out, everything is offered and nothing is reachable: `requireAuth`
+  // shows the login form, and the API refuses regardless.
+  if (!permissions.authed) return true
   return permissions.isOwner || permissions.mine.includes(key)
 }
