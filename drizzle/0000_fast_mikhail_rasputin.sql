@@ -1,3 +1,11 @@
+CREATE TABLE `cloudflare_connections` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`access_token` text NOT NULL,
+	`refresh_token` text,
+	`expires_at` integer,
+	`created_at` integer DEFAULT (unixepoch())
+);
+--> statement-breakpoint
 CREATE TABLE `features` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`key` text NOT NULL,
@@ -40,6 +48,7 @@ CREATE TABLE `github_connections` (
 CREATE TABLE `settings` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`custom_domain` text,
+	`dns_zone` text,
 	`frontend_verified` integer DEFAULT false NOT NULL,
 	`api_verified` integer DEFAULT false NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch())

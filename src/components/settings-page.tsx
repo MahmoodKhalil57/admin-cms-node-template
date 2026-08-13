@@ -36,7 +36,20 @@ interface SettingsState {
   defaultApiBase: string
   pagesUrl: string | null
   githubOwner: string | null
+  onCloudflare: boolean
+  cloudflareZone: string | null
+  cloudflareConnected: boolean
+  cloudflareConfigured: boolean
   purposes: Array<Purpose>
+}
+
+const CALLBACK_MESSAGES: Record<string, string> = {
+  connected: 'Cloudflare connected.',
+  declined: 'You declined the Cloudflare request.',
+  bad_state: 'That link had expired. Try connecting again.',
+  missing_code: 'Cloudflare did not send a code back.',
+  exchange_failed: 'Cloudflare refused the connection.',
+  unconfigured: 'This node has no Cloudflare app configured.',
 }
 
 /** The record to create, spelled out so it can be copied. */
@@ -87,8 +100,42 @@ export const SettingsPage = () => {
   }
 
   useEffect(() => {
+    // The Cloudflare callback redirects back here with its outcome in the query.
+    const outcome = new URLSearchParams(window.location.search).get('cloudflare')
+    if (outcome) {
+      notify(CALLBACK_MESSAGES[outcome] ?? outcome, {
+        type: outcome === 'connected' ? 'success' : 'error',
+      })
+      window.history.replaceState({}, '', '/admin/settings')
+    }
     void load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const applyViaCloudflare = async () => {
+    setBusy(true)
+    try {
+      const response = await fetch('/api/cloudflare/apply', { method: 'POST' })
+      const body = (await response.json()) as {
+        ok?: boolean
+        error?: string
+        written?: Array<{ name: string; type: string; action: string }>
+      }
+      if (!response.ok || !body.ok) {
+        notify(body.error ?? 'Could not write the records.', { type: 'error' })
+        return
+      }
+      const count = body.written?.length ?? 0
+      notify(`${count} record${count === 1 ? '' : 's'} written. Checking them now…`, {
+        type: 'success',
+      })
+      // Writing a record and it resolving are different claims, so fall through
+      // to the same public DNS check the manual path uses.
+      await verify()
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const save = async () => {
     setBusy(true)
@@ -116,10 +163,41 @@ export const SettingsPage = () => {
     }
   }
 
+  /**
+   * Asks the domain, from here.
+   *
+   * The browser is the only honest vantage point: Cloudflare bypasses a Worker
+   * route for subrequests coming from its own Workers, so neither this node nor
+   * the platform can see what the public sees. Your browser is the public.
+   */
+  const probeFromBrowser = async (
+    domain: string,
+  ): Promise<{ ok: boolean; node?: string }> => {
+    try {
+      const response = await fetch(`https://${domain}/api/health`, {
+        headers: { accept: 'application/json' },
+      })
+      if (!response.ok) return { ok: false }
+      const body = (await response.json()) as { node?: string }
+      return { ok: true, node: body.node }
+    } catch {
+      return { ok: false }
+    }
+  }
+
   const verify = async () => {
     setBusy(true)
     try {
-      const response = await fetch('/api/settings/verify', { method: 'POST' })
+      // Probe first, then send the answer along — the server cannot obtain it.
+      const apiProbe = state?.customDomain
+        ? await probeFromBrowser(state.customDomain)
+        : undefined
+
+      const response = await fetch('/api/settings/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ apiProbe }),
+      })
       const body = (await response.json()) as { results?: Array<Result> }
       const byKey: Record<string, Result> = {}
       for (const result of body.results ?? []) byKey[result.key] = result
@@ -188,16 +266,99 @@ export const SettingsPage = () => {
                     </p>
                   )}
 
-                  {result && (
-                    <p className={result.ok ? '' : 'text-destructive'}>
-                      {result.ok ? '✓ ' : '✗ '}
-                      {result.message}
-                      {result.note ? ` ${result.note}` : ''}
+                  {purpose.requirement && state.onCloudflare && (
+                    <p className="text-muted-foreground text-xs">
+                      In Cloudflare, set this record to{' '}
+                      <strong>DNS only</strong> (grey cloud). A proxied record
+                      answers with Cloudflare&rsquo;s own addresses, which
+                      breaks the certificate and fails the check below.
                     </p>
+                  )}
+
+                  {result && (
+                    <>
+                      <p className={result.ok ? '' : 'text-destructive'}>
+                        {result.ok ? '✓ ' : '✗ '}
+                        {result.message}
+                      </p>
+                      {/* The DNS check and the set-up step succeed separately.
+                          Reporting them on one line hid a failure behind a tick
+                          the first time this ran. */}
+                      {result.ok && result.note && (
+                        <p
+                          className={
+                            result.applied ? '' : 'text-destructive'
+                          }
+                        >
+                          {result.applied ? '✓ ' : '✗ '}
+                          {result.note}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               )
             })}
+
+            {state.onCloudflare && (
+              <div className="bg-muted flex flex-col gap-2 rounded-md p-3">
+                <p className="font-medium">
+                  {state.customDomain} is on Cloudflare
+                  {state.cloudflareZone && state.cloudflareZone !== state.customDomain
+                    ? ` (zone ${state.cloudflareZone})`
+                    : ''}
+                </p>
+                {state.cloudflareZone && (
+                  <a
+                    className="text-xs underline"
+                    href={`https://dash.cloudflare.com/?to=/:account/${state.cloudflareZone}/dns`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open this zone&rsquo;s DNS settings
+                  </a>
+                )}
+                {!state.cloudflareConfigured ? (
+                  <p className="text-muted-foreground">
+                    Automatic setup is not available on this node — the platform
+                    has no Cloudflare app configured. Add the records above by
+                    hand.
+                  </p>
+                ) : state.cloudflareConnected ? (
+                  <>
+                    <p className="text-muted-foreground">
+                      Cloudflare is connected, so the node can add these records
+                      for you.
+                    </p>
+                    <Button
+                      type="button"
+                      className="w-fit"
+                      onClick={applyViaCloudflare}
+                      disabled={busy}
+                    >
+                      {busy ? 'Working…' : 'Add records automatically'}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-muted-foreground">
+                      Connect it and the node will add these records for you,
+                      instead of you copying them across. It asks only for
+                      permission to read your zones and write DNS records.
+                    </p>
+                    <Button
+                      type="button"
+                      className="w-fit"
+                      onClick={() =>
+                        window.location.assign('/api/cloudflare/authorize')
+                      }
+                    >
+                      Connect Cloudflare
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
 
             <div>
               <Button

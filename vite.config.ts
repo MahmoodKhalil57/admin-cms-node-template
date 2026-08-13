@@ -15,6 +15,13 @@ const config = defineConfig({
   resolve: {
     tsconfigPaths: true
   },
+  // Client assets are emitted under /admin/ so every URL the node owns sits
+  // beneath one prefix. On a custom domain only that prefix is routed to the
+  // node — the rest of the hostname belongs to the operator's own website, and
+  // a bare /assets/ would collide with theirs.
+  build: {
+    assetsDir: 'admin/assets'
+  },
   plugins: [devtools(), nitro({
     // Each node ships as a Workers-for-Platforms user Worker. The preset emits
     // multiple ES modules (inlineDynamicImports is false), which the upload has

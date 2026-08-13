@@ -10,17 +10,26 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SplatRouteImport } from './routes/$'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminSplatRouteImport } from './routes/admin.$'
+import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiSettingsRouteImport } from './routes/api.settings'
 import { Route as ApiResourceIndexRouteImport } from './routes/api.$resource.index'
 import { Route as ApiResourceIdRouteImport } from './routes/api.$resource.$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
+import { Route as ApiCloudflareApplyRouteImport } from './routes/api.cloudflare.apply'
+import { Route as ApiCloudflareAuthorizeRouteImport } from './routes/api.cloudflare.authorize'
+import { Route as ApiCloudflareCallbackRouteImport } from './routes/api.cloudflare.callback'
+import { Route as ApiFSlugRouteImport } from './routes/api.f.$slug'
 import { Route as ApiGithubAuthorizeRouteImport } from './routes/api.github.authorize'
 import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
 import { Route as ApiGithubSiteRouteImport } from './routes/api.github.site'
 import { Route as ApiGithubStatusRouteImport } from './routes/api.github.status'
 import { Route as ApiInternalProvisionRouteImport } from './routes/api.internal.provision'
 import { Route as ApiSettingsVerifyRouteImport } from './routes/api.settings.verify'
+import { Route as ApiStaticIndexRouteImport } from './routes/api.static.index'
+import { Route as ApiStaticCollectionIndexRouteImport } from './routes/api.static.$collection.index'
+import { Route as ApiStaticCollectionIdRouteImport } from './routes/api.static.$collection.$id'
 import { Route as ApiPublicFormsSlugIndexRouteImport } from './routes/api.public.forms.$slug.index'
 import { Route as ApiPublicFormsSlugSubmissionsRouteImport } from './routes/api.public.forms.$slug.submissions'
 
@@ -29,9 +38,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SplatRoute = SplatRouteImport.update({
-  id: '/$',
-  path: '/$',
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSplatRoute = AdminSplatRouteImport.update({
+  id: '/admin/$',
+  path: '/admin/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSettingsRoute = ApiSettingsRouteImport.update({
@@ -52,6 +71,26 @@ const ApiResourceIdRoute = ApiResourceIdRouteImport.update({
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCloudflareApplyRoute = ApiCloudflareApplyRouteImport.update({
+  id: '/api/cloudflare/apply',
+  path: '/api/cloudflare/apply',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCloudflareAuthorizeRoute = ApiCloudflareAuthorizeRouteImport.update({
+  id: '/api/cloudflare/authorize',
+  path: '/api/cloudflare/authorize',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCloudflareCallbackRoute = ApiCloudflareCallbackRouteImport.update({
+  id: '/api/cloudflare/callback',
+  path: '/api/cloudflare/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFSlugRoute = ApiFSlugRouteImport.update({
+  id: '/api/f/$slug',
+  path: '/api/f/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiGithubAuthorizeRoute = ApiGithubAuthorizeRouteImport.update({
@@ -84,6 +123,22 @@ const ApiSettingsVerifyRoute = ApiSettingsVerifyRouteImport.update({
   path: '/verify',
   getParentRoute: () => ApiSettingsRoute,
 } as any)
+const ApiStaticIndexRoute = ApiStaticIndexRouteImport.update({
+  id: '/api/static/',
+  path: '/api/static/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStaticCollectionIndexRoute =
+  ApiStaticCollectionIndexRouteImport.update({
+    id: '/api/static/$collection/',
+    path: '/api/static/$collection/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiStaticCollectionIdRoute = ApiStaticCollectionIdRouteImport.update({
+  id: '/api/static/$collection/$id',
+  path: '/api/static/$collection/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicFormsSlugIndexRoute = ApiPublicFormsSlugIndexRouteImport.update({
   id: '/api/public/forms/$slug/',
   path: '/api/public/forms/$slug/',
@@ -98,10 +153,16 @@ const ApiPublicFormsSlugSubmissionsRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/$': typeof SplatRoute
+  '/admin/$': typeof AdminSplatRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
+  '/admin/': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cloudflare/apply': typeof ApiCloudflareApplyRoute
+  '/api/cloudflare/authorize': typeof ApiCloudflareAuthorizeRoute
+  '/api/cloudflare/callback': typeof ApiCloudflareCallbackRoute
+  '/api/f/$slug': typeof ApiFSlugRoute
   '/api/github/authorize': typeof ApiGithubAuthorizeRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/site': typeof ApiGithubSiteRoute
@@ -109,15 +170,24 @@ export interface FileRoutesByFullPath {
   '/api/internal/provision': typeof ApiInternalProvisionRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
+  '/api/static/': typeof ApiStaticIndexRoute
+  '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
+  '/api/static/$collection/': typeof ApiStaticCollectionIndexRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
   '/api/public/forms/$slug/': typeof ApiPublicFormsSlugIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/$': typeof SplatRoute
+  '/admin/$': typeof AdminSplatRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
+  '/admin': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cloudflare/apply': typeof ApiCloudflareApplyRoute
+  '/api/cloudflare/authorize': typeof ApiCloudflareAuthorizeRoute
+  '/api/cloudflare/callback': typeof ApiCloudflareCallbackRoute
+  '/api/f/$slug': typeof ApiFSlugRoute
   '/api/github/authorize': typeof ApiGithubAuthorizeRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/site': typeof ApiGithubSiteRoute
@@ -125,16 +195,25 @@ export interface FileRoutesByTo {
   '/api/internal/provision': typeof ApiInternalProvisionRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
   '/api/$resource': typeof ApiResourceIndexRoute
+  '/api/static': typeof ApiStaticIndexRoute
+  '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
+  '/api/static/$collection': typeof ApiStaticCollectionIndexRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
   '/api/public/forms/$slug': typeof ApiPublicFormsSlugIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/$': typeof SplatRoute
+  '/admin/$': typeof AdminSplatRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
+  '/admin/': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cloudflare/apply': typeof ApiCloudflareApplyRoute
+  '/api/cloudflare/authorize': typeof ApiCloudflareAuthorizeRoute
+  '/api/cloudflare/callback': typeof ApiCloudflareCallbackRoute
+  '/api/f/$slug': typeof ApiFSlugRoute
   '/api/github/authorize': typeof ApiGithubAuthorizeRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/site': typeof ApiGithubSiteRoute
@@ -142,6 +221,9 @@ export interface FileRoutesById {
   '/api/internal/provision': typeof ApiInternalProvisionRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
+  '/api/static/': typeof ApiStaticIndexRoute
+  '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
+  '/api/static/$collection/': typeof ApiStaticCollectionIndexRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
   '/api/public/forms/$slug/': typeof ApiPublicFormsSlugIndexRoute
 }
@@ -149,10 +231,16 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/$'
+    | '/admin/$'
+    | '/api/health'
     | '/api/settings'
+    | '/admin/'
     | '/api/$resource/$id'
     | '/api/auth/$'
+    | '/api/cloudflare/apply'
+    | '/api/cloudflare/authorize'
+    | '/api/cloudflare/callback'
+    | '/api/f/$slug'
     | '/api/github/authorize'
     | '/api/github/callback'
     | '/api/github/site'
@@ -160,15 +248,24 @@ export interface FileRouteTypes {
     | '/api/internal/provision'
     | '/api/settings/verify'
     | '/api/$resource/'
+    | '/api/static/'
+    | '/api/static/$collection/$id'
+    | '/api/static/$collection/'
     | '/api/public/forms/$slug/submissions'
     | '/api/public/forms/$slug/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/$'
+    | '/admin/$'
+    | '/api/health'
     | '/api/settings'
+    | '/admin'
     | '/api/$resource/$id'
     | '/api/auth/$'
+    | '/api/cloudflare/apply'
+    | '/api/cloudflare/authorize'
+    | '/api/cloudflare/callback'
+    | '/api/f/$slug'
     | '/api/github/authorize'
     | '/api/github/callback'
     | '/api/github/site'
@@ -176,15 +273,24 @@ export interface FileRouteTypes {
     | '/api/internal/provision'
     | '/api/settings/verify'
     | '/api/$resource'
+    | '/api/static'
+    | '/api/static/$collection/$id'
+    | '/api/static/$collection'
     | '/api/public/forms/$slug/submissions'
     | '/api/public/forms/$slug'
   id:
     | '__root__'
     | '/'
-    | '/$'
+    | '/admin/$'
+    | '/api/health'
     | '/api/settings'
+    | '/admin/'
     | '/api/$resource/$id'
     | '/api/auth/$'
+    | '/api/cloudflare/apply'
+    | '/api/cloudflare/authorize'
+    | '/api/cloudflare/callback'
+    | '/api/f/$slug'
     | '/api/github/authorize'
     | '/api/github/callback'
     | '/api/github/site'
@@ -192,22 +298,34 @@ export interface FileRouteTypes {
     | '/api/internal/provision'
     | '/api/settings/verify'
     | '/api/$resource/'
+    | '/api/static/'
+    | '/api/static/$collection/$id'
+    | '/api/static/$collection/'
     | '/api/public/forms/$slug/submissions'
     | '/api/public/forms/$slug/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  SplatRoute: typeof SplatRoute
+  AdminSplatRoute: typeof AdminSplatRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   ApiSettingsRoute: typeof ApiSettingsRouteWithChildren
+  AdminIndexRoute: typeof AdminIndexRoute
   ApiResourceIdRoute: typeof ApiResourceIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiCloudflareApplyRoute: typeof ApiCloudflareApplyRoute
+  ApiCloudflareAuthorizeRoute: typeof ApiCloudflareAuthorizeRoute
+  ApiCloudflareCallbackRoute: typeof ApiCloudflareCallbackRoute
+  ApiFSlugRoute: typeof ApiFSlugRoute
   ApiGithubAuthorizeRoute: typeof ApiGithubAuthorizeRoute
   ApiGithubCallbackRoute: typeof ApiGithubCallbackRoute
   ApiGithubSiteRoute: typeof ApiGithubSiteRoute
   ApiGithubStatusRoute: typeof ApiGithubStatusRoute
   ApiInternalProvisionRoute: typeof ApiInternalProvisionRoute
   ApiResourceIndexRoute: typeof ApiResourceIndexRoute
+  ApiStaticIndexRoute: typeof ApiStaticIndexRoute
+  ApiStaticCollectionIdRoute: typeof ApiStaticCollectionIdRoute
+  ApiStaticCollectionIndexRoute: typeof ApiStaticCollectionIndexRoute
   ApiPublicFormsSlugSubmissionsRoute: typeof ApiPublicFormsSlugSubmissionsRoute
   ApiPublicFormsSlugIndexRoute: typeof ApiPublicFormsSlugIndexRoute
 }
@@ -221,11 +339,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$': {
-      id: '/$'
-      path: '/$'
-      fullPath: '/$'
-      preLoaderRoute: typeof SplatRouteImport
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/$': {
+      id: '/admin/$'
+      path: '/admin/$'
+      fullPath: '/admin/$'
+      preLoaderRoute: typeof AdminSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/settings': {
@@ -254,6 +386,34 @@ declare module '@tanstack/react-router' {
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cloudflare/apply': {
+      id: '/api/cloudflare/apply'
+      path: '/api/cloudflare/apply'
+      fullPath: '/api/cloudflare/apply'
+      preLoaderRoute: typeof ApiCloudflareApplyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cloudflare/authorize': {
+      id: '/api/cloudflare/authorize'
+      path: '/api/cloudflare/authorize'
+      fullPath: '/api/cloudflare/authorize'
+      preLoaderRoute: typeof ApiCloudflareAuthorizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cloudflare/callback': {
+      id: '/api/cloudflare/callback'
+      path: '/api/cloudflare/callback'
+      fullPath: '/api/cloudflare/callback'
+      preLoaderRoute: typeof ApiCloudflareCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/f/$slug': {
+      id: '/api/f/$slug'
+      path: '/api/f/$slug'
+      fullPath: '/api/f/$slug'
+      preLoaderRoute: typeof ApiFSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/github/authorize': {
@@ -298,6 +458,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSettingsVerifyRouteImport
       parentRoute: typeof ApiSettingsRoute
     }
+    '/api/static/': {
+      id: '/api/static/'
+      path: '/api/static'
+      fullPath: '/api/static/'
+      preLoaderRoute: typeof ApiStaticIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/static/$collection/': {
+      id: '/api/static/$collection/'
+      path: '/api/static/$collection'
+      fullPath: '/api/static/$collection/'
+      preLoaderRoute: typeof ApiStaticCollectionIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/static/$collection/$id': {
+      id: '/api/static/$collection/$id'
+      path: '/api/static/$collection/$id'
+      fullPath: '/api/static/$collection/$id'
+      preLoaderRoute: typeof ApiStaticCollectionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/forms/$slug/': {
       id: '/api/public/forms/$slug/'
       path: '/api/public/forms/$slug'
@@ -329,16 +510,25 @@ const ApiSettingsRouteWithChildren = ApiSettingsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  SplatRoute: SplatRoute,
+  AdminSplatRoute: AdminSplatRoute,
+  ApiHealthRoute: ApiHealthRoute,
   ApiSettingsRoute: ApiSettingsRouteWithChildren,
+  AdminIndexRoute: AdminIndexRoute,
   ApiResourceIdRoute: ApiResourceIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiCloudflareApplyRoute: ApiCloudflareApplyRoute,
+  ApiCloudflareAuthorizeRoute: ApiCloudflareAuthorizeRoute,
+  ApiCloudflareCallbackRoute: ApiCloudflareCallbackRoute,
+  ApiFSlugRoute: ApiFSlugRoute,
   ApiGithubAuthorizeRoute: ApiGithubAuthorizeRoute,
   ApiGithubCallbackRoute: ApiGithubCallbackRoute,
   ApiGithubSiteRoute: ApiGithubSiteRoute,
   ApiGithubStatusRoute: ApiGithubStatusRoute,
   ApiInternalProvisionRoute: ApiInternalProvisionRoute,
   ApiResourceIndexRoute: ApiResourceIndexRoute,
+  ApiStaticIndexRoute: ApiStaticIndexRoute,
+  ApiStaticCollectionIdRoute: ApiStaticCollectionIdRoute,
+  ApiStaticCollectionIndexRoute: ApiStaticCollectionIndexRoute,
   ApiPublicFormsSlugSubmissionsRoute: ApiPublicFormsSlugSubmissionsRoute,
   ApiPublicFormsSlugIndexRoute: ApiPublicFormsSlugIndexRoute,
 }

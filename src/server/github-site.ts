@@ -80,12 +80,12 @@ export async function ensureExampleForm(db: NodeDb): Promise<string> {
  * Carrying the sha is what makes this safe to re-run: GitHub rejects the write
  * if the file moved under us, rather than silently clobbering someone's edit.
  */
-async function writeFile(
+async function patchFile(
   token: string,
   owner: string,
   repo: string,
   path: string,
-  contents: string,
+  transform: (current: string) => string,
   message: string,
 ): Promise<void> {
   const current = await gh(token, 'GET', `/repos/${owner}/${repo}/contents/${path}`)
@@ -96,6 +96,10 @@ async function writeFile(
     )
   }
 
+  const decoded = atob(String(current.json.content).replace(/\n/g, ''))
+  const contents = transform(
+    new TextDecoder().decode(Uint8Array.from(decoded, (c) => c.charCodeAt(0))),
+  )
   const encoded = btoa(String.fromCharCode(...new TextEncoder().encode(contents)))
   const put = await gh(token, 'PUT', `/repos/${owner}/${repo}/contents/${path}`, {
     message,
@@ -111,19 +115,27 @@ async function writeFile(
   }
 }
 
-function configSource(backendUrl: string, formSlug: string): string {
-  return `/**
- * Where this site's backend lives.
+/**
+ * Points the template's own config at this node.
  *
- * Written by your adminCms node when this repo was connected. Both values are
- * public by design: the form slug identifies a form, it does not authorise
- * anything.
+ * The template keeps its settings in `content/site.json`, which its editors
+ * also write — so this merges rather than overwrites. Clobbering the file would
+ * throw away whatever the operator had edited in the CMS.
  */
-window.SAASTARTER_CONFIG = {
-  backendUrl: ${JSON.stringify(backendUrl)},
-  formSlug: ${JSON.stringify(formSlug)},
-}
-`
+function withBackend(
+  current: string,
+  backendUrl: string,
+  formSlug: string,
+): string {
+  let parsed: Record<string, unknown>
+  try {
+    parsed = JSON.parse(current) as Record<string, unknown>
+  } catch {
+    parsed = {}
+  }
+
+  parsed.backend = { url: backendUrl, form: formSlug }
+  return `${JSON.stringify(parsed, null, 2)}\n`
 }
 
 export interface SiteSetupOptions {
@@ -167,13 +179,28 @@ async function configureAndPublish(
 ): Promise<SiteResult> {
   const pagesUrl = `https://${owner.toLowerCase()}.github.io/${repo}/`
 
-  await writeFile(
+  await patchFile(
     options.token,
     owner,
     repo,
-    'config.js',
-    configSource(options.backendUrl, options.formSlug),
+    'content/site.json',
+    (current) => withBackend(current, options.backendUrl, options.formSlug),
     'Point this site at its adminCms node',
+  )
+
+  // The CMS commits straight back to this repo, so it has to know which one it
+  // is — the template ships pointing at wherever it was authored.
+  await patchFile(
+    options.token,
+    owner,
+    repo,
+    'static-admin/config.yml',
+    (current) =>
+      current
+        .replace(/^(\s*repo:\s*).*$/m, `$1${owner}/${repo}`)
+        .replace(/^(site_url:\s*).*$/m, `$1${pagesUrl}`)
+        .replace(/^(display_url:\s*).*$/m, `$1${pagesUrl}`),
+    'Point the CMS at this repo',
   )
 
   const branch = await gh(options.token, 'GET', `/repos/${owner}/${repo}`)
@@ -238,7 +265,7 @@ export async function createSiteFromTemplate(
       const probe = await gh(
         options.token,
         'GET',
-        `/repos/${owner}/${options.name}/contents/config.js`,
+        `/repos/${owner}/${options.name}/contents/content/site.json`,
       )
       if (probe.status === 200) {
         ready = true
@@ -277,27 +304,17 @@ export async function connectExistingSite(
     )
   }
 
-  // An existing repo may not carry config.js, so seed it before configuring.
-  const probe = await gh(options.token, 'GET', `/repos/${owner}/${repo}/contents/config.js`)
+  // An existing repo may not carry the template's config file at all.
+  const probe = await gh(
+    options.token,
+    'GET',
+    `/repos/${owner}/${repo}/contents/content/site.json`,
+  )
   if (probe.status === 404) {
-    const encoded = btoa(
-      String.fromCharCode(
-        ...new TextEncoder().encode(
-          configSource(options.backendUrl, options.formSlug),
-        ),
-      ),
+    throw new SiteError(
+      `${options.repoFullName} does not look like a site built from the template — it has no content/site.json.`,
+      400,
     )
-    const put = await gh(options.token, 'PUT', `/repos/${owner}/${repo}/contents/config.js`, {
-      message: 'Point this site at its adminCms node',
-      content: encoded,
-    })
-    if (put.status !== 201 && put.status !== 200) {
-      throw new SiteError(
-        `Could not add config.js: ${put.json?.message ?? `HTTP ${put.status}`}`,
-        put.status,
-      )
-    }
-    return configureAndPublish(options, owner, repo, false)
   }
 
   return configureAndPublish(options, owner, repo, false)

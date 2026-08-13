@@ -14,9 +14,10 @@ import {
   ensureExampleForm,
 } from '#/server/github-site'
 import { currentConnection, redactConnection } from '#/server/github-store'
+import { applyPagesDomain } from '#/server/domains'
 import { getSettings, publicApiBase } from '#/server/settings'
 
-const DEFAULT_TEMPLATE = 'MahmoodKhalil57/pure-frontend-saastarter'
+const DEFAULT_TEMPLATE = 'MahmoodKhalil57/pure-frontend'
 
 /**
  * Creates a site from the template, or adopts one the user already has.
@@ -61,10 +62,13 @@ export const Route = createFileRoute('/api/github/site')(
         ? await ensureExampleForm(db)
         : 'early-access'
 
-      // Whatever address the API answers on right now — a verified custom
-      // domain if there is one, so a published site follows the domain instead
-      // of being pinned to the dispatcher path it was created with.
-      const backendUrl = publicApiBase(env, await getSettings(db))
+      // The template stores an origin and appends `/api/f/<slug>` itself, so
+      // it must not be handed an address that already ends in `/api` — that
+      // builds `/api/api/f/...` and 404s.
+      const backendUrl = publicApiBase(env, await getSettings(db)).replace(
+        /\/api$/,
+        '',
+      )
 
       const shared = {
         token: connection.accessToken,
@@ -91,6 +95,19 @@ export const Route = createFileRoute('/api/github/site')(
             pagesUrl: result.pagesUrl,
           })
           .where(eq(githubConnections.id, connection.id))
+
+        // A domain already set up belongs to this site now — including when a
+        // site is recreated or swapped, which otherwise leaves the domain
+        // pointing at a repo that no longer serves it.
+        const settings = await getSettings(db)
+        if (settings.customDomain) {
+          await applyPagesDomain(
+            connection.accessToken,
+            result.owner,
+            result.repo,
+            settings.customDomain,
+          )
+        }
 
         return Response.json({
           ok: true,

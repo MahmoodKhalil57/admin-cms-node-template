@@ -21,7 +21,7 @@ async function back(
   featureId?: number,
 ): Promise<Response> {
   const base = (env.PUBLIC_URL ?? '').replace(/\/+$/, '')
-  const path = featureId ? `/features/${featureId}` : '/features'
+  const path = featureId ? `/admin/features/${featureId}` : '/admin/features'
   return Response.redirect(`${base}${path}?${query}`, 302)
 }
 

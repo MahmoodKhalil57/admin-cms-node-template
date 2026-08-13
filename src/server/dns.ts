@@ -7,7 +7,7 @@
  * machine can.
  */
 
-export type RecordType = 'A' | 'CNAME'
+export type RecordType = 'A' | 'CNAME' | 'NS' | 'CAA'
 
 interface DohAnswer {
   name: string
@@ -15,7 +15,7 @@ interface DohAnswer {
   data: string
 }
 
-const TYPE_NUMBERS: Record<RecordType, number> = { A: 1, CNAME: 5 }
+const TYPE_NUMBERS: Record<RecordType, number> = { A: 1, CNAME: 5, NS: 2, CAA: 257 }
 
 async function query(name: string, type: RecordType): Promise<Array<string>> {
   const url = new URL('https://cloudflare-dns.com/dns-query')
@@ -117,7 +117,13 @@ export async function checkRecord(
   const ok =
     requirement.type === 'A'
       ? expected.every((value) => found.includes(value))
-      : found.some((value) => expected.includes(value))
+      : requirement.type === 'CAA'
+        ? // Any one authority being permitted is enough; the record's job is to
+          // stop the lookup climbing to a parent that forbids ours.
+          expected.some((value) =>
+            found.some((entry) => entry.includes(value)),
+          )
+        : found.some((value) => expected.includes(value))
 
   return {
     ok,
@@ -126,5 +132,77 @@ export async function checkRecord(
     message: ok
       ? 'Pointing to the right place.'
       : `Points to ${found.join(', ')} instead of ${expected.join(' / ')}.`,
+  }
+}
+
+/**
+ * Whether a domain is served by Cloudflare, and which zone it sits in.
+ *
+ * Walks up the labels, because NS records live at the zone apex and nowhere
+ * else — asking `www.example.com` returns nothing even when `example.com` is on
+ * Cloudflare, which would silently deny the operator the automatic setup. The
+ * label where the NS records turn up *is* the zone, which is worth returning:
+ * it is what a link into the Cloudflare dashboard needs, and working it out
+ * from the string alone is the problem the public suffix list exists for.
+ */
+export async function detectCloudflare(
+  domain: string,
+): Promise<{ onCloudflare: boolean; zone: string | null }> {
+  const labels = domain.split('.').filter(Boolean)
+
+  for (let i = 0; i <= labels.length - 2; i++) {
+    const candidate = labels.slice(i).join('.')
+    try {
+      const nameservers = await query(candidate, 'NS')
+      if (nameservers.length > 0) {
+        return {
+          onCloudflare: nameservers.some((ns) => ns.endsWith('.ns.cloudflare.com')),
+          zone: candidate,
+        }
+      }
+    } catch {
+      return { onCloudflare: false, zone: null }
+    }
+  }
+
+  return { onCloudflare: false, zone: null }
+}
+
+/**
+ * Whether a hostname actually reaches this node.
+ *
+ * Asks the node itself rather than inspecting DNS, because a proxied record
+ * resolves to the proxy and tells you nothing about what is behind it — and
+ * because "does it serve" is what the operator actually wants to know. A
+ * certificate that has not been issued yet fails here too, which is correct:
+ * the address does not work until it does.
+ */
+export async function servesNode(
+  hostname: string,
+  expectedNodeId: string,
+): Promise<{ ok: boolean; message: string }> {
+  try {
+    const response = await fetch(`https://${hostname}/api/health`, {
+      headers: { accept: 'application/json' },
+    })
+    if (!response.ok) {
+      return { ok: false, message: `Answered ${response.status}, not this node.` }
+    }
+    const body = (await response.json()) as { node?: string }
+    return body.node === expectedNodeId
+      ? { ok: true, message: 'Serving this node.' }
+      : {
+          ok: false,
+          message: `Reached a different node (${body.node ?? 'unknown'}).`,
+        }
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    // A TLS failure here is usually a certificate that does not exist yet,
+    // which is what happens when the hostname sits more than one label below
+    // the zone apex and only a wildcard certificate covers it.
+    return {
+      ok: false,
+      message: `Could not reach it yet (${detail}). A new hostname can take a few minutes, and needs a certificate that covers it.`,
+    }
   }
 }

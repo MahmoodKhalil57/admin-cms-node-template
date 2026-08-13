@@ -51,7 +51,7 @@ export const GithubPagesPanel = ({ featureId }: { featureId: number }) => {
       notify(CALLBACK_MESSAGES[outcome] ?? outcome, {
         type: outcome === 'connected' ? 'success' : 'error',
       })
-      window.history.replaceState({}, '', `/features/${featureId}`)
+      window.history.replaceState({}, '', `/admin/features/${featureId}`)
     }
     void refresh()
     // eslint-disable-next-line react-hooks/exhaustive-deps

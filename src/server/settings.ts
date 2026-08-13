@@ -2,7 +2,6 @@ import { eq } from 'drizzle-orm'
 
 import type { NodeDb } from '#/db'
 import { settings } from '#/db/schema'
-import { apiHostname } from './domain-plan'
 import type { NodeEnv } from './env'
 
 export type NodeSettings = typeof settings.$inferSelect
@@ -14,6 +13,18 @@ export async function getSettings(db: NodeDb): Promise<NodeSettings> {
 
   const [created] = await db.insert(settings).values({}).returning()
   return created
+}
+
+export async function rememberZone(
+  db: NodeDb,
+  zone: string | null,
+): Promise<void> {
+  const current = await getSettings(db)
+  if (current.dnsZone === zone) return
+  await db
+    .update(settings)
+    .set({ dnsZone: zone })
+    .where(eq(settings.id, current.id))
 }
 
 export async function saveCustomDomain(
@@ -29,7 +40,7 @@ export async function saveCustomDomain(
     .update(settings)
     .set({
       customDomain: domain,
-      ...(changed ? { frontendVerified: false, apiVerified: false } : {}),
+      ...(changed ? { frontendVerified: false, apiVerified: false, dnsZone: null } : {}),
       updatedAt: new Date(),
     })
     .where(eq(settings.id, current.id))
@@ -66,16 +77,14 @@ export function cleanDomain(value: string | null | undefined): string | null {
  * `config.js`, so the site follows the domain automatically once it verifies.
  */
 export function publicApiBase(env: NodeEnv, current: NodeSettings): string {
+  // Same origin as the website, under /api — one hostname, one record, one
+  // certificate, and no cross-origin preflight on every form submission.
   if (current.customDomain && current.apiVerified) {
-    return `https://${apiHostname(current.customDomain)}`
+    return `https://${current.customDomain}/api`
   }
   return (env.PUBLIC_URL ?? '').replace(/\/+$/, '')
 }
 
-export function dispatcherHost(env: NodeEnv): string {
-  try {
-    return new URL(env.PUBLIC_URL ?? '').hostname
-  } catch {
-    return ''
-  }
+export function originHost(env: NodeEnv): string {
+  return env.ORIGIN_HOST ?? ''
 }

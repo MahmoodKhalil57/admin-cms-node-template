@@ -43,12 +43,32 @@ export const settings = sqliteTable('settings', {
    * than keeping several fields in step. See `domain-plan.ts`.
    */
   customDomain: text('custom_domain'),
+  /** the DNS zone the domain sits in, learned from its nameservers */
+  dnsZone: text('dns_zone'),
   /** per-use verification, because the records are added and spread separately */
   frontendVerified: integer('frontend_verified', { mode: 'boolean' })
     .notNull()
     .default(false),
   apiVerified: integer('api_verified', { mode: 'boolean' }).notNull().default(false),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(
+    sql`(unixepoch())`,
+  ),
+})
+
+/**
+ * A Cloudflare account the operator granted DNS access to.
+ *
+ * Optional convenience: when their domain is on Cloudflare, the node can write
+ * the DNS records itself instead of the operator copying five of them by hand.
+ * At most one row, and the tokens never leave this Worker.
+ */
+export const cloudflareConnections = sqliteTable('cloudflare_connections', {
+  id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+  accessToken: text('access_token').notNull(),
+  refreshToken: text('refresh_token'),
+  /** epoch seconds; null when Cloudflare did not say */
+  expiresAt: integer('expires_at'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(
     sql`(unixepoch())`,
   ),
 })

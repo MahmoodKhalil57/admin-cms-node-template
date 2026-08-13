@@ -4,13 +4,15 @@ import { getDb } from '#/db'
 import { serverRoute } from '#/lib/server-route'
 import { getAuth } from '#/server/auth'
 import { getEnv } from '#/server/env'
+import { detectCloudflare } from '#/server/dns'
+import { currentCloudflare } from '#/server/cloudflare-store'
 import { planDomain } from '#/server/domain-plan'
 import { currentConnection } from '#/server/github-store'
 import {
   cleanDomain,
-  dispatcherHost,
   getSettings,
   publicApiBase,
+  rememberZone,
   saveCustomDomain,
 } from '#/server/settings'
 
@@ -26,10 +28,19 @@ export const Route = createFileRoute('/api/settings')(
       const current = await getSettings(db)
       const connection = await currentConnection(db)
 
+      // Only worth asking when there is a domain to ask about, and it decides
+      // whether the operator is offered the automatic path at all.
+      const cloudflare = current.customDomain
+        ? await detectCloudflare(current.customDomain)
+        : { onCloudflare: false, zone: null }
+
+      if (cloudflare.zone !== current.dnsZone) {
+        await rememberZone(db, cloudflare.zone)
+      }
+
       const purposes = current.customDomain
         ? planDomain({
             root: current.customDomain,
-            dispatcherHost: dispatcherHost(env),
             githubOwner: connection?.login,
           })
         : []
@@ -45,6 +56,12 @@ export const Route = createFileRoute('/api/settings')(
         defaultApiBase: (env.PUBLIC_URL ?? '').replace(/\/+$/, ''),
         pagesUrl: connection?.pagesUrl ?? null,
         githubOwner: connection?.login ?? null,
+        onCloudflare: cloudflare.onCloudflare,
+        cloudflareZone: cloudflare.zone,
+        cloudflareConnected: Boolean(await currentCloudflare(db)),
+        cloudflareConfigured: Boolean(
+          env.CLOUDFLARE_CLIENT_ID && env.CLOUDFLARE_CLIENT_SECRET,
+        ),
         purposes: purposes.map((purpose) => ({
           ...purpose,
           verified: verified[purpose.key] ?? false,

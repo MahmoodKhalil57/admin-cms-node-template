@@ -39,6 +39,35 @@ export interface NodeEnv {
   /** the template repo new sites are generated from, as `owner/repo` */
   GITHUB_TEMPLATE_REPO?: string
   /**
+   * The platform's Cloudflare OAuth app, for writing DNS records on an
+   * operator's behalf when their domain is already on Cloudflare.
+   */
+  CLOUDFLARE_CLIENT_ID?: string
+  CLOUDFLARE_CLIENT_SECRET?: string
+  /**
+   * Origin serving the fleet-wide OAuth callback.
+   *
+   * Cloudflare matches `redirect_uri` exactly — no subdirectories — so one
+   * registered URL has to serve every node, and which node started the flow
+   * travels in the signed state instead of the path.
+   */
+  OAUTH_CALLBACK_BASE?: string
+  /**
+   * The platform hostname customers point a CNAME at.
+   *
+   * One target for the whole fleet, so the DNS instruction is identical
+   * wherever the domain was bought — which is the point of doing this with DNS
+   * records rather than an integration with one provider.
+   */
+  ORIGIN_HOST?: string
+  /**
+   * Service binding to master, for platform-side work a node cannot do itself.
+   *
+   * A binding rather than a URL because a Worker cannot fetch another Worker
+   * over workers.dev — the subrequest fails with Cloudflare error 1042.
+   */
+  MASTER?: { fetch: typeof fetch }
+  /**
    * This node's own public address.
    *
    * Supplied by master, because the dispatch Worker strips the `/n/<slug>`

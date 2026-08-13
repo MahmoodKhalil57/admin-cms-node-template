@@ -17,6 +17,13 @@ export interface FeatureDefinition {
   description: string
   /** whether a freshly provisioned node starts with this on */
   defaultEnabled: boolean
+  /**
+   * Admin resources this feature brings with it.
+   *
+   * Declared here so the sidebar can group them under the feature that owns
+   * them — they appear and disappear together, and a flat list hides that.
+   */
+  resources?: Array<string>
 }
 
 export const FEATURE_CATALOG: Array<FeatureDefinition> = [
@@ -26,6 +33,7 @@ export const FEATURE_CATALOG: Array<FeatureDefinition> = [
     description:
       'Build forms and collect submissions, including from a public website.',
     defaultEnabled: true,
+    resources: ['forms', 'submissions'],
   },
   {
     key: 'github-pages',

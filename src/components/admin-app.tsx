@@ -1,13 +1,20 @@
 import { Resource } from 'ra-core'
 import { tanStackRouterProvider } from 'ra-router-tanstack'
-import { Settings2, SlidersHorizontal } from 'lucide-react'
+import { FileText, Settings2, SlidersHorizontal } from 'lucide-react'
 
 import { Admin } from '#/components/admin'
+import { NodeLayout } from '#/components/node-layout'
 import { LoginPage } from '#/components/login-page'
 import { SettingsPage } from '#/components/settings-page'
 import { authProvider } from '#/lib/auth-provider'
 import { dataProvider } from '#/lib/data-provider'
 import { useEnabledFeatures } from '#/lib/features'
+import { useStaticModel } from '#/lib/static-model'
+import {
+  staticCreate,
+  staticEdit,
+  staticList,
+} from '#/components/static/screens'
 import {
   FeatureEdit,
   FeatureList,
@@ -50,6 +57,7 @@ const NodeLoginPage = () => (
  */
 export function AdminApp() {
   const enabled = useEnabledFeatures()
+  const staticModel = useStaticModel()
 
   if (enabled === null) {
     return (
@@ -63,10 +71,12 @@ export function AdminApp() {
 
   return (
     <Admin
+      basename="/admin"
       routerProvider={tanStackRouterProvider}
       dataProvider={dataProvider}
       authProvider={authProvider}
       loginPage={NodeLoginPage}
+      layout={NodeLayout}
       requireAuth
       disableTelemetry
       title="Node admin"
@@ -88,6 +98,22 @@ export function AdminApp() {
           show={SubmissionShow}
         />
       )}
+      {/* The site's own content, edited straight in its repository — the same
+          files its static CMS writes, so either surface produces the same
+          commits. Collections come from the repo at runtime, which is why they
+          are mapped rather than listed. */}
+      {(staticModel?.collections ?? []).map((collection) => (
+        <Resource
+          key={collection.name}
+          name={`static/${collection.name}`}
+          options={{ label: collection.label, group: 'Static' }}
+          list={staticList(collection)}
+          edit={staticEdit(collection, staticModel?.siteUrl ?? '')}
+          create={collection.canCreate ? staticCreate(collection) : undefined}
+          icon={FileText}
+        />
+      ))}
+
       {/* Node-wide, so always present: a node's addresses belong to the node,
           not to whichever feature happens to use them. */}
       <Resource
