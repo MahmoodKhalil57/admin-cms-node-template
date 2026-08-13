@@ -28,7 +28,7 @@ export const Route = createFileRoute('/api/f/$slug')(
       if (!(await getEnabledFeatures(db)).includes('forms')) {
         return Response.json({ error: 'Unknown form' }, { status: 404, headers: cors })
       }
-      return acceptSubmission(db, params.slug, request, cors)
+      return acceptSubmission(getEnv(request), db, params.slug, request, cors)
     },
   }),
 )

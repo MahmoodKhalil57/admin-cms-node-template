@@ -93,6 +93,76 @@ export const githubConnections = sqliteTable('github_connections', {
 })
 
 /**
+ * An automation: when this happens, tell these people, this way.
+ *
+ * Three columns for three questions that change independently — `event` and
+ * `when` say which records set it off, `audience` says who hears, `channels`
+ * says how. Splitting them is what lets one form's enquiries reach the trade
+ * desk by email today and by SMS later without touching the rows.
+ *
+ * `when` reuses the shape role conditions use, because it is the same question
+ * asked twice: which records does this apply to. A submission's own answers are
+ * addressed as `data.<field>`.
+ */
+export const automations = sqliteTable('automations', {
+  id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+  name: text().notNull(),
+  /** a key from the trigger catalog, e.g. `submission.created` */
+  event: text().notNull(),
+  enabled: integer({ mode: 'boolean' }).notNull().default(true),
+  /** field -> rule, e.g. { "formId": { "in": [3] } } */
+  when: text({ mode: 'json' }).$type<Record<string, AutomationRule>>().notNull().default({}),
+  /** people, roles, policies and bare addresses */
+  audience: text({ mode: 'json' }).$type<Record<string, Array<string>>>().notNull().default({}),
+  /** channel keys; unavailable ones are stored and skipped until they exist */
+  channels: text({ mode: 'json' }).$type<Array<string>>().notNull().default(['email']),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(
+    sql`(unixepoch())`,
+  ),
+})
+
+/** How an automation narrows the records it fires on. */
+export type AutomationRule = {
+  in?: Array<string | number>
+  eq?: string | number
+  contains?: string
+  filled?: boolean
+}
+
+/**
+ * One attempt to tell one person, on one channel.
+ *
+ * Written whether or not it worked, because "did they get told" is the question
+ * anyone asks after the fact and the alternative is guessing from mail logs.
+ * It is also where the in-app channel comes from when it lands: an unread
+ * notification is a row here, so that channel is a read rather than new
+ * plumbing.
+ */
+export const notifications = sqliteTable(
+  'notifications',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    automationId: integer('automation_id'),
+    /** which record set it off, so the panel can link back to it */
+    subjectType: text('subject_type').notNull().default('submission'),
+    subjectId: integer('subject_id'),
+    channel: text().notNull(),
+    /** the address, phone or user id it was aimed at */
+    target: text().notNull(),
+    /** set when the target is someone with an account here */
+    userId: text('user_id'),
+    /** queued -> sent | failed | skipped */
+    status: text().notNull().default('queued'),
+    detail: text(),
+    readAt: integer('read_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [index('notifications_user_read').on(table.userId, table.readAt)],
+)
+
+/**
  * A role, as the business defines it.
  *
  * Deliberately a row rather than a type in code. Whoever runs the business

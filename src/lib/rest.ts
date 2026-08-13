@@ -11,7 +11,15 @@ import {
 import type { SQL } from 'drizzle-orm'
 
 import type { NodeDb } from '#/db'
-import { features, formSubmissions, forms, invitations, roles } from '#/db/schema'
+import {
+  automations,
+  features,
+  formSubmissions,
+  forms,
+  invitations,
+  notifications,
+  roles,
+} from '#/db/schema'
 import { RESOURCE_PERMISSIONS } from '#/lib/permission-catalog'
 import type { Principal } from '#/server/authz'
 import { can, conditionFor, forbidden, matchesCondition } from '#/server/authz'
@@ -34,6 +42,8 @@ const RESOURCES = {
   features: { table: features, feature: null },
   forms: { table: forms, feature: 'forms' },
   submissions: { table: formSubmissions, feature: 'forms' },
+  automations: { table: automations, feature: 'forms' },
+  notifications: { table: notifications, feature: 'forms' },
   roles: { table: roles, feature: 'user-management' },
   invitations: { table: invitations, feature: 'user-management' },
 }

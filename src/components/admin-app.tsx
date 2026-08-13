@@ -1,7 +1,9 @@
 import { Resource } from 'ra-core'
 import { tanStackRouterProvider } from 'ra-router-tanstack'
 import {
+  BellRing,
   FileText,
+  Send,
   Settings2,
   ShieldCheck,
   SlidersHorizontal,
@@ -23,6 +25,12 @@ import {
 } from '#/components/static/screens'
 import { BuilderOverlay } from '#/components/static/builder'
 import { RoleCreate, RoleEdit, RoleList } from '#/components/resources/roles'
+import {
+  AutomationCreate,
+  AutomationEdit,
+  AutomationList,
+  NotificationList,
+} from '#/components/resources/automations'
 import { TeamPage } from '#/components/resources/team'
 import { holds, useMyPermissions } from '#/lib/my-permissions'
 import { FeatureEdit, FeatureList } from '#/components/resources/features'
@@ -116,6 +124,25 @@ export function AdminApp() {
             name="submissions"
             list={SubmissionList}
             show={SubmissionShow}
+          />
+        )}
+        {forms && holds(mine, 'submissions:read') && (
+          <Resource
+            name="automations"
+            options={{ label: 'Notifications' }}
+            list={AutomationList}
+            edit={AutomationEdit}
+            create={AutomationCreate}
+            icon={BellRing}
+            recordRepresentation="name"
+          />
+        )}
+        {forms && holds(mine, 'submissions:read') && (
+          <Resource
+            name="notifications"
+            options={{ label: 'Sent' }}
+            list={NotificationList}
+            icon={Send}
           />
         )}
         {/* The site's own content, edited straight in its repository — the same

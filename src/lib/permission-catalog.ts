@@ -163,6 +163,14 @@ export const RESOURCE_PERMISSIONS: Record<
     write: 'submissions:write',
     delete: 'submissions:write',
   },
+  // Deciding who gets told is a submissions job, not a settings one — it is
+  // the same person who reads them.
+  automations: {
+    read: 'submissions:read',
+    write: 'submissions:write',
+    delete: 'submissions:write',
+  },
+  notifications: { read: 'submissions:read', write: 'submissions:write' },
   features: { read: 'settings:read', write: 'features:manage' },
   roles: { read: 'team:read', write: 'team:manage', delete: 'team:manage' },
   invitations: { read: 'team:read', write: 'team:manage', delete: 'team:manage' },

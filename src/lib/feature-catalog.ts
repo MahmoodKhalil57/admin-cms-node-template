@@ -33,7 +33,7 @@ export const FEATURE_CATALOG: Array<FeatureDefinition> = [
     description:
       'Build forms and collect submissions, including from a public website.',
     defaultEnabled: true,
-    resources: ['forms', 'submissions'],
+    resources: ['forms', 'submissions', 'automations', 'notifications'],
   },
   {
     key: 'user-management',

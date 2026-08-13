@@ -1,6 +1,8 @@
 import { eq } from 'drizzle-orm'
 
 import type { NodeDb } from '#/db'
+import type { NodeEnv } from './env'
+import { runAutomations } from './automations'
 import { formSubmissions, forms } from '#/db/schema'
 import type { FormFieldDef } from '#/db/schema'
 
@@ -111,6 +113,7 @@ async function readBody(request: Request): Promise<Record<string, unknown>> {
 const MAX_VALUE_LENGTH = 4000
 
 export async function acceptSubmission(
+  env: NodeEnv,
   db: NodeDb,
   slug: string,
   request: Request,
@@ -182,7 +185,21 @@ export async function acceptSubmission(
     return Response.json({ success: false, errors }, { status: 422, headers: cors })
   }
 
-  await db.insert(formSubmissions).values({ formId: form.id, data, status: 'new' })
+  const [saved] = await db
+    .insert(formSubmissions)
+    .values({ formId: form.id, data, status: 'new' })
+    .returning()
+
+  // Whoever asked to hear about this, told now. Never allowed to fail the
+  // submission: losing a notification is recoverable, losing what the visitor
+  // typed is not.
+  await runAutomations(
+    env,
+    db,
+    'submission.created',
+    { ...saved, data },
+    { formName: form.name },
+  )
 
   return Response.json(
     { success: true, message: form.successMessage ?? 'Thanks — we got it.' },
