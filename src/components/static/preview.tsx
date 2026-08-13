@@ -5,6 +5,60 @@ import { useRecordContext } from 'ra-core'
 import { cn } from '#/lib/utils'
 
 /**
+ * A page's title and description, drawn as what they produce.
+ *
+ * Neither appears on the page — they are `<title>` and `<meta name=
+ * "description">`, which is what a search result and a browser tab are built
+ * from. Without this they are the only fields on the screen with no visible
+ * effect anywhere.
+ *
+ * It sits in the panel rather than inside the frame on purpose. The frame shows
+ * the site and nothing else; panel chrome inside it reads as part of the page
+ * being previewed, which it is not.
+ */
+const SearchResult = ({
+  siteUrl,
+  values,
+}: {
+  siteUrl: string
+  values: Record<string, unknown>
+}) => {
+  const title = String(values.title ?? '')
+  const description = String(values.description ?? '')
+  const slug = String(values.slug ?? 'index')
+
+  let host = siteUrl
+  try {
+    host = new URL(siteUrl).host
+  } catch {
+    /* a malformed site URL is still worth showing verbatim */
+  }
+  const path = slug === 'index' ? '/' : `/${slug}.html`
+
+  return (
+    <div className="border-border/70 border-b px-3 py-2.5">
+      <p className="text-muted-foreground mb-1.5 text-[0.65rem] font-semibold tracking-[0.08em] uppercase">
+        How it appears in search
+      </p>
+      <p className="text-muted-foreground/80 truncate font-mono text-[0.7rem]">
+        {host}
+        {path}
+      </p>
+      <p className="text-primary truncate text-sm font-medium">
+        {title || <span className="text-muted-foreground italic">Untitled</span>}
+      </p>
+      <p className="text-muted-foreground line-clamp-2 text-xs">
+        {description || (
+          <span className="italic">
+            No description — search engines will pick their own text.
+          </span>
+        )}
+      </p>
+    </div>
+  )
+}
+
+/**
  * The page, painted from the form as it is typed.
  *
  * The frame is served by the site itself and uses the site's own renderer, so
@@ -115,6 +169,13 @@ export const StaticPreview = ({
             ))}
           </div>
         </div>
+        {/* Only where those fields exist, which is what the card is about. */}
+        {'title' in values || 'description' in values ? (
+          <SearchResult
+            siteUrl={siteUrl}
+            values={values as Record<string, unknown>}
+          />
+        ) : null}
         <iframe
           ref={frame}
           src={src}
