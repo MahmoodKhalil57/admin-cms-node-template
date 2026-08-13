@@ -32,6 +32,29 @@ function createAuth(env: NodeEnv) {
     emailAndPassword: {
       enabled: true,
       disableSignUp: true,
+      /**
+       * Better Auth owns the reset: it mints the token, expires it and checks
+       * it on the way back. All that was missing was a way to deliver the
+       * link, which is the only part specific to this node.
+       */
+      sendResetPassword: async ({ user, url }) => {
+        const [{ sendMail, resetMail }, { getDb }, { getSettings }] =
+          await Promise.all([
+            import('./mailer'),
+            import('#/db'),
+            import('./settings'),
+          ])
+        const settings = await getSettings(getDb(env))
+        await sendMail(
+          env,
+          resetMail({
+            to: user.email,
+            url,
+            workspace: settings.customDomain ?? env.ORIGIN_HOST ?? 'this workspace',
+          }),
+          settings.customDomain,
+        )
+      },
     },
     user: {
       additionalFields: {

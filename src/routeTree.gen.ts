@@ -13,7 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminSplatRouteImport } from './routes/admin.$'
 import { Route as AdminBuilderRouteImport } from './routes/admin.builder'
+import { Route as AdminForgotRouteImport } from './routes/admin.forgot'
 import { Route as AdminJoinRouteImport } from './routes/admin.join'
+import { Route as AdminResetRouteImport } from './routes/admin.reset'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiPermissionsRouteImport } from './routes/api.permissions'
 import { Route as ApiSettingsRouteImport } from './routes/api.settings'
@@ -63,9 +65,19 @@ const AdminBuilderRoute = AdminBuilderRouteImport.update({
   path: '/admin/builder',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminForgotRoute = AdminForgotRouteImport.update({
+  id: '/admin/forgot',
+  path: '/admin/forgot',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminJoinRoute = AdminJoinRouteImport.update({
   id: '/admin/join',
   path: '/admin/join',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminResetRoute = AdminResetRouteImport.update({
+  id: '/admin/reset',
+  path: '/admin/reset',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
@@ -215,7 +227,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin/$': typeof AdminSplatRoute
   '/admin/builder': typeof AdminBuilderRoute
+  '/admin/forgot': typeof AdminForgotRoute
   '/admin/join': typeof AdminJoinRoute
+  '/admin/reset': typeof AdminResetRoute
   '/api/health': typeof ApiHealthRoute
   '/api/permissions': typeof ApiPermissionsRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
@@ -250,7 +264,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin/$': typeof AdminSplatRoute
   '/admin/builder': typeof AdminBuilderRoute
+  '/admin/forgot': typeof AdminForgotRoute
   '/admin/join': typeof AdminJoinRoute
+  '/admin/reset': typeof AdminResetRoute
   '/api/health': typeof ApiHealthRoute
   '/api/permissions': typeof ApiPermissionsRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
@@ -286,7 +302,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin/$': typeof AdminSplatRoute
   '/admin/builder': typeof AdminBuilderRoute
+  '/admin/forgot': typeof AdminForgotRoute
   '/admin/join': typeof AdminJoinRoute
+  '/admin/reset': typeof AdminResetRoute
   '/api/health': typeof ApiHealthRoute
   '/api/permissions': typeof ApiPermissionsRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
@@ -323,7 +341,9 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/$'
     | '/admin/builder'
+    | '/admin/forgot'
     | '/admin/join'
+    | '/admin/reset'
     | '/api/health'
     | '/api/permissions'
     | '/api/settings'
@@ -358,7 +378,9 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/$'
     | '/admin/builder'
+    | '/admin/forgot'
     | '/admin/join'
+    | '/admin/reset'
     | '/api/health'
     | '/api/permissions'
     | '/api/settings'
@@ -393,7 +415,9 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/$'
     | '/admin/builder'
+    | '/admin/forgot'
     | '/admin/join'
+    | '/admin/reset'
     | '/api/health'
     | '/api/permissions'
     | '/api/settings'
@@ -429,7 +453,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminSplatRoute: typeof AdminSplatRoute
   AdminBuilderRoute: typeof AdminBuilderRoute
+  AdminForgotRoute: typeof AdminForgotRoute
   AdminJoinRoute: typeof AdminJoinRoute
+  AdminResetRoute: typeof AdminResetRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiPermissionsRoute: typeof ApiPermissionsRoute
   ApiSettingsRoute: typeof ApiSettingsRouteWithChildren
@@ -490,11 +516,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBuilderRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/forgot': {
+      id: '/admin/forgot'
+      path: '/admin/forgot'
+      fullPath: '/admin/forgot'
+      preLoaderRoute: typeof AdminForgotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/join': {
       id: '/admin/join'
       path: '/admin/join'
       fullPath: '/admin/join'
       preLoaderRoute: typeof AdminJoinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/reset': {
+      id: '/admin/reset'
+      path: '/admin/reset'
+      fullPath: '/admin/reset'
+      preLoaderRoute: typeof AdminResetRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/health': {
@@ -712,7 +752,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminSplatRoute: AdminSplatRoute,
   AdminBuilderRoute: AdminBuilderRoute,
+  AdminForgotRoute: AdminForgotRoute,
   AdminJoinRoute: AdminJoinRoute,
+  AdminResetRoute: AdminResetRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiPermissionsRoute: ApiPermissionsRoute,
   ApiSettingsRoute: ApiSettingsRouteWithChildren,

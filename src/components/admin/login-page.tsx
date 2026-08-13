@@ -108,6 +108,14 @@ export const LoginPage = (props: { redirectTo?: string }) => {
               >
                 Sign in
               </Button>
+              {/* The way back in. Without it a reset link can be sent but never
+                  asked for, which is the same as not having one. */}
+              <a
+                href="/admin/forgot"
+                className="text-muted-foreground hover:text-foreground text-center text-sm underline"
+              >
+                Forgotten your password?
+              </a>
             </Form>
           </div>
         </div>

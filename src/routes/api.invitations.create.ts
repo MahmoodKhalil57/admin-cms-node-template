@@ -8,6 +8,7 @@ import { getEnv } from '#/server/env'
 import { getEnabledFeatures } from '#/server/features'
 import { can, forbidden, principalFrom } from '#/server/authz'
 import { newInviteToken } from '#/server/team'
+import { invitationMail, sendMail } from '#/server/mailer'
 import { getSettings, panelOrigin } from '#/server/settings'
 
 const VALID_FOR_DAYS = 7
@@ -66,11 +67,25 @@ export const Route = createFileRoute('/api/invitations/create')(
         })
         .returning()
 
-      const base = panelOrigin(env, await getSettings(db))
-      return Response.json({
-        ...created,
-        url: `${base}/admin/join?token=${token}`,
-      })
+      const settings = await getSettings(db)
+      const base = panelOrigin(env, settings)
+      const url = `${base}/admin/join?token=${token}`
+
+      // Sent, and also handed back. If the mail bounces or the platform cannot
+      // send at all, the invitation still exists and can be passed on by hand —
+      // the record is what invites someone, not the delivery.
+      const outcome = await sendMail(
+        env,
+        invitationMail({
+          to: email,
+          url,
+          invitedBy: principal?.email ?? null,
+          workspace: settings.customDomain ?? 'this workspace',
+        }),
+        settings.customDomain,
+      )
+
+      return Response.json({ ...created, url, mail: outcome })
     },
   }),
 )
