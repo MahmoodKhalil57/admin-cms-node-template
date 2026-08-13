@@ -14,6 +14,7 @@ interface Status {
   repoUrl?: string | null
   configured?: boolean
   templateRepo?: string | null
+  syncHook?: { id: number; url: string } | null
 }
 
 const CALLBACK_MESSAGES: Record<string, string> = {
@@ -56,6 +57,35 @@ export const GithubPagesPanel = ({ featureId }: { featureId: number }) => {
     void refresh()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const registerHook = async () => {
+    setBusy(true)
+    try {
+      const response = await fetch('/api/github/status', { method: 'POST' })
+      const body = (await response.json()) as {
+        error?: string
+        needsReconnect?: boolean
+        created?: boolean
+      }
+      if (!response.ok) {
+        // The likeliest cause by far: the connection predates this node asking
+        // for webhook access, and the fix is to connect again.
+        notify(
+          body.needsReconnect
+            ? 'This GitHub connection cannot manage webhooks. Disconnect and connect again to grant it.'
+            : (body.error ?? 'Could not set that up.'),
+          { type: 'error' },
+        )
+        return
+      }
+      notify(body.created ? 'Sync set up.' : 'Sync re-registered.', {
+        type: 'success',
+      })
+      await refresh()
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const setUpSite = async (body: Record<string, unknown>) => {
     setBusy(true)
@@ -187,6 +217,32 @@ export const GithubPagesPanel = ({ featureId }: { featureId: number }) => {
                 </p>
               </div>
             )}
+
+            {/* The rule that keeps the site's declaration and this node's forms
+                in step, wherever the file was edited from. */}
+            <div className="flex flex-col gap-2">
+              <p className="font-medium">Keep forms in step</p>
+              <p className="text-muted-foreground">
+                {status.syncHook
+                  ? 'GitHub tells this node whenever admin-cms.json changes, so an edit made anywhere — here, the builder, or github.com — reaches the forms.'
+                  : 'Not set up yet. Without it, an edit made outside this panel leaves the node behind.'}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant={status.syncHook ? 'outline' : 'default'}
+                  size="sm"
+                  disabled={busy}
+                  onClick={registerHook}
+                >
+                  {status.syncHook ? 'Re-register' : 'Set it up'}
+                </Button>
+                {status.syncHook && (
+                  <code className="text-muted-foreground text-xs">
+                    hook #{status.syncHook.id}
+                  </code>
+                )}
+              </div>
+            </div>
 
             <div className="flex flex-col gap-2">
               <p className="font-medium">Create a new site</p>

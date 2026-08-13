@@ -31,6 +31,7 @@ import { Route as ApiGithubStatusRouteImport } from './routes/api.github.status'
 import { Route as ApiInternalProvisionRouteImport } from './routes/api.internal.provision'
 import { Route as ApiSettingsVerifyRouteImport } from './routes/api.settings.verify'
 import { Route as ApiStaticIndexRouteImport } from './routes/api.static.index'
+import { Route as ApiWebhooksGithubRouteImport } from './routes/api.webhooks.github'
 import { Route as ApiStaticCollectionIndexRouteImport } from './routes/api.static.$collection.index'
 import { Route as ApiStaticCollectionIdRouteImport } from './routes/api.static.$collection.$id'
 import { Route as ApiPublicFormsSlugIndexRouteImport } from './routes/api.public.forms.$slug.index'
@@ -146,6 +147,11 @@ const ApiStaticIndexRoute = ApiStaticIndexRouteImport.update({
   path: '/api/static/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWebhooksGithubRoute = ApiWebhooksGithubRouteImport.update({
+  id: '/api/webhooks/github',
+  path: '/api/webhooks/github',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiStaticCollectionIndexRoute =
   ApiStaticCollectionIndexRouteImport.update({
     id: '/api/static/$collection/',
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/api/github/status': typeof ApiGithubStatusRoute
   '/api/internal/provision': typeof ApiInternalProvisionRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
+  '/api/webhooks/github': typeof ApiWebhooksGithubRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
   '/api/static/': typeof ApiStaticIndexRoute
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
@@ -218,6 +225,7 @@ export interface FileRoutesByTo {
   '/api/github/status': typeof ApiGithubStatusRoute
   '/api/internal/provision': typeof ApiInternalProvisionRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
+  '/api/webhooks/github': typeof ApiWebhooksGithubRoute
   '/api/$resource': typeof ApiResourceIndexRoute
   '/api/static': typeof ApiStaticIndexRoute
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
@@ -247,6 +255,7 @@ export interface FileRoutesById {
   '/api/github/status': typeof ApiGithubStatusRoute
   '/api/internal/provision': typeof ApiInternalProvisionRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
+  '/api/webhooks/github': typeof ApiWebhooksGithubRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
   '/api/static/': typeof ApiStaticIndexRoute
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
@@ -277,6 +286,7 @@ export interface FileRouteTypes {
     | '/api/github/status'
     | '/api/internal/provision'
     | '/api/settings/verify'
+    | '/api/webhooks/github'
     | '/api/$resource/'
     | '/api/static/'
     | '/api/static/$collection/$id'
@@ -305,6 +315,7 @@ export interface FileRouteTypes {
     | '/api/github/status'
     | '/api/internal/provision'
     | '/api/settings/verify'
+    | '/api/webhooks/github'
     | '/api/$resource'
     | '/api/static'
     | '/api/static/$collection/$id'
@@ -333,6 +344,7 @@ export interface FileRouteTypes {
     | '/api/github/status'
     | '/api/internal/provision'
     | '/api/settings/verify'
+    | '/api/webhooks/github'
     | '/api/$resource/'
     | '/api/static/'
     | '/api/static/$collection/$id'
@@ -361,6 +373,7 @@ export interface RootRouteChildren {
   ApiGithubSiteRoute: typeof ApiGithubSiteRoute
   ApiGithubStatusRoute: typeof ApiGithubStatusRoute
   ApiInternalProvisionRoute: typeof ApiInternalProvisionRoute
+  ApiWebhooksGithubRoute: typeof ApiWebhooksGithubRoute
   ApiResourceIndexRoute: typeof ApiResourceIndexRoute
   ApiStaticIndexRoute: typeof ApiStaticIndexRoute
   ApiStaticCollectionIdRoute: typeof ApiStaticCollectionIdRoute
@@ -525,6 +538,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiStaticIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/webhooks/github': {
+      id: '/api/webhooks/github'
+      path: '/api/webhooks/github'
+      fullPath: '/api/webhooks/github'
+      preLoaderRoute: typeof ApiWebhooksGithubRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/static/$collection/': {
       id: '/api/static/$collection/'
       path: '/api/static/$collection'
@@ -588,6 +608,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGithubSiteRoute: ApiGithubSiteRoute,
   ApiGithubStatusRoute: ApiGithubStatusRoute,
   ApiInternalProvisionRoute: ApiInternalProvisionRoute,
+  ApiWebhooksGithubRoute: ApiWebhooksGithubRoute,
   ApiResourceIndexRoute: ApiResourceIndexRoute,
   ApiStaticIndexRoute: ApiStaticIndexRoute,
   ApiStaticCollectionIdRoute: ApiStaticCollectionIdRoute,

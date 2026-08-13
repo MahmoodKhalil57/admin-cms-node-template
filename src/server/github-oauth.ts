@@ -11,7 +11,10 @@ export function buildAuthorizeUrl(options: {
   url.searchParams.set('redirect_uri', options.redirectUri)
   // Sites are public by design, so full `repo` access would be more than this
   // needs. `public_repo` covers creating one and enabling Pages on it.
-  url.searchParams.set('scope', 'public_repo')
+  // `admin:repo_hook` is what lets the node register the push webhook that
+  // keeps the site's declaration and this node's forms in step. Without it the
+  // connection still works; only that guarantee is missing.
+  url.searchParams.set('scope', 'public_repo admin:repo_hook')
   url.searchParams.set('state', options.state)
   return url.href
 }

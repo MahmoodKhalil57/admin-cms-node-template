@@ -93,6 +93,27 @@ export const githubConnections = sqliteTable('github_connections', {
 })
 
 /**
+ * The push webhook this node registered on the site's repository.
+ *
+ * Its own table rather than a column on `github_connections`, because node
+ * migrations only ever create tables — an ALTER would fail the second time a
+ * node is provisioned, which happens on every deploy.
+ *
+ * The secret is ours: we generate it, hand it to GitHub once, and check every
+ * delivery against it. It never leaves this row.
+ */
+export const repoHooks = sqliteTable('repo_hooks', {
+  id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+  /** GitHub's id for the hook, so it is updated rather than duplicated */
+  hookId: integer('hook_id').notNull(),
+  url: text().notNull(),
+  secret: text().notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(
+    sql`(unixepoch())`,
+  ),
+})
+
+/**
  * One field in a form's definition. Stored as JSON on the form row.
  *
  * This is deliberately the same shape the site's `admin-cms.json` declares, so

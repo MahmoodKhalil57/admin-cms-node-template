@@ -6,7 +6,6 @@ import { getAuth } from '#/server/auth'
 import { getEnv } from '#/server/env'
 import { collectionFor, errorResponse, repoRef } from '#/server/static-context'
 import { deleteEntry, getEntry, saveEntry } from '#/server/static-store'
-import { applyProjectToDb } from '#/server/forms-sync'
 
 export const Route = createFileRoute('/api/static/$collection/$id')(
   serverRoute({
@@ -33,15 +32,10 @@ export const Route = createFileRoute('/api/static/$collection/$id')(
         const ref = await repoRef(getDb(env))
         const { collection } = await collectionFor(ref, params.collection)
         const body = (await request.json()) as Record<string, unknown>
-        const saved = await saveEntry(ref, collection, params.id, body)
-
-        // The declaration is the point of this collection, so applying it is
-        // part of saving it rather than a later step someone has to remember.
-        if (collection.sync === 'forms') {
-          const applied = await applyProjectToDb(getDb(env), saved)
-          return Response.json({ ...saved, _sync: applied })
-        }
-        return Response.json(saved)
+        // Saving commits; GitHub's push webhook applies it. Doing it inline as
+        // well would give panel edits a path of their own, and a rule that only
+        // holds for one editor is not a rule.
+        return Response.json(await saveEntry(ref, collection, params.id, body))
       } catch (error) {
         return errorResponse(error)
       }
