@@ -6,6 +6,7 @@ import { features, githubConnections } from '#/db/schema'
 import { serverRoute } from '#/lib/server-route'
 import type { NodeEnv } from '#/server/env'
 import { getEnv } from '#/server/env'
+import { getSettings, panelOrigin } from '#/server/settings'
 import {
   exchangeCode,
   githubRedirectUri,
@@ -24,7 +25,7 @@ async function back(
   query: string,
   featureId?: number,
 ): Promise<Response> {
-  const base = (env.PUBLIC_URL ?? '').replace(/\/+$/, '')
+  const base = panelOrigin(env, await getSettings(getDb(env)))
   const path = featureId ? `/admin/features/${featureId}` : '/admin/features'
   return Response.redirect(`${base}${path}?${query}`, 302)
 }

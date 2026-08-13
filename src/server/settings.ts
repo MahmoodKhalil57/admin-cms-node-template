@@ -40,7 +40,9 @@ export async function saveCustomDomain(
     .update(settings)
     .set({
       customDomain: domain,
-      ...(changed ? { frontendVerified: false, apiVerified: false, dnsZone: null } : {}),
+      ...(changed
+        ? { frontendVerified: false, apiVerified: false, dnsZone: null }
+        : {}),
       updatedAt: new Date(),
     })
     .where(eq(settings.id, current.id))
@@ -81,6 +83,21 @@ export function publicApiBase(env: NodeEnv, current: NodeSettings): string {
   // certificate, and no cross-origin preflight on every form submission.
   if (current.customDomain && current.apiVerified) {
     return `https://${current.customDomain}/api`
+  }
+  return (env.PUBLIC_URL ?? '').replace(/\/+$/, '')
+}
+
+/**
+ * Where the admin panel answers, for a link the browser will follow.
+ *
+ * Not the same as the API base. The provisioned address is a path under the
+ * dispatcher — `…/n/<slug>/admin` — and the panel is a single-page app whose
+ * router knows nothing about that prefix, so landing there renders Not Found.
+ * A verified custom domain serves the panel at the root and routes cleanly.
+ */
+export function panelOrigin(env: NodeEnv, current: NodeSettings): string {
+  if (current.customDomain && current.apiVerified) {
+    return `https://${current.customDomain}`
   }
   return (env.PUBLIC_URL ?? '').replace(/\/+$/, '')
 }

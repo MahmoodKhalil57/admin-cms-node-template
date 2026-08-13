@@ -10,9 +10,10 @@ import {
 import { saveCloudflare } from '#/server/cloudflare-store'
 import type { NodeEnv } from '#/server/env'
 import { getEnv } from '#/server/env'
+import { getSettings, panelOrigin } from '#/server/settings'
 
-function back(env: NodeEnv, query: string): Response {
-  const base = (env.PUBLIC_URL ?? '').replace(/\/+$/, '')
+async function back(env: NodeEnv, query: string): Promise<Response> {
+  const base = panelOrigin(env, await getSettings(getDb(env)))
   return Response.redirect(`${base}/admin/settings?${query}`, 302)
 }
 
@@ -31,15 +32,16 @@ export const Route = createFileRoute('/api/cloudflare/callback')(
       const state = url.searchParams.get('state')
 
       if (!env.CLOUDFLARE_CLIENT_ID || !env.CLOUDFLARE_CLIENT_SECRET) {
-        return back(env, 'cloudflare=unconfigured')
+        return await back(env, 'cloudflare=unconfigured')
       }
-      if (url.searchParams.get('error')) return back(env, 'cloudflare=declined')
-      if (!code || !state) return back(env, 'cloudflare=missing_code')
+      if (url.searchParams.get('error'))
+        return await back(env, 'cloudflare=declined')
+      if (!code || !state) return await back(env, 'cloudflare=missing_code')
       const verified = await verifyState(state, env.CLOUDFLARE_CLIENT_SECRET)
       // The state names a node; if it is not this one the flow was routed
       // wrongly and must not be honoured here.
       if (!verified || verified.payload !== env.NODE_ID) {
-        return back(env, 'cloudflare=bad_state')
+        return await back(env, 'cloudflare=bad_state')
       }
 
       try {
@@ -50,9 +52,9 @@ export const Route = createFileRoute('/api/cloudflare/callback')(
           redirectUri: cloudflareRedirectUri(env),
         })
         await saveCloudflare(getDb(env), tokens)
-        return back(env, 'cloudflare=connected')
+        return await back(env, 'cloudflare=connected')
       } catch {
-        return back(env, 'cloudflare=exchange_failed')
+        return await back(env, 'cloudflare=exchange_failed')
       }
     },
   }),
