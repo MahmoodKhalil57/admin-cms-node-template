@@ -360,6 +360,19 @@ export const forms = sqliteTable('forms', {
     .notNull()
     .default([]),
   successMessage: text('success_message'),
+  /**
+   * What the form collects.
+   *
+   * `public` is the ordinary kind: anyone may send it and every send is a new
+   * row. `profile` binds it to whoever is signed in — one row per person,
+   * edited rather than resent, and readable back to them. It is the same form
+   * builder either way; only what a submission *is* changes.
+   */
+  target: text().notNull().default('public'),
+  /** a profile form the site asks for before letting someone get on with it */
+  requiredAtSignup: integer('required_at_signup', { mode: 'boolean' })
+    .notNull()
+    .default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).default(
     sql`(unixepoch())`,
   ),
@@ -377,6 +390,15 @@ export const formSubmissions = sqliteTable(
     formId: integer('form_id')
       .notNull()
       .references(() => forms.id, { onDelete: 'cascade' }),
+    /**
+     * Whose it is, when it belongs to somebody.
+     *
+     * Null for the anonymous kind, which is most of them. Set for a profile,
+     * and that is what makes `self` scoping work: a role narrowed to
+     * `{ userId: { self: true } }` reaches its own row and no one else's, in
+     * the same WHERE clause every other narrowing uses.
+     */
+    userId: text('user_id'),
     data: text({ mode: 'json' })
       .$type<Record<string, unknown>>()
       .notNull()

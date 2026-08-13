@@ -132,6 +132,8 @@ const BUILTIN_ROLES = [
       'The enquiries: reads what visitors send in and marks them handled. Cannot change the site.',
     builtin: false,
     permissions: ['forms:read', 'submissions:read', 'submissions:write'],
+    // Deliberately without `submissions:delete`. Handling the enquiries is the
+    // job; destroying them is a decision for whoever owns the node.
   },
   {
     key: 'frontend',
@@ -139,33 +141,80 @@ const BUILTIN_ROLES = [
     description:
       'A website, not a person. Reads the form definitions it has to draw and files what visitors send. Holds an API key rather than a password.',
     builtin: false,
-    permissions: ['forms:read', 'submissions:write'],
+    /**
+     * Reading the form definitions it has to draw, and nothing else.
+     *
+     * It does not need to write submissions: a visitor's form posts to the
+     * public endpoint, which takes no key at all. Granting it was a mistake —
+     * `submissions:write` also reached update and delete, so a key sitting in a
+     * page's JavaScript could have edited or destroyed the enquiries it was
+     * only supposed to file.
+     */
+    permissions: ['forms:read'],
   },
   {
     key: 'default',
     name: 'Default user',
     description:
-      'Signed in, and nothing more. Everyone starts here; a root admin decides what they become.',
+      'Signed in, and their own account details. Everyone starts here; a root admin decides what they become.',
     builtin: true,
-    permissions: [],
+    // Narrowed to `self`, so these two reach the person's own profile row and
+    // no other. It is the same mechanism that keeps a desk to one form, which
+    // is why members needed no separate permission system.
+    permissions: ['submissions:read', 'submissions:write'],
+    conditions: {
+      'submissions:read': { userId: { self: true } },
+      'submissions:write': { userId: { self: true } },
+    },
   },
 ]
 
+/**
+ * Two different promises, which is why `builtin` matters.
+ *
+ * A built-in role is ours: what a root admin can reach has to grow as the node
+ * grows, and a member has to gain their own profile the moment forms learn to
+ * hold one. Those are kept current on every read.
+ *
+ * The rest — designer, operator, frontend — are starting points, and the moment
+ * a business has one it is theirs. Reconciling those would quietly undo the
+ * afternoon somebody spent deciding what a designer may touch here.
+ */
 export async function ensureBuiltinRoles(db: NodeDb): Promise<void> {
   const existing = await db.select().from(rolesTable)
-  const known = new Set(existing.map((row) => row.key))
+  const byKey = new Map(existing.map((row) => [row.key, row]))
   const everything = permissionKeys(await getEnabledFeatures(db))
 
   for (const role of BUILTIN_ROLES) {
-    if (known.has(role.key)) continue
-    await db.insert(rolesTable).values({
-      key: role.key,
-      name: role.name,
-      description: role.description,
-      permissions: role.all ? everything : (role.permissions ?? []),
-      conditions: {},
-      builtin: role.builtin,
-    })
+    const permissions = role.all ? everything : (role.permissions ?? [])
+    const conditions = role.conditions ?? {}
+    const found = byKey.get(role.key)
+
+    if (!found) {
+      await db.insert(rolesTable).values({
+        key: role.key,
+        name: role.name,
+        description: role.description,
+        permissions,
+        conditions,
+        builtin: role.builtin,
+      })
+      continue
+    }
+
+    if (!role.builtin) continue
+
+    // Name and description are left alone: a business may call its root admin
+    // whatever it likes. Only what the role can reach is ours to keep current.
+    const same =
+      JSON.stringify(found.permissions ?? []) === JSON.stringify(permissions) &&
+      JSON.stringify(found.conditions ?? {}) === JSON.stringify(conditions)
+    if (same) continue
+
+    await db
+      .update(rolesTable)
+      .set({ permissions, conditions })
+      .where(eq(rolesTable.key, role.key))
   }
 }
 

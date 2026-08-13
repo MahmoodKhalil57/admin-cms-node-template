@@ -71,6 +71,15 @@ export const PERMISSION_CATALOG: Array<PermissionDefinition> = [
     scopes: [{ field: 'formId', label: 'Only these forms' }],
   },
   {
+    key: 'submissions:delete',
+    area: 'Submissions',
+    name: 'Delete submissions',
+    description:
+      'Remove what a visitor sent. Separate from handling them because it is not the same act, and nothing that only files enquiries should be able to do it.',
+    feature: 'forms',
+    scopes: [{ field: 'formId', label: 'Only these forms' }],
+  },
+  {
     key: 'website:manage',
     area: 'Website',
     name: 'Manage the website',
@@ -169,7 +178,10 @@ export const RESOURCE_PERMISSIONS: Record<
   submissions: {
     read: 'submissions:read',
     write: 'submissions:write',
-    delete: 'submissions:write',
+    // Its own permission. Marking an enquiry handled and destroying it are
+    // different decisions, and a role that does the first every day should not
+    // carry the second by accident.
+    delete: 'submissions:delete',
   },
   // Deciding who gets told is a submissions job, not a settings one — it is
   // the same person who reads them.

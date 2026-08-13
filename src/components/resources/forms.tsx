@@ -23,7 +23,12 @@ export const FORM_STATUSES = [
 ]
 
 /** Field types a form can contain, matching `FormFieldDef` in the schema. */
-export const WIDTHS = [
+export const FORM_TARGETS = [
+  { id: 'public', name: 'Anyone — a new row each time' },
+  { id: 'profile', name: 'The account — one row per person' },
+]
+
+const WIDTHS = [
   { id: 'full', name: 'Full' },
   { id: 'half', name: 'Half' },
 ]
@@ -95,6 +100,18 @@ export const FormCreate = () => (
         helperText="How the public API addresses this form."
       />
       <SelectInput source="status" choices={FORM_STATUSES} />
+      <SelectInput
+        source="target"
+        label="What it collects"
+        choices={FORM_TARGETS}
+        defaultValue="public"
+        helperText="A profile form belongs to whoever fills it: one row each, edited rather than resent."
+      />
+      <BooleanInput
+        source="requiredAtSignup"
+        label="Ask for it at sign-up"
+        helperText="Profile forms only. The site asks before letting someone get on."
+      />
       <TextInput source="successMessage" />
       <FormFields />
     </SimpleForm>
@@ -107,6 +124,18 @@ export const FormEdit = () => (
       <TextInput source="name" required />
       <TextInput source="slug" required />
       <SelectInput source="status" choices={FORM_STATUSES} />
+      <SelectInput
+        source="target"
+        label="What it collects"
+        choices={FORM_TARGETS}
+        defaultValue="public"
+        helperText="A profile form belongs to whoever fills it: one row each, edited rather than resent."
+      />
+      <BooleanInput
+        source="requiredAtSignup"
+        label="Ask for it at sign-up"
+        helperText="Profile forms only. The site asks before letting someone get on."
+      />
       <TextInput source="successMessage" />
       <FormFields />
     </SimpleForm>
