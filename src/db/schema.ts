@@ -1,6 +1,11 @@
 import { sqliteTable, integer, text, index } from 'drizzle-orm/sqlite-core'
 import { sql } from 'drizzle-orm'
 
+import type { FormFieldDef } from '#/lib/form-shape'
+
+export type { FieldFill, FormChoice, FormFieldDef } from '#/lib/form-shape'
+export { choicesOf } from '#/lib/form-shape'
+
 /**
  * Which features this node runs.
  *
@@ -236,6 +241,15 @@ export const roles = sqliteTable('roles', {
     .$type<Record<string, RoleCondition>>()
     .notNull()
     .default({}),
+  /**
+   * Policies this role carries, by key.
+   *
+   * A role's own `permissions` and `conditions` above are still its own — they
+   * are the quick way to say something once, for a role nobody else shares.
+   * Policies are for the rest: the same narrowing wanted by four roles, written
+   * once and attached four times.
+   */
+  policies: text({ mode: 'json' }).$type<Array<string>>().notNull().default([]),
   /** seeded and not deletable — the node must always have a way back in */
   builtin: integer({ mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).default(
@@ -248,6 +262,44 @@ export type RoleCondition = Record<
   string,
   { in?: Array<string | number>; eq?: string | number; self?: boolean }
 >
+
+/**
+ * A named rule about records, attachable to any number of roles.
+ *
+ * Roles answer "what kind of access is this". Conditions answer "over which
+ * records". Until now the second lived inside the first, which meant a business
+ * with four desks and one rule about whose enquiries each may read had to write
+ * that rule four times and remember all four when it changed.
+ *
+ * A policy lifts it out: policies → roles → users. The role stays the thing a
+ * person is given, and the policy becomes the thing a rule is. It is the shape
+ * IAM settled on for the same reason, including the part that matters most —
+ * `deny` beats `allow`, always. A rule that says "not the HR enquiries" has to
+ * survive somebody later attaching a generous role, or it is not a rule.
+ */
+export const policies = sqliteTable('policies', {
+  id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+  /** stable id, referenced by roles; renaming must not detach anything */
+  key: text().notNull().unique(),
+  name: text().notNull(),
+  description: text(),
+  /** `allow` widens what a role reaches; `deny` narrows it and wins ties */
+  effect: text().notNull().default('allow'),
+  /** the permissions this policy speaks about; `*` means all of them */
+  permissions: text({ mode: 'json' }).$type<Array<string>>().notNull().default([]),
+  /**
+   * Which records it speaks about. Empty means all of them — an allow with no
+   * condition is a plain grant, and a deny with no condition is a flat refusal.
+   */
+  condition: text({ mode: 'json' })
+    .$type<RoleCondition>()
+    .notNull()
+    .default({}),
+  builtin: integer({ mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(
+    sql`(unixepoch())`,
+  ),
+})
 
 /**
  * An invitation to join this node's team.
@@ -299,48 +351,6 @@ export const repoHooks = sqliteTable('repo_hooks', {
  * accepts — but it stores them, because the alternative is dropping them every
  * time a form is saved from the panel.
  */
-export interface FormFieldDef {
-  name: string
-  label: string
-  type:
-    | 'text'
-    | 'email'
-    | 'tel'
-    | 'url'
-    | 'textarea'
-    | 'number'
-    | 'select'
-    | 'checkbox'
-    | 'date'
-  required?: boolean
-  placeholder?: string
-  /** for `select`; older rows may hold plain strings */
-  options?: Array<FormChoice | string>
-  /** how wide the field sits on the site's form */
-  width?: 'full' | 'half'
-  /** the site shows this field only when a sibling matches */
-  showWhen?: {
-    field: string
-    is: 'equal' | 'not_equal' | 'filled' | 'empty'
-    value?: string
-  }
-}
-
-/** A choice on a select field: the value stored, the label shown. */
-export interface FormChoice {
-  value: string
-  label: string
-}
-
-/** Choices in one shape, whichever way the row was written. */
-export function choicesOf(field: FormFieldDef): Array<FormChoice> {
-  return (field.options ?? []).map((choice) =>
-    typeof choice === 'string'
-      ? { value: choice, label: choice }
-      : { value: String(choice.value), label: String(choice.label ?? choice.value) },
-  )
-}
-
 /**
  * A form the node's operator builds in the admin panel. `slug` is what the
  * public API addresses it by, and what a static frontend hard-codes.

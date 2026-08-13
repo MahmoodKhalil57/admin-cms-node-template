@@ -8,6 +8,7 @@ import { nitro } from 'nitro/vite';
 import path from 'node:path';
 import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
 import { playwright } from '@vitest/browser-playwright';
+import { serverRoutesClientStub } from './vite-server-routes';
 const dirname = import.meta.dirname;
 
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
@@ -22,7 +23,7 @@ const config = defineConfig({
   build: {
     assetsDir: 'admin/assets'
   },
-  plugins: [devtools(), nitro({
+  plugins: [serverRoutesClientStub(), devtools(), nitro({
     // Each node ships as a Workers-for-Platforms user Worker. The preset emits
     // multiple ES modules (inlineDynamicImports is false), which the upload has
     // to send as separate parts.

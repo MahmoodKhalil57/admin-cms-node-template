@@ -86,8 +86,61 @@ const FormFields = () => (
           <TextInput source="label" />
         </SimpleFormIterator>
       </ArrayInput>
+      <FieldFill />
     </SimpleFormIterator>
   </ArrayInput>
+)
+
+const FILL_SOURCES = [
+  { id: '', name: 'Ask whoever is filling the form' },
+  { id: 'user.email', name: 'Their email address' },
+  { id: 'user.name', name: 'Their name' },
+  { id: 'user.id', name: 'Their account id' },
+]
+
+const FILL_WHEN = [
+  { id: 'signed-in', name: 'When they are signed in — ask everyone else' },
+  { id: 'always', name: 'Always — the form is for signed-in people only' },
+]
+
+const FILL_DISPLAY = [
+  { id: 'hidden', name: 'Leave it out of the form' },
+  { id: 'locked', name: 'Show it filled in, not editable' },
+]
+
+/**
+ * Where a field's answer comes from.
+ *
+ * Worth the extra three inputs because of what it removes: a contact form with
+ * this set on its email field asks a stranger for an address and asks a member
+ * for nothing, and the address on a member's enquiry is the one they signed up
+ * with rather than the one they typed.
+ */
+const FieldFill = () => (
+  <div className="border-border/70 bg-muted/30 mt-2 w-full min-w-0 rounded-lg border p-3">
+    <p className="mb-2 text-sm font-medium">Answered by the node</p>
+    <div className="grid w-full gap-3 sm:grid-cols-3">
+      <SelectInput
+        source="fill.from"
+        label="Take the value from"
+        choices={FILL_SOURCES}
+        emptyText="Ask whoever is filling the form"
+        helperText={false}
+      />
+      <SelectInput source="fill.when" label="When" choices={FILL_WHEN} helperText={false} />
+      <SelectInput
+        source="fill.display"
+        label="On the form"
+        choices={FILL_DISPLAY}
+        helperText={false}
+      />
+    </div>
+    <p className="text-muted-foreground mt-2 text-xs">
+      The node substitutes this on the way in and ignores whatever was sent
+      under this name, so the stored value is one it already knew rather than
+      one the sender chose.
+    </p>
+  </div>
 )
 
 export const FormCreate = () => (

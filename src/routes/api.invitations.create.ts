@@ -33,7 +33,10 @@ export const Route = createFileRoute('/api/invitations/create')(
       const principal = await principalFrom(env, db, request)
       if (!can(principal, 'team:manage')) return forbidden('team:manage')
 
-      const body = (await request.json()) as { email?: string; roleKey?: string }
+      const body = (await request.json()) as {
+        email?: string
+        roleKey?: string
+      }
       const email = (body.email ?? '').trim().toLowerCase()
       const roleKey = (body.roleKey ?? '').trim()
 

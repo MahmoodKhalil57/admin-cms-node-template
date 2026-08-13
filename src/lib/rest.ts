@@ -7,6 +7,9 @@ import {
   getTableColumns,
   inArray,
   like,
+  not,
+  or,
+  sql,
 } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 
@@ -18,11 +21,13 @@ import {
   forms,
   invitations,
   notifications,
+  policies,
   roles,
 } from '#/db/schema'
+import type { RoleCondition } from '#/db/schema'
 import { RESOURCE_PERMISSIONS } from '#/lib/permission-catalog'
 import type { Principal } from '#/server/authz'
-import { can, conditionFor, forbidden, matchesCondition } from '#/server/authz'
+import { allowedWays, allows, can, deniedWays, forbidden } from '#/server/authz'
 
 /**
  * A generic REST layer speaking ra-data-simple-rest's dialect, so the admin's
@@ -45,6 +50,7 @@ const RESOURCES = {
   automations: { table: automations, feature: 'forms' },
   notifications: { table: notifications, feature: 'forms' },
   roles: { table: roles, feature: 'user-management' },
+  policies: { table: policies, feature: 'user-management' },
   invitations: { table: invitations, feature: 'user-management' },
 }
 
@@ -80,39 +86,76 @@ function notFound(resource: string) {
 }
 
 /**
- * Translates react-admin's `filter` object into SQL. Arrays become `IN` (which
- * is how getMany and getManyReference arrive), strings on text columns become
- * partial matches so the filter inputs behave like search, and everything else
- * is exact equality. Unknown keys are ignored rather than erroring, because
- * react-admin sends its own bookkeeping fields through the same object.
- */
-/**
- * A narrowed grant, as SQL.
+ * One condition as SQL: every field it names, all of which must hold.
  *
- * Applied to the query rather than to its results, so the count and the pages
- * agree with what the reader may actually see. Filtering afterwards would leave
- * a list claiming forty submissions and showing three.
+ * A field the table does not have is skipped rather than treated as false,
+ * because a condition written for submissions must not silently empty a list of
+ * forms. Which is safe only because the caller decides what an all-skipped
+ * condition means — see below.
  */
-function conditionWhere(
+function conditionSql(
   table: LooseTable,
-  principal: Principal,
-  permission: string,
+  condition: RoleCondition,
+  userId: string,
 ): SQL | undefined {
-  const condition = conditionFor(principal, permission)
-  if (!condition) return undefined
-
   const columns = getTableColumns(table)
   const parts: Array<SQL> = []
 
   for (const [field, rule] of Object.entries(condition)) {
     const column = columns[field]
     if (!column) continue
-    if (rule.self) parts.push(eq(column, principal.userId))
+    if (rule.self) parts.push(eq(column, userId))
     else if (rule.eq !== undefined) parts.push(eq(column, rule.eq))
     else if (rule.in?.length) parts.push(inArray(column, rule.in))
   }
 
   return parts.length > 0 ? and(...parts) : undefined
+}
+
+/**
+ * The narrowing this caller's grant puts on a query.
+ *
+ * Applied to the query rather than to its results, so the count and the pages
+ * agree with what the reader may actually see. Filtering afterwards would leave
+ * a list claiming forty submissions and showing three.
+ *
+ * Allows are OR-ed: two policies each naming a desk give a role that reaches
+ * both, and AND-ing them would give one that reaches neither. Denies are
+ * negated and AND-ed, so a hole carved in a grant stays carved whatever else
+ * widens it.
+ *
+ * A deny against a column holding NULL excludes the row — `NOT (x = 1)` is NULL
+ * when `x` is, and SQL keeps only rows that are true. That is the safe way to
+ * be wrong: an anonymous submission disappears from a list it might have been
+ * allowed in, rather than appearing in one it was meant to be kept out of.
+ */
+function conditionWhere(
+  table: LooseTable,
+  principal: Principal,
+  permission: string,
+): SQL | undefined {
+  const parts: Array<SQL> = []
+
+  const ways = allowedWays(principal, permission)
+    .map((way) => conditionSql(table, way, principal.userId))
+    .filter((part): part is SQL => part !== undefined)
+
+  // Every way named something this table has not got. The grant is narrowed to
+  // records that cannot exist here, so nothing matches — refused, not opened.
+  if (allowedWays(principal, permission).length > 0 && ways.length === 0) {
+    return sql`1 = 0`
+  }
+  if (ways.length > 0) parts.push(ways.length === 1 ? ways[0]! : or(...ways)!)
+
+  for (const way of deniedWays(principal, permission)) {
+    const part = conditionSql(table, way, principal.userId)
+    // A denial this table cannot express is not a denial of everything: it
+    // names records that do not live here.
+    if (part) parts.push(not(part))
+  }
+
+  if (parts.length === 0) return undefined
+  return parts.length === 1 ? parts[0] : and(...parts)
 }
 
 /** What this call needs, and whether the caller has it. */
@@ -134,6 +177,13 @@ function guard(
   return { ok: true, permission }
 }
 
+/**
+ * Translates react-admin's `filter` object into SQL. Arrays become `IN` (which
+ * is how getMany and getManyReference arrive), strings on text columns become
+ * partial matches so the filter inputs behave like search, and everything else
+ * is exact equality. Unknown keys are ignored rather than erroring, because
+ * react-admin sends its own bookkeeping fields through the same object.
+ */
 function buildWhere(
   table: LooseTable,
   filter: Record<string, unknown>,
@@ -240,7 +290,7 @@ export async function getResource(
   if (!row) return Response.json({ error: 'Not found' }, { status: 404 })
   // Outside a narrowed grant the record is not forbidden, it is absent: saying
   // "you may not see submission 41" still says submission 41 exists.
-  if (!matchesCondition(conditionFor(principal, allowed.permission), row, principal!)) {
+  if (!allows(principal, allowed.permission, row)) {
     return Response.json({ error: 'Not found' }, { status: 404 })
   }
   return Response.json(row)
@@ -262,7 +312,7 @@ export async function createResource(
   const body = (await request.json()) as Record<string, unknown>
   // Checked on the way in as well as the way out: a grant narrowed to one form
   // that still let you file rows against another would not be narrowed at all.
-  if (!matchesCondition(conditionFor(principal, allowed.permission), body, principal!)) {
+  if (!allows(principal, allowed.permission, body)) {
     return forbidden(allowed.permission)
   }
   const rows = (await db

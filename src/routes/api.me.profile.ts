@@ -7,13 +7,8 @@ import type { FormFieldDef } from '#/db/schema'
 import { serverRoute } from '#/lib/server-route'
 import { getEnv } from '#/server/env'
 import { getEnabledFeatures } from '#/server/features'
-import {
-  can,
-  conditionFor,
-  forbidden,
-  matchesCondition,
-  principalFrom,
-} from '#/server/authz'
+import { allows, can, forbidden, principalFrom } from '#/server/authz'
+import { missingRequired, resolveForm } from '#/server/form-fields'
 
 /**
  * The signed-in person's own answers to the forms bound to accounts.
@@ -46,148 +41,163 @@ function clean(fields: Array<FormFieldDef>, body: Answers): Answers {
   return out
 }
 
-function missing(fields: Array<FormFieldDef>, answers: Answers): Array<string> {
-  return fields
-    .filter((field) => field.required)
-    .filter((field) => {
-      const value = answers[field.name]
-      return value === undefined || value === null || value === ''
-    })
-    .map((field) => field.name)
-}
-
 export const Route = createFileRoute('/api/me/profile')(
-  serverRoute({
-    GET: async ({ request }) => {
-      const env = getEnv(request)
-      const db = getDb(env)
-      if (!(await getEnabledFeatures(db)).includes('forms')) {
-        return Response.json({ error: 'Not found' }, { status: 404 })
-      }
+  serverRoute(
+    {
+      GET: async ({ request }) => {
+        const env = getEnv(request)
+        const db = getDb(env)
+        if (!(await getEnabledFeatures(db)).includes('forms')) {
+          return Response.json({ error: 'Not found' }, { status: 404 })
+        }
 
-      const principal = await principalFrom(env, db, request)
-      if (!principal) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-      if (!can(principal, 'submissions:read')) return forbidden('submissions:read')
+        const principal = await principalFrom(env, db, request)
+        if (!principal) {
+          return Response.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+        if (!can(principal, 'submissions:read'))
+          return forbidden('submissions:read')
 
-      const bound = await db
-        .select()
-        .from(forms)
-        .where(and(eq(forms.target, 'profile'), eq(forms.status, 'published')))
+        const bound = await db
+          .select()
+          .from(forms)
+          .where(
+            and(eq(forms.target, 'profile'), eq(forms.status, 'published')),
+          )
 
-      const answers = await Promise.all(
-        bound.map(async (form) => {
-          const [row] = await db
-            .select()
-            .from(formSubmissions)
-            .where(
-              and(
-                eq(formSubmissions.formId, form.id),
-                eq(formSubmissions.userId, principal.userId),
-              ),
+        const answers = await Promise.all(
+          bound.map(async (form) => {
+            const [row] = await db
+              .select()
+              .from(formSubmissions)
+              .where(
+                and(
+                  eq(formSubmissions.formId, form.id),
+                  eq(formSubmissions.userId, principal.userId),
+                ),
+              )
+              .limit(1)
+
+            // Resolved against them, so a field the node fills for itself never
+            // appears as something they are being asked for.
+            const resolved = resolveForm(
+              (form.fields ?? []) as Array<FormFieldDef>,
+              principal,
             )
-            .limit(1)
-
-          const fields = (form.fields ?? []) as Array<FormFieldDef>
-          const values = (row?.data ?? {}) as Answers
-          return {
-            id: form.id,
-            slug: form.slug,
-            name: form.name,
-            fields,
-            requiredAtSignup: form.requiredAtSignup,
-            values,
-            // What the site needs to decide whether to stop and ask.
-            complete: missing(fields, values).length === 0,
-          }
-        }),
-      )
-
-      return Response.json({ forms: answers })
-    },
-
-    PUT: async ({ request }) => {
-      const env = getEnv(request)
-      const db = getDb(env)
-      if (!(await getEnabledFeatures(db)).includes('forms')) {
-        return Response.json({ error: 'Not found' }, { status: 404 })
-      }
-
-      const principal = await principalFrom(env, db, request)
-      if (!principal) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-      if (!can(principal, 'submissions:write')) {
-        return forbidden('submissions:write')
-      }
-
-      const body = (await request.json()) as { slug?: string; values?: Answers }
-      const [form] = await db
-        .select()
-        .from(forms)
-        .where(and(eq(forms.slug, String(body.slug ?? '')), eq(forms.target, 'profile')))
-        .limit(1)
-      if (!form) {
-        return Response.json({ error: 'No such form.' }, { status: 404 })
-      }
-
-      const fields = (form.fields ?? []) as Array<FormFieldDef>
-      const values = clean(fields, body.values ?? {})
-
-      const absent = missing(fields, values)
-      if (absent.length) {
-        return Response.json(
-          {
-            error: 'Some answers are still needed.',
-            fields: absent,
-          },
-          { status: 422 },
+            const values = {
+              ...(row?.data ?? {}),
+              ...resolved.filled,
+            } as Answers
+            return {
+              id: form.id,
+              slug: form.slug,
+              name: form.name,
+              fields: resolved.fields,
+              requiredAtSignup: form.requiredAtSignup,
+              values,
+              // What the site needs to decide whether to stop and ask.
+              complete: missingRequired(resolved, values).length === 0,
+            }
+          }),
         )
-      }
 
-      // The row this write would produce, checked against the caller's own
-      // narrowing before it is written — a grant scoped to `self` must refuse a
-      // profile that is not theirs even though nothing here reads an id.
-      const owned = { formId: form.id, userId: principal.userId }
-      if (
-        !matchesCondition(
-          conditionFor(principal, 'submissions:write'),
-          owned,
+        return Response.json({ forms: answers })
+      },
+
+      PUT: async ({ request }) => {
+        const env = getEnv(request)
+        const db = getDb(env)
+        if (!(await getEnabledFeatures(db)).includes('forms')) {
+          return Response.json({ error: 'Not found' }, { status: 404 })
+        }
+
+        const principal = await principalFrom(env, db, request)
+        if (!principal) {
+          return Response.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+        if (!can(principal, 'submissions:write')) {
+          return forbidden('submissions:write')
+        }
+
+        const body = (await request.json()) as {
+          slug?: string
+          values?: Answers
+        }
+        const [form] = await db
+          .select()
+          .from(forms)
+          .where(
+            and(
+              eq(forms.slug, String(body.slug ?? '')),
+              eq(forms.target, 'profile'),
+            ),
+          )
+          .limit(1)
+        if (!form) {
+          return Response.json({ error: 'No such form.' }, { status: 404 })
+        }
+
+        const resolved = resolveForm(
+          (form.fields ?? []) as Array<FormFieldDef>,
           principal,
         )
-      ) {
-        return forbidden('submissions:write')
-      }
+        // Only the fields they were shown are accepted; the rest are the node's
+        // to say, and are written over the top once this passes.
+        const askable = resolved.fields.filter((field) => !field.readOnly)
+        const values = clean(askable, body.values ?? {})
 
-      const [existing] = await db
-        .select()
-        .from(formSubmissions)
-        .where(
-          and(
-            eq(formSubmissions.formId, form.id),
-            eq(formSubmissions.userId, principal.userId),
-          ),
-        )
-        .limit(1)
+        const absent = missingRequired(resolved, values)
+        if (absent.length) {
+          return Response.json(
+            {
+              error: 'Some answers are still needed.',
+              fields: absent,
+            },
+            { status: 422 },
+          )
+        }
 
-      // Edited, not resent: a profile is a fact about somebody, and keeping
-      // every version of it would turn the submissions list into a diary.
-      if (existing) {
-        await db
-          .update(formSubmissions)
-          .set({ data: values })
-          .where(eq(formSubmissions.id, existing.id))
-      } else {
-        await db.insert(formSubmissions).values({
-          formId: form.id,
-          userId: principal.userId,
-          data: values,
-          status: 'new',
-        })
-      }
+        // The row this write would produce, checked against the caller's own
+        // narrowing before it is written — a grant scoped to `self` must refuse a
+        // profile that is not theirs even though nothing here reads an id.
+        const owned = { formId: form.id, userId: principal.userId }
+        if (!allows(principal, 'submissions:write', owned)) {
+          return forbidden('submissions:write')
+        }
 
-      return Response.json({ ok: true, values })
+        Object.assign(values, resolved.filled)
+
+        const [existing] = await db
+          .select()
+          .from(formSubmissions)
+          .where(
+            and(
+              eq(formSubmissions.formId, form.id),
+              eq(formSubmissions.userId, principal.userId),
+            ),
+          )
+          .limit(1)
+
+        // Edited, not resent: a profile is a fact about somebody, and keeping
+        // every version of it would turn the submissions list into a diary.
+        if (existing) {
+          await db
+            .update(formSubmissions)
+            .set({ data: values })
+            .where(eq(formSubmissions.id, existing.id))
+        } else {
+          await db.insert(formSubmissions).values({
+            formId: form.id,
+            userId: principal.userId,
+            data: values,
+            status: 'new',
+          })
+        }
+
+        return Response.json({ ok: true, values })
+      },
     },
-  }),
+    // Exempt from the profile gate: this is where the answers arrive
+    { gate: 'none' },
+  ),
 )

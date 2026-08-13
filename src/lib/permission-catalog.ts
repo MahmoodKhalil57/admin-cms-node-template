@@ -193,5 +193,8 @@ export const RESOURCE_PERMISSIONS: Record<
   notifications: { read: 'submissions:read', write: 'submissions:write' },
   features: { read: 'settings:read', write: 'features:manage' },
   roles: { read: 'team:read', write: 'team:manage', delete: 'team:manage' },
+  // Writing a policy is writing the rule a role is built from, so it needs
+  // exactly what changing a role needs — anything less would be a way around it.
+  policies: { read: 'team:read', write: 'team:manage', delete: 'team:manage' },
   invitations: { read: 'team:read', write: 'team:manage', delete: 'team:manage' },
 }

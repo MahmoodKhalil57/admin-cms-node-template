@@ -13,11 +13,15 @@ import { getEnv } from '#/server/env'
  * proxied and resolves to the proxy instead of the target.
  */
 export const Route = createFileRoute('/api/health')(
-  serverRoute({
-    GET: ({ request }) =>
-      Response.json(
-        { ok: true, node: getEnv(request).NODE_ID },
-        { headers: { 'Access-Control-Allow-Origin': '*' } },
-      ),
-  }),
+  serverRoute(
+    {
+      GET: ({ request }) =>
+        Response.json(
+          { ok: true, node: getEnv(request).NODE_ID },
+          { headers: { 'Access-Control-Allow-Origin': '*' } },
+        ),
+    },
+    // Exempt from the profile gate: a liveness check answers before it asks who is asking
+    { gate: 'none' },
+  ),
 )

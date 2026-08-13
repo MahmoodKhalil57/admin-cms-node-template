@@ -184,11 +184,93 @@ const ScopePicker = ({
   )
 }
 
+interface PolicyRow {
+  id: number
+  key: string
+  name: string
+  description: string | null
+  effect: string
+  permissions: Array<string>
+}
+
+/**
+ * The policies this role carries.
+ *
+ * Placed above the permission grid on purpose. The grid is where a one-off is
+ * written; this is where a rule the business already agreed on is picked up, and
+ * reaching for the second before the first is the habit worth encouraging.
+ */
+const PolicyPicker = ({
+  value,
+  onChange,
+}: {
+  value: Array<string>
+  onChange: (next: Array<string>) => void
+}) => {
+  const [policies, setPolicies] = useState<Array<PolicyRow>>([])
+
+  useEffect(() => {
+    fetch('/api/policies?range=[0,199]')
+      .then((response) => (response.ok ? response.json() : []))
+      .then((rows) => setPolicies(Array.isArray(rows) ? rows : []))
+      .catch(() => setPolicies([]))
+  }, [])
+
+  if (!policies.length) return null
+
+  const toggle = (key: string) =>
+    onChange(
+      value.includes(key)
+        ? value.filter((held) => held !== key)
+        : [...value, key],
+    )
+
+  return (
+    <fieldset className="border-border/70 bg-muted/30 min-w-0 rounded-lg border p-4">
+      <legend className="text-muted-foreground px-1.5 text-[0.7rem] font-semibold tracking-[0.08em] uppercase">
+        Policies
+      </legend>
+      <p className="text-muted-foreground mb-3 text-xs">
+        Rules kept in one place and shared between roles. A refusal beats
+        anything granted below.
+      </p>
+      <div className="flex flex-col gap-3">
+        {policies.map((policy) => (
+          <label
+            key={policy.key}
+            className="flex cursor-pointer items-start gap-3"
+          >
+            <Checkbox
+              checked={value.includes(policy.key)}
+              onCheckedChange={() => toggle(policy.key)}
+              className="mt-0.5"
+            />
+            <span className="min-w-0">
+              <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                {policy.name}
+                <Badge
+                  variant={policy.effect === 'deny' ? 'destructive' : 'outline'}
+                >
+                  {policy.effect === 'deny' ? 'Refuses' : 'Allows'}
+                </Badge>
+              </span>
+              <span className="text-muted-foreground block text-xs">
+                {policy.description}
+              </span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
+}
+
 const RoleForm = () => {
   const catalog = usePermissionCatalog()
   const record = useRecordContext<{ builtin?: boolean }>()
   const { setValue } = useFormContext()
   const permissions = (useWatch({ name: 'permissions' }) ?? []) as Array<string>
+  const attached = (useWatch({ name: 'policies' }) ?? []) as Array<string>
   const conditions = (useWatch({ name: 'conditions' }) ?? {}) as Record<
     string,
     Record<string, { in?: Array<string | number> }>
@@ -218,11 +300,18 @@ const RoleForm = () => {
       </div>
       <TextInput source="description" multiline helperText={false} />
 
-      <PermissionPicker
-        catalog={catalog}
-        value={permissions}
-        onChange={(next) => setField('permissions', next)}
+      <PolicyPicker
+        value={attached}
+        onChange={(next) => setField('policies', next)}
       />
+      <div className="min-w-0">
+        <p className="mb-2 text-sm font-medium">And on top of those</p>
+        <PermissionPicker
+          catalog={catalog}
+          value={permissions}
+          onChange={(next) => setField('permissions', next)}
+        />
+      </div>
       <ScopePicker
         catalog={catalog}
         permissions={permissions}
@@ -278,7 +367,7 @@ export const RoleCreate = () => (
   <Create>
     <SimpleForm
       className="max-w-3xl"
-      defaultValues={{ permissions: [], conditions: {} }}
+      defaultValues={{ permissions: [], conditions: {}, policies: [] }}
     >
       <RoleForm />
     </SimpleForm>

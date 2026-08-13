@@ -1,7 +1,12 @@
 import { eq } from 'drizzle-orm'
 
 import type { NodeDb } from '#/db'
-import { invitations, roles as rolesTable } from '#/db/schema'
+import type { RoleCondition } from '#/db/schema'
+import {
+  invitations,
+  policies as policiesTable,
+  roles as rolesTable,
+} from '#/db/schema'
 import { permissionKeys } from '#/lib/permission-catalog'
 import type { NodeEnv } from './env'
 import { getAuth } from './auth'
@@ -170,6 +175,81 @@ const BUILTIN_ROLES = [
 ]
 
 /**
+ * Policies the node ships with.
+ *
+ * Not a starter pack for its own sake — these are the three shapes every rule a
+ * business writes turns out to be a variation of, and having them present means
+ * the first one somebody writes is an edit rather than a blank page.
+ *
+ * None is attached to anything. A policy that took effect by existing would be
+ * a surprise; these are attached from the Roles screen, deliberately.
+ */
+const BUILTIN_POLICIES: Array<{
+  key: string
+  name: string
+  description: string
+  effect: string
+  permissions: Array<string>
+  condition: RoleCondition
+}> = [
+  {
+    key: 'own-records-only',
+    name: 'Their own records only',
+    description:
+      'Reaches the rows that belong to the person asking, and no one else’s. What an ordinary member holds over their own profile.',
+    effect: 'allow',
+    permissions: ['submissions:read', 'submissions:write'],
+    condition: { userId: { self: true } },
+  },
+  {
+    key: 'no-destroying-enquiries',
+    name: 'Never destroy enquiries',
+    description:
+      'Takes away the ability to delete a submission, whatever else the role is given. Attach it to a desk that handles enquiries all day.',
+    effect: 'deny',
+    permissions: ['submissions:delete'],
+    condition: {},
+  },
+  {
+    key: 'read-only',
+    name: 'Read only',
+    description:
+      'Refuses every change: the site, the enquiries, the settings and who has access. A role for someone who needs to see the work, not do it.',
+    effect: 'deny',
+    permissions: [
+      'forms:write',
+      'forms:delete',
+      'submissions:write',
+      'submissions:delete',
+      'content:write',
+      'config:write',
+      'settings:write',
+      'features:manage',
+      'team:manage',
+    ],
+    condition: {},
+  },
+]
+
+/**
+ * Seeds the shipped policies, once.
+ *
+ * Only ever inserted, never reconciled — unlike a built-in role, a policy is a
+ * rule about somebody's records, and quietly rewriting one on a deploy could
+ * widen access nobody asked to widen. If a business edits `read-only` to mean
+ * something else here, it means that.
+ */
+export async function ensureBuiltinPolicies(db: NodeDb): Promise<void> {
+  const existing = await db.select().from(policiesTable)
+  const known = new Set(existing.map((row) => row.key))
+
+  for (const policy of BUILTIN_POLICIES) {
+    if (known.has(policy.key)) continue
+    await db.insert(policiesTable).values({ ...policy, builtin: true })
+  }
+}
+
+/**
  * Two different promises, which is why `builtin` matters.
  *
  * A built-in role is ours: what a root admin can reach has to grow as the node
@@ -181,6 +261,7 @@ const BUILTIN_ROLES = [
  * afternoon somebody spent deciding what a designer may touch here.
  */
 export async function ensureBuiltinRoles(db: NodeDb): Promise<void> {
+  await ensureBuiltinPolicies(db)
   const existing = await db.select().from(rolesTable)
   const byKey = new Map(existing.map((row) => [row.key, row]))
   const everything = permissionKeys(await getEnabledFeatures(db))

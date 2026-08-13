@@ -1,13 +1,15 @@
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 
 import type { NodeDb } from '#/db'
-import { roles as rolesTable } from '#/db/schema'
+import { policies as policiesTable, roles as rolesTable } from '#/db/schema'
 import type { RoleCondition } from '#/db/schema'
 import { permissionKeys } from '#/lib/permission-catalog'
 import type { NodeEnv } from './env'
 import { getAuth } from './auth'
 import { getEnabledFeatures } from './features'
 import { KEY_FORBIDDEN, bearerFor } from './api-keys'
+import { EMPTY_GRANT, evaluate, grantAllows } from './policy'
+import type { Grant } from './policy'
 
 /**
  * Who is asking, and what they may do.
@@ -35,19 +37,34 @@ export const OWNER_ROLE = 'rootAdmin'
 export interface Principal {
   userId: string
   email: string
+  /** what the node knows them as, for fields it fills on their behalf */
+  name: string | null
   /** the account master seeded — always allowed, never editable */
   isOwner: boolean
+  /** a key acting as this account, rather than the person at a browser */
+  viaKey: boolean
   roleKey: string | null
   permissions: Array<string>
-  conditions: Record<string, RoleCondition>
+  grant: Grant
 }
 
 interface SessionUser {
   id: string
   email: string
+  name?: string | null
   role?: string | null
   masterUserId?: string | null
 }
+
+/**
+ * One resolution per request, however many gates ask for it.
+ *
+ * Working out who is asking costs a session lookup, a role read and a policy
+ * read. Routes ask once, and the profile gate in front of them asks again, so
+ * without this every request pays twice for the same answer. Keyed on the
+ * Request itself, which the runtime discards when the request ends.
+ */
+const perRequest = new WeakMap<Request, Promise<Principal | null>>()
 
 /**
  * Who is asking: a signed-in person, or a key acting as one.
@@ -56,7 +73,20 @@ interface SessionUser {
  * path, which is the point — a website holding a key is a user of this node,
  * and every gate downstream is unaware of the difference.
  */
-export async function principalFrom(
+export function principalFrom(
+  env: NodeEnv,
+  db: NodeDb,
+  request: Request,
+): Promise<Principal | null> {
+  const seen = perRequest.get(request)
+  if (seen) return seen
+
+  const resolving = resolvePrincipal(env, db, request)
+  perRequest.set(request, resolving)
+  return resolving
+}
+
+async function resolvePrincipal(
   env: NodeEnv,
   db: NodeDb,
   request: Request,
@@ -87,33 +117,48 @@ export async function principalFrom(
   }
   // Seeded by master, so this is the account the node was handed over to.
   const isOwner = Boolean(user.masterUserId)
+  // A permission for a feature that has since been switched off is not a
+  // permission any more; intersecting here means one check covers both.
+  const available = permissionKeys(await getEnabledFeatures(db))
+
+  /** A key never carries what would let it reshape the node. */
+  const ceiling = (keys: Array<string>) =>
+    bearer ? keys.filter((key) => !KEY_FORBIDDEN.includes(key)) : keys
+
+  const identity = {
+    userId: user.id,
+    email: user.email,
+    name: user.name ?? null,
+    viaKey: Boolean(bearer),
+  }
 
   if (isOwner) {
-    const everything = permissionKeys(await getEnabledFeatures(db))
+    const everything = ceiling(available)
     return {
-      userId: user.id,
-      email: user.email,
+      ...identity,
       // A key is never the root admin, even when it belongs to them. The
       // implicit grant exists so a person cannot be locked out; a secret in a
       // bundle has no such claim on it.
       isOwner: !bearer,
       roleKey: OWNER_ROLE,
-      permissions: bearer
-        ? everything.filter((key) => !KEY_FORBIDDEN.includes(key))
-        : everything,
-      conditions: {},
+      permissions: everything,
+      grant: evaluate({
+        permissions: everything,
+        conditions: {},
+        policies: [],
+        available: everything,
+      }),
     }
   }
 
   const roleKey = user.role ?? null
   if (!roleKey) {
     return {
-      userId: user.id,
-      email: user.email,
+      ...identity,
       isOwner: false,
       roleKey: null,
       permissions: [],
-      conditions: {},
+      grant: EMPTY_GRANT,
     }
   }
 
@@ -123,23 +168,29 @@ export async function principalFrom(
     .where(eq(rolesTable.key, roleKey))
     .limit(1)
 
-  // A permission for a feature that has since been switched off is not a
-  // permission any more; intersecting here means one check covers both.
-  const available = new Set(permissionKeys(await getEnabledFeatures(db)))
+  // Policies → roles → users: the role names them, and this is where the names
+  // become rules. Read in one query; a role with none skips it entirely.
+  const attached = role?.policies ?? []
+  const rules = attached.length
+    ? await db
+        .select()
+        .from(policiesTable)
+        .where(inArray(policiesTable.key, attached))
+    : []
 
-  const held = (role?.permissions ?? []).filter((key) => available.has(key))
+  const grant = evaluate({
+    permissions: role?.permissions ?? [],
+    conditions: role?.conditions ?? {},
+    policies: rules,
+    available: ceiling(available),
+  })
 
   return {
-    userId: user.id,
-    email: user.email,
+    ...identity,
     isOwner: false,
     roleKey,
-    // A key never carries the permissions that would let it reshape the node,
-    // however generous the role behind it is.
-    permissions: bearer
-      ? held.filter((key) => !KEY_FORBIDDEN.includes(key))
-      : held,
-    conditions: role?.conditions ?? {},
+    permissions: grant.permissions,
+    grant,
   }
 }
 
@@ -149,14 +200,27 @@ export function can(principal: Principal | null, permission: string): boolean {
   return principal.permissions.includes(permission)
 }
 
-/** How this principal's grant is narrowed, if it is. */
-export function conditionFor(
+/**
+ * The ways a permission is allowed, read as *any of*.
+ *
+ * An empty list means no narrowing — the caller reaches everything the
+ * permission covers.
+ */
+export function allowedWays(
   principal: Principal | null,
   permission: string,
-): RoleCondition | null {
-  if (!principal || principal.isOwner) return null
-  const condition = principal.conditions[permission]
-  return condition && Object.keys(condition).length > 0 ? condition : null
+): Array<RoleCondition> {
+  if (!principal || principal.isOwner) return []
+  return principal.grant.allow[permission] ?? []
+}
+
+/** The ways a permission is taken away, read as *none of*. */
+export function deniedWays(
+  principal: Principal | null,
+  permission: string,
+): Array<RoleCondition> {
+  if (!principal || principal.isOwner) return []
+  return principal.grant.deny[permission] ?? []
 }
 
 /**
@@ -165,20 +229,14 @@ export function conditionFor(
  * Applied to rows on their way out and to writes on their way in — a condition
  * that only filtered lists would be a display preference, not a permission.
  */
-export function matchesCondition(
-  condition: RoleCondition | null,
+export function allows(
+  principal: Principal | null,
+  permission: string,
   record: Record<string, unknown>,
-  principal: Principal,
 ): boolean {
-  if (!condition) return true
-
-  return Object.entries(condition).every(([field, rule]) => {
-    const value = record[field]
-    if (rule.self) return String(value) === principal.userId
-    if (rule.eq !== undefined) return String(value) === String(rule.eq)
-    if (rule.in) return rule.in.map(String).includes(String(value))
-    return true
-  })
+  if (!principal) return false
+  if (principal.isOwner) return true
+  return grantAllows(principal.grant, permission, record, principal.userId)
 }
 
 /**

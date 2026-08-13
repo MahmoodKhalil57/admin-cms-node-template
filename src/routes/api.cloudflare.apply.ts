@@ -77,7 +77,9 @@ export const Route = createFileRoute('/api/cloudflare/apply')(
             })
             continue
           }
-          written.push(...(await applyRequirement(token, zone, purpose.requirement)))
+          written.push(
+            ...(await applyRequirement(token, zone, purpose.requirement)),
+          )
         }
 
         return Response.json({ ok: true, zone: zone.name, written, skipped })

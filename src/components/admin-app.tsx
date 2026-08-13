@@ -3,6 +3,7 @@ import { tanStackRouterProvider } from 'ra-router-tanstack'
 import {
   BellRing,
   FileText,
+  Scale,
   Send,
   Settings2,
   ShieldCheck,
@@ -25,6 +26,12 @@ import {
 } from '#/components/static/screens'
 import { BuilderOverlay } from '#/components/static/builder'
 import { RoleCreate, RoleEdit, RoleList } from '#/components/resources/roles'
+import {
+  PolicyCreate,
+  PolicyEdit,
+  PolicyList,
+} from '#/components/resources/policies'
+import { ProfileGate } from '#/components/profile-gate'
 import {
   AutomationCreate,
   AutomationEdit,
@@ -98,6 +105,7 @@ export function AdminApp() {
           the whole panel: any entry can open it, and it is the same surface
           every time. */}
       <BuilderOverlay />
+      <ProfileGate />
       <Admin
         basename="/admin"
         routerProvider={tanStackRouterProvider}
@@ -180,6 +188,19 @@ export function AdminApp() {
             edit={RoleEdit}
             create={RoleCreate}
             icon={ShieldCheck}
+            recordRepresentation="name"
+          />
+        )}
+        {/* Below Roles, because that is the order they are read in: a policy is
+          reached through the role that carries it. */}
+        {team && holds(mine, 'team:manage') && (
+          <Resource
+            name="policies"
+            options={{ label: 'Policies', group: 'Users' }}
+            list={PolicyList}
+            edit={PolicyEdit}
+            create={PolicyCreate}
+            icon={Scale}
             recordRepresentation="name"
           />
         )}

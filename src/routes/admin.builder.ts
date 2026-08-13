@@ -116,39 +116,43 @@ function page(site: string, focus: string): string {
 }
 
 export const Route = createFileRoute('/admin/builder')(
-  serverRoute({
-    GET: async ({ request }) => {
-      const env = getEnv(request)
-      const db = getDb(env)
-      const principal = await principalFrom(env, db, request)
-      if (!principal) return new Response('Unauthorized', { status: 401 })
-      if (!can(principal, 'content:write')) {
-        return new Response('Not allowed to edit this site.', { status: 403 })
-      }
-      const connection = await currentConnection(db)
-      const settings = await getSettings(db)
-      // Same preference as the preview: on the custom domain the site, the
-      // panel and the API share an origin, so nothing has to cross one.
-      const site = (
-        settings.customDomain && settings.frontendVerified
-          ? `https://${settings.customDomain}`
-          : (connection?.pagesUrl ?? '')
-      ).replace(/\/+$/, '')
-      if (!site) {
-        return new Response(
-          'Connect GitHub and publish a site before opening the builder.',
-          { status: 400, headers: { 'Content-Type': 'text/plain' } },
-        )
-      }
+  serverRoute(
+    {
+      GET: async ({ request }) => {
+        const env = getEnv(request)
+        const db = getDb(env)
+        const principal = await principalFrom(env, db, request)
+        if (!principal) return new Response('Unauthorized', { status: 401 })
+        if (!can(principal, 'content:write')) {
+          return new Response('Not allowed to edit this site.', { status: 403 })
+        }
+        const connection = await currentConnection(db)
+        const settings = await getSettings(db)
+        // Same preference as the preview: on the custom domain the site, the
+        // panel and the API share an origin, so nothing has to cross one.
+        const site = (
+          settings.customDomain && settings.frontendVerified
+            ? `https://${settings.customDomain}`
+            : (connection?.pagesUrl ?? '')
+        ).replace(/\/+$/, '')
+        if (!site) {
+          return new Response(
+            'Connect GitHub and publish a site before opening the builder.',
+            { status: 400, headers: { 'Content-Type': 'text/plain' } },
+          )
+        }
 
-      const focus = new URL(request.url).searchParams.get('focus') ?? ''
+        const focus = new URL(request.url).searchParams.get('focus') ?? ''
 
-      return new Response(page(site, focus), {
-        headers: {
-          'Content-Type': 'text/html; charset=utf-8',
-          'Cache-Control': 'no-store',
-        },
-      })
+        return new Response(page(site, focus), {
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-store',
+          },
+        })
+      },
     },
-  }),
+    // Exempt from the profile gate: a page, not an endpoint — a JSON refusal here would render as nothing
+    { gate: 'none' },
+  ),
 )
