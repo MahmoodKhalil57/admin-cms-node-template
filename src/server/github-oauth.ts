@@ -1,5 +1,27 @@
 /** The in-browser GitHub connect flow. */
+import type { NodeEnv } from './env'
+
 export { signState, verifyState } from './oauth-state'
+
+/**
+ * Where GitHub sends the operator back.
+ *
+ * One URL for the whole fleet, on the dispatcher, exactly as Cloudflare does —
+ * the node that started the flow is named in the signed `state` and the
+ * dispatcher routes on it.
+ *
+ * A per-node path used to work by leaning on GitHub matching subdirectories of
+ * the registered callback. An OAuth app has room for a single callback URL, so
+ * that was the only way to serve many nodes from one registration, and it left
+ * the whole connect flow resting on a matching rule we do not control.
+ */
+export function githubRedirectUri(env: NodeEnv): string {
+  const base = (env.OAUTH_CALLBACK_BASE ?? env.PUBLIC_URL ?? '').replace(
+    /\/+$/,
+    '',
+  )
+  return `${base}/oauth/github/callback`
+}
 
 export function buildAuthorizeUrl(options: {
   clientId: string
@@ -37,7 +59,10 @@ export async function exchangeCode(options: {
     'https://github.com/login/oauth/access_token',
     {
       method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         client_id: options.clientId,
         client_secret: options.clientSecret,

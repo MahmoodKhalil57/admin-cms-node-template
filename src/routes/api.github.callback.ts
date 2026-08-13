@@ -6,7 +6,11 @@ import { features, githubConnections } from '#/db/schema'
 import { serverRoute } from '#/lib/server-route'
 import type { NodeEnv } from '#/server/env'
 import { getEnv } from '#/server/env'
-import { exchangeCode, verifyState } from '#/server/github-oauth'
+import {
+  exchangeCode,
+  githubRedirectUri,
+  verifyState,
+} from '#/server/github-oauth'
 
 /**
  * Sends the browser back to the feature's own page.
@@ -66,7 +70,9 @@ export const Route = createFileRoute('/api/github/callback')(
           clientId: env.GITHUB_CLIENT_ID,
           clientSecret: env.GITHUB_CLIENT_SECRET,
           code,
-          redirectUri: `${(env.PUBLIC_URL ?? '').replace(/\/+$/, '')}/api/github/callback`,
+          // Must be byte-identical to the one that started the flow: GitHub
+          // checks it again when the code is exchanged.
+          redirectUri: githubRedirectUri(env),
         })
 
         const db = getDb(env)
