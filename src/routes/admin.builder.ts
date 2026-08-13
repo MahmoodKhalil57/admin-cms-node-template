@@ -44,6 +44,11 @@ function escapeHtml(value: string): string {
 
 function page(site: string, focus: string): string {
   const config = JSON.stringify({ api: '', site, focus })
+  // The builder is the site's own file, served by GitHub Pages with
+  // max-age=600. Loading a stale copy is not cosmetic here: an older builder
+  // once wrote symbol entries it should have left alone. Bucket to the minute
+  // so a fix reaches every panel quickly.
+  const version = Math.floor(Date.now() / 60000)
 
   return `<!doctype html>
 <html lang="en">
@@ -104,8 +109,8 @@ function page(site: string, focus: string): string {
         }
       });
     </script>
-    <script src="${escapeHtml(site)}/assets/js/render.js"></script>
-    <script src="${escapeHtml(site)}/static-admin/builder.js"></script>
+    <script src="${escapeHtml(site)}/assets/js/render.js?v=${version}"></script>
+    <script src="${escapeHtml(site)}/static-admin/builder.js?v=${version}"></script>
   </body>
 </html>`
 }

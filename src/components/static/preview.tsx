@@ -32,7 +32,13 @@ export const StaticPreview = ({
   // whole site means hunting for the change that was just made.
   const [mode, setMode] = useState<'entry' | 'page'>('entry')
 
-  const src = `${siteUrl.replace(/\/+$/, '')}/static-admin/admincms-preview.html`
+  // GitHub Pages serves this file with max-age=600, so a panel left open — or
+  // reopened soon after the site changes — keeps painting with a frame that is
+  // up to ten minutes old. Bucketing to the minute keeps it close to live while
+  // still letting the browser cache repeated opens.
+  const src =
+    `${siteUrl.replace(/\/+$/, '')}/static-admin/admincms-preview.html` +
+    `?v=${Math.floor(Date.now() / 60000)}`
   const origin = (() => {
     try {
       return new URL(src).origin
