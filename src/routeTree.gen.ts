@@ -42,6 +42,7 @@ import { Route as ApiTeamIdRouteImport } from './routes/api.team.$id'
 import { Route as ApiWebhooksGithubRouteImport } from './routes/api.webhooks.github'
 import { Route as ApiStaticCollectionIndexRouteImport } from './routes/api.static.$collection.index'
 import { Route as ApiStaticCollectionIdRouteImport } from './routes/api.static.$collection.$id'
+import { Route as ApiTeamIdKeysRouteImport } from './routes/api.team.$id.keys'
 import { Route as ApiPublicFormsSlugIndexRouteImport } from './routes/api.public.forms.$slug.index'
 import { Route as ApiPublicFormsSlugSubmissionsRouteImport } from './routes/api.public.forms.$slug.submissions'
 
@@ -211,6 +212,11 @@ const ApiStaticCollectionIdRoute = ApiStaticCollectionIdRouteImport.update({
   path: '/api/static/$collection/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTeamIdKeysRoute = ApiTeamIdKeysRouteImport.update({
+  id: '/keys',
+  path: '/keys',
+  getParentRoute: () => ApiTeamIdRoute,
+} as any)
 const ApiPublicFormsSlugIndexRoute = ApiPublicFormsSlugIndexRouteImport.update({
   id: '/api/public/forms/$slug/',
   path: '/api/public/forms/$slug/',
@@ -250,12 +256,13 @@ export interface FileRoutesByFullPath {
   '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
   '/api/invitations/create': typeof ApiInvitationsCreateRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
-  '/api/team/$id': typeof ApiTeamIdRoute
+  '/api/team/$id': typeof ApiTeamIdRouteWithChildren
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
   '/api/static/': typeof ApiStaticIndexRoute
   '/api/team/': typeof ApiTeamIndexRoute
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
+  '/api/team/$id/keys': typeof ApiTeamIdKeysRoute
   '/api/static/$collection/': typeof ApiStaticCollectionIndexRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
   '/api/public/forms/$slug/': typeof ApiPublicFormsSlugIndexRoute
@@ -287,12 +294,13 @@ export interface FileRoutesByTo {
   '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
   '/api/invitations/create': typeof ApiInvitationsCreateRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
-  '/api/team/$id': typeof ApiTeamIdRoute
+  '/api/team/$id': typeof ApiTeamIdRouteWithChildren
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
   '/api/$resource': typeof ApiResourceIndexRoute
   '/api/static': typeof ApiStaticIndexRoute
   '/api/team': typeof ApiTeamIndexRoute
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
+  '/api/team/$id/keys': typeof ApiTeamIdKeysRoute
   '/api/static/$collection': typeof ApiStaticCollectionIndexRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
   '/api/public/forms/$slug': typeof ApiPublicFormsSlugIndexRoute
@@ -325,12 +333,13 @@ export interface FileRoutesById {
   '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
   '/api/invitations/create': typeof ApiInvitationsCreateRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
-  '/api/team/$id': typeof ApiTeamIdRoute
+  '/api/team/$id': typeof ApiTeamIdRouteWithChildren
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
   '/api/static/': typeof ApiStaticIndexRoute
   '/api/team/': typeof ApiTeamIndexRoute
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
+  '/api/team/$id/keys': typeof ApiTeamIdKeysRoute
   '/api/static/$collection/': typeof ApiStaticCollectionIndexRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
   '/api/public/forms/$slug/': typeof ApiPublicFormsSlugIndexRoute
@@ -370,6 +379,7 @@ export interface FileRouteTypes {
     | '/api/static/'
     | '/api/team/'
     | '/api/static/$collection/$id'
+    | '/api/team/$id/keys'
     | '/api/static/$collection/'
     | '/api/public/forms/$slug/submissions'
     | '/api/public/forms/$slug/'
@@ -407,6 +417,7 @@ export interface FileRouteTypes {
     | '/api/static'
     | '/api/team'
     | '/api/static/$collection/$id'
+    | '/api/team/$id/keys'
     | '/api/static/$collection'
     | '/api/public/forms/$slug/submissions'
     | '/api/public/forms/$slug'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/api/static/'
     | '/api/team/'
     | '/api/static/$collection/$id'
+    | '/api/team/$id/keys'
     | '/api/static/$collection/'
     | '/api/public/forms/$slug/submissions'
     | '/api/public/forms/$slug/'
@@ -475,7 +487,7 @@ export interface RootRouteChildren {
   ApiInternalProvisionRoute: typeof ApiInternalProvisionRoute
   ApiInvitationsAcceptRoute: typeof ApiInvitationsAcceptRoute
   ApiInvitationsCreateRoute: typeof ApiInvitationsCreateRoute
-  ApiTeamIdRoute: typeof ApiTeamIdRoute
+  ApiTeamIdRoute: typeof ApiTeamIdRouteWithChildren
   ApiWebhooksGithubRoute: typeof ApiWebhooksGithubRoute
   ApiResourceIndexRoute: typeof ApiResourceIndexRoute
   ApiStaticIndexRoute: typeof ApiStaticIndexRoute
@@ -719,6 +731,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiStaticCollectionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/team/$id/keys': {
+      id: '/api/team/$id/keys'
+      path: '/keys'
+      fullPath: '/api/team/$id/keys'
+      preLoaderRoute: typeof ApiTeamIdKeysRouteImport
+      parentRoute: typeof ApiTeamIdRoute
+    }
     '/api/public/forms/$slug/': {
       id: '/api/public/forms/$slug/'
       path: '/api/public/forms/$slug'
@@ -748,6 +767,18 @@ const ApiSettingsRouteWithChildren = ApiSettingsRoute._addFileChildren(
   ApiSettingsRouteChildren,
 )
 
+interface ApiTeamIdRouteChildren {
+  ApiTeamIdKeysRoute: typeof ApiTeamIdKeysRoute
+}
+
+const ApiTeamIdRouteChildren: ApiTeamIdRouteChildren = {
+  ApiTeamIdKeysRoute: ApiTeamIdKeysRoute,
+}
+
+const ApiTeamIdRouteWithChildren = ApiTeamIdRoute._addFileChildren(
+  ApiTeamIdRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminSplatRoute: AdminSplatRoute,
@@ -774,7 +805,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiInternalProvisionRoute: ApiInternalProvisionRoute,
   ApiInvitationsAcceptRoute: ApiInvitationsAcceptRoute,
   ApiInvitationsCreateRoute: ApiInvitationsCreateRoute,
-  ApiTeamIdRoute: ApiTeamIdRoute,
+  ApiTeamIdRoute: ApiTeamIdRouteWithChildren,
   ApiWebhooksGithubRoute: ApiWebhooksGithubRoute,
   ApiResourceIndexRoute: ApiResourceIndexRoute,
   ApiStaticIndexRoute: ApiStaticIndexRoute,

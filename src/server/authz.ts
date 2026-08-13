@@ -7,6 +7,7 @@ import { permissionKeys } from '#/lib/permission-catalog'
 import type { NodeEnv } from './env'
 import { getAuth } from './auth'
 import { getEnabledFeatures } from './features'
+import { KEY_FORBIDDEN, bearerFor } from './api-keys'
 
 /**
  * Who is asking, and what they may do.
@@ -22,7 +23,14 @@ import { getEnabledFeatures } from './features'
  * has to be unable to.
  */
 
-export const OWNER_ROLE = 'owner'
+/**
+ * The node-side half of the master account.
+ *
+ * Held implicitly by whoever provisioning seeded — not read from a row, so it
+ * cannot be edited away. A second person can be given the matching role row by
+ * invitation; this one is the guarantee that somebody always can.
+ */
+export const OWNER_ROLE = 'rootAdmin'
 
 export interface Principal {
   userId: string
@@ -41,26 +49,58 @@ interface SessionUser {
   masterUserId?: string | null
 }
 
-/** The signed-in principal, or null when there is no session. */
+/**
+ * Who is asking: a signed-in person, or a key acting as one.
+ *
+ * A key resolves to the account it belongs to and then follows exactly the same
+ * path, which is the point — a website holding a key is a user of this node,
+ * and every gate downstream is unaware of the difference.
+ */
 export async function principalFrom(
   env: NodeEnv,
   db: NodeDb,
   request: Request,
 ): Promise<Principal | null> {
-  const session = await getAuth(env).api.getSession({ headers: request.headers })
-  if (!session) return null
+  let user: SessionUser | null = null
 
-  const user = session.user as unknown as SessionUser
+  const bearer = await bearerFor(
+    db,
+    request.headers.get('authorization'),
+    request,
+  )
+  if (bearer) {
+    const found = await (
+      await getAuth(env).$context
+    ).adapter.findOne({
+      model: 'user',
+      where: [{ field: 'id', value: bearer.userId }],
+    })
+    user = (found as SessionUser | null) ?? null
+    // A key whose account has since been removed is a key to nothing.
+    if (!user) return null
+  } else {
+    const session = await getAuth(env).api.getSession({
+      headers: request.headers,
+    })
+    if (!session) return null
+    user = session.user as unknown as SessionUser
+  }
   // Seeded by master, so this is the account the node was handed over to.
   const isOwner = Boolean(user.masterUserId)
 
   if (isOwner) {
+    const everything = permissionKeys(await getEnabledFeatures(db))
     return {
       userId: user.id,
       email: user.email,
-      isOwner: true,
+      // A key is never the root admin, even when it belongs to them. The
+      // implicit grant exists so a person cannot be locked out; a secret in a
+      // bundle has no such claim on it.
+      isOwner: !bearer,
       roleKey: OWNER_ROLE,
-      permissions: permissionKeys(await getEnabledFeatures(db)),
+      permissions: bearer
+        ? everything.filter((key) => !KEY_FORBIDDEN.includes(key))
+        : everything,
       conditions: {},
     }
   }
@@ -87,12 +127,18 @@ export async function principalFrom(
   // permission any more; intersecting here means one check covers both.
   const available = new Set(permissionKeys(await getEnabledFeatures(db)))
 
+  const held = (role?.permissions ?? []).filter((key) => available.has(key))
+
   return {
     userId: user.id,
     email: user.email,
     isOwner: false,
     roleKey,
-    permissions: (role?.permissions ?? []).filter((key) => available.has(key)),
+    // A key never carries the permissions that would let it reshape the node,
+    // however generous the role behind it is.
+    permissions: bearer
+      ? held.filter((key) => !KEY_FORBIDDEN.includes(key))
+      : held,
     conditions: role?.conditions ?? {},
   }
 }

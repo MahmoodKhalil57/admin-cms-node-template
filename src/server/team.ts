@@ -87,31 +87,90 @@ export async function removeMember(env: NodeEnv, id: string): Promise<void> {
 }
 
 /**
- * Seed the one role a node cannot do without.
+ * The roles a node starts with.
  *
- * Just one, and not a set of guessed job titles: what an "editor" or a
- * "manager" means is a question about a business, and inventing an answer here
- * would have every node start with roles that fit none of them. An
- * administrator is different — it is not a job title, it is the whole node, and
- * without it the owner has nobody to share the keys with.
+ * Named after jobs the business actually has rather than after the permissions
+ * behind them, because the person choosing is hiring, not configuring: someone
+ * answers the enquiries, someone else changes how the site looks.
+ *
+ * They are ordinary rows, not fixed types. Seeded so a node is usable the
+ * moment it exists, and editable afterwards — a business whose designer must
+ * not touch the form declaration only has to untick it.
+ *
+ * `rootAdmin` is the node-side half of the master account. The person who
+ * created the project on master arrives here as its rootAdmin, which is why it
+ * cannot be deleted: it is the way back in.
  */
-export async function ensureBuiltinRoles(db: NodeDb): Promise<void> {
-  const [existing] = await db
-    .select()
-    .from(rolesTable)
-    .where(eq(rolesTable.key, 'administrator'))
-    .limit(1)
-  if (existing) return
-
-  await db.insert(rolesTable).values({
-    key: 'administrator',
-    name: 'Administrator',
-    description: 'Everything the node can do. Grant it sparingly.',
-    permissions: permissionKeys(await getEnabledFeatures(db)),
-    conditions: {},
+const BUILTIN_ROLES = [
+  {
+    key: 'rootAdmin',
+    name: 'Root admin',
+    description:
+      'Everything this node can do, including who else gets in. The counterpart of the account that created the project.',
     builtin: true,
-  })
+    /** every permission the node currently offers */
+    all: true,
+  },
+  {
+    key: 'designer',
+    name: 'Designer',
+    description:
+      'The site: its pages, symbols, content and the visual builder. Not the enquiries, and not who has access.',
+    builtin: false,
+    permissions: [
+      'content:read',
+      'content:write',
+      // Granted to begin with and meant to be revokable — it decides what the
+      // node serves rather than how a page looks.
+      'config:write',
+    ],
+  },
+  {
+    key: 'operator',
+    name: 'Operator',
+    description:
+      'The enquiries: reads what visitors send in and marks them handled. Cannot change the site.',
+    builtin: false,
+    permissions: ['forms:read', 'submissions:read', 'submissions:write'],
+  },
+  {
+    key: 'frontend',
+    name: 'Frontend',
+    description:
+      'A website, not a person. Reads the form definitions it has to draw and files what visitors send. Holds an API key rather than a password.',
+    builtin: false,
+    permissions: ['forms:read', 'submissions:write'],
+  },
+  {
+    key: 'default',
+    name: 'Default user',
+    description:
+      'Signed in, and nothing more. Everyone starts here; a root admin decides what they become.',
+    builtin: true,
+    permissions: [],
+  },
+]
+
+export async function ensureBuiltinRoles(db: NodeDb): Promise<void> {
+  const existing = await db.select().from(rolesTable)
+  const known = new Set(existing.map((row) => row.key))
+  const everything = permissionKeys(await getEnabledFeatures(db))
+
+  for (const role of BUILTIN_ROLES) {
+    if (known.has(role.key)) continue
+    await db.insert(rolesTable).values({
+      key: role.key,
+      name: role.name,
+      description: role.description,
+      permissions: role.all ? everything : (role.permissions ?? []),
+      conditions: {},
+      builtin: role.builtin,
+    })
+  }
 }
+
+/** What a new account gets before anyone decides otherwise. */
+export const DEFAULT_ROLE = 'default'
 
 /** A token long enough that guessing it is not a strategy. */
 export function newInviteToken(): string {
@@ -171,7 +230,9 @@ export async function acceptInvitation(
     email: invite.email,
     name: name?.trim() || invite.email,
     emailVerified: true,
-    role: invite.roleKey,
+    // The invitation named the role; that is the whole difference between
+    // being invited and signing up.
+    role: invite.roleKey || DEFAULT_ROLE,
   })
   await ctx.internalAdapter.linkAccount({
     userId: user.id,

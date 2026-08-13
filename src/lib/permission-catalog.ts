@@ -94,6 +94,14 @@ export const PERMISSION_CATALOG: Array<PermissionDefinition> = [
     feature: 'github-pages',
   },
   {
+    key: 'config:write',
+    area: 'Website',
+    name: 'Change the dynamic configuration',
+    description:
+      'Edit the forms the site declares. Separate from the rest of the content because it changes what the node serves, not how a page looks.',
+    feature: 'github-pages',
+  },
+  {
     key: 'settings:read',
     area: 'Node',
     name: 'See settings',

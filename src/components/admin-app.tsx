@@ -167,7 +167,7 @@ export function AdminApp() {
         {team && holds(mine, 'team:read') && (
           <Resource
             name="team"
-            options={{ label: 'Team', group: 'Team' }}
+            options={{ label: 'Users', group: 'Users' }}
             list={TeamPage}
             icon={Users}
           />
@@ -175,7 +175,7 @@ export function AdminApp() {
         {team && holds(mine, 'team:manage') && (
           <Resource
             name="roles"
-            options={{ label: 'Roles', group: 'Team' }}
+            options={{ label: 'Roles', group: 'Users' }}
             list={RoleList}
             edit={RoleEdit}
             create={RoleCreate}

@@ -93,6 +93,53 @@ export const githubConnections = sqliteTable('github_connections', {
 })
 
 /**
+ * A key that acts as one of this node's users.
+ *
+ * Not a separate kind of principal with its own scopes — a key *is* the user it
+ * belongs to. A website is given an account with the `frontend` role and a key
+ * to prove it, which means one place decides what anything may do: change the
+ * role and every key held by that account changes with it.
+ *
+ * Only a hash is kept. The secret is shown once, at the moment it is minted,
+ * because a key that can be read back out of the panel is a key that leaks with
+ * the panel.
+ */
+export const apiKeys = sqliteTable(
+  'api_keys',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    /** the better-auth user this key acts as */
+    userId: text('user_id').notNull(),
+    name: text().notNull(),
+    /** the readable half, so a key can be recognised without revealing it */
+    prefix: text().notNull(),
+    hash: text().notNull(),
+    /**
+     * Origins this key works from. A key shipped in a page's JavaScript is
+     * readable by anyone who views source, so the useful question is not
+     * whether it leaks but what a copy of it is worth somewhere else. Bound to
+     * an origin, a stolen key is worth nothing outside the site it came from.
+     *
+     * Empty means anywhere, which is right for a key on a server and wrong for
+     * one in a browser — so the panel says so when minting.
+     */
+    allowedOrigins: text('allowed_origins', { mode: 'json' })
+      .$type<Array<string>>()
+      .notNull()
+      .default([]),
+    /** most requests per minute; 0 leaves it uncapped */
+    ratePerMinute: integer('rate_per_minute').notNull().default(0),
+    lastUsedAt: integer('last_used_at', { mode: 'timestamp' }),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }),
+    revokedAt: integer('revoked_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [index('api_keys_prefix').on(table.prefix)],
+)
+
+/**
  * An automation: when this happens, tell these people, this way.
  *
  * Three columns for three questions that change independently — `event` and

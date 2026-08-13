@@ -39,6 +39,20 @@ export const Route = createFileRoute('/api/static/$collection/$id')(
       try {
         const ref = await repoRef(getDb(env))
         const { collection } = await collectionFor(ref, params.collection)
+
+        // The declaration is not ordinary content: it decides what the node
+        // serves. A designer may be trusted with the pages and not with that,
+        // so it carries its own permission and can be taken away on its own.
+        if (collection.sync === 'forms') {
+          const refused = await requirePermission(
+            env,
+            getDb(env),
+            request,
+            'config:write',
+          )
+          if (refused) return refused
+        }
+
         const body = (await request.json()) as Record<string, unknown>
         // Saving commits; GitHub's push webhook applies it. Doing it inline as
         // well would give panel edits a path of their own, and a rule that only
