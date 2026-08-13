@@ -90,12 +90,24 @@ const Group = ({
   </fieldset>
 )
 
-/** The best field to title a row with: the first piece of prose in it. */
+/**
+ * The best field to title a row with.
+ *
+ * A field actually named as the title wins, because the first piece of prose in
+ * an item is often not its title — a catalog item leads with its lot number, so
+ * picking positionally titled every row `01`, `02`, `03`.
+ */
+const TITLE_KEYS = ['title', 'name', 'label', 'heading', 'question', 'summary']
+
 function titleFieldOf(fields: Array<StaticField>): StaticField | undefined {
-  return (
-    fields.find((f) => !f.mono && ['string', 'text'].includes(f.widget)) ??
-    fields[0]
-  )
+  const prose = (field: StaticField) =>
+    !field.mono && ['string', 'text'].includes(field.widget)
+
+  for (const key of TITLE_KEYS) {
+    const named = fields.find((field) => field.name === key && prose(field))
+    if (named) return named
+  }
+  return fields.find(prose) ?? fields[0]
 }
 
 /**

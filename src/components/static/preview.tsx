@@ -28,6 +28,9 @@ export const StaticPreview = ({
   const { control } = useFormContext()
   const values = useWatch({ control })
   const [ready, setReady] = useState(false)
+  // Scoped by default: an entry owns a part of the page, and handing back the
+  // whole site means hunting for the change that was just made.
+  const [mode, setMode] = useState<'entry' | 'page'>('entry')
 
   const src = `${siteUrl.replace(/\/+$/, '')}/static-admin/admincms-preview.html`
   const origin = (() => {
@@ -55,6 +58,7 @@ export const StaticPreview = ({
       type: 'admincms:preview',
       collection,
       id: record?.id,
+      mode,
       data: values,
     }
 
@@ -63,7 +67,7 @@ export const StaticPreview = ({
     lastSent.current = serialised
 
     frame.current.contentWindow.postMessage(message, origin)
-  }, [ready, collection, record?.id, values, origin])
+  }, [ready, collection, record?.id, values, mode, origin])
 
   if (!siteUrl) return null
 
@@ -80,12 +84,30 @@ export const StaticPreview = ({
               ready ? 'bg-primary' : 'bg-muted-foreground/40',
             )}
           />
-          <span className="text-muted-foreground text-[0.7rem] font-semibold tracking-[0.08em] uppercase">
+          <span
+            className="text-muted-foreground text-[0.7rem] font-semibold tracking-[0.08em] uppercase"
+            title={siteUrl}
+          >
             {ready ? 'Live preview' : 'Loading the page'}
           </span>
-          <span className="text-muted-foreground/70 ml-auto truncate font-mono text-[0.7rem]">
-            {siteUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '')}
-          </span>
+          <div className="border-border/70 ml-auto flex shrink-0 items-center rounded-md border p-0.5">
+            {(['entry', 'page'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setMode(option)}
+                aria-pressed={mode === option}
+                className={cn(
+                  'focus-visible:ring-ring/60 rounded-[5px] px-2 py-0.5 text-[0.7rem] font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                  mode === option
+                    ? 'bg-secondary text-secondary-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {option === 'entry' ? 'This entry' : 'Whole page'}
+              </button>
+            ))}
+          </div>
         </div>
         <iframe
           ref={frame}
