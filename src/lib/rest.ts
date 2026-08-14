@@ -405,3 +405,32 @@ function stripReadOnly(table: LooseTable, body: Record<string, unknown>) {
 
   return values
 }
+
+/**
+ * Whether a narrowed grant can reach anything in this resource at all.
+ *
+ * A grant narrowed to `userId` is a real grant, but the automations table has
+ * no `userId` — so it selects nothing, and every call against it refuses. That
+ * is correct, and it is also a tool an agent should never have been offered:
+ * the point of deriving the list from the key is that everything on it works.
+ *
+ * The same reasoning `conditionWhere` uses, asked ahead of time. A group whose
+ * every alternative names a column this table lacks is a group nothing can
+ * satisfy, which makes the whole permission unreachable here.
+ */
+export function reachable(
+  resource: string,
+  features: Array<string>,
+  principal: Principal,
+  permission: string,
+): boolean {
+  const table = resolveResource(resource, features)
+  if (!table) return false
+
+  const columns = getTableColumns(table)
+  return allowedWays(principal, permission).every((group) =>
+    group.some((way) =>
+      Object.keys(way).some((field) => Object.hasOwn(columns, field)),
+    ),
+  )
+}

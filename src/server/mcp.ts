@@ -5,6 +5,7 @@ import {
   deleteResource,
   getResource,
   listResource,
+  reachable,
   updateResource,
 } from '#/lib/rest'
 import type { Principal } from './authz'
@@ -190,7 +191,12 @@ export function toolsFor(
     const definition = definitionOf(permissions.read)
     if (definition?.feature && !features.includes(definition.feature)) continue
 
-    if (can(principal, permissions.read)) {
+    /** Held, and able to reach something here. Both, or it is not offered. */
+    const offers = (permission: string) =>
+      can(principal, permission) &&
+      reachable(resource, features, principal, permission)
+
+    if (offers(permissions.read)) {
       const note = narrowingNote(principal, permissions.read)
       tools.push({
         name: `list_${resource}`,
@@ -221,7 +227,7 @@ export function toolsFor(
       })
     }
 
-    if (can(principal, permissions.write)) {
+    if (offers(permissions.write)) {
       const note = narrowingNote(principal, permissions.write)
       tools.push({
         name: `create_${resource}`,
@@ -267,7 +273,7 @@ export function toolsFor(
       })
     }
 
-    if (permissions.delete && can(principal, permissions.delete)) {
+    if (permissions.delete && offers(permissions.delete)) {
       tools.push({
         name: `delete_${resource}`,
         title: `Delete a ${subject.singular}`,
