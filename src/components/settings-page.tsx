@@ -129,15 +129,24 @@ export const SettingsPage = () => {
         ok?: boolean
         error?: string
         written?: Array<{ name: string; type: string; action: string }>
+        routed?: { ok: boolean; note?: string }
       }
       if (!response.ok || !body.ok) {
         notify(body.error ?? 'Could not write the records.', { type: 'error' })
         return
       }
       const count = body.written?.length ?? 0
-      notify(`${count} record${count === 1 ? '' : 's'} written. Checking them now…`, {
-        type: 'success',
-      })
+      // The routing half is the one nobody can see in a DNS panel, so when it
+      // does not happen it has to be said out loud — a correct record and an
+      // unreachable panel look identical from here otherwise.
+      const routing =
+        body.routed && !body.routed.ok
+          ? ` The panel and API could not be routed: ${body.routed.note ?? 'unknown reason'}`
+          : ''
+      notify(
+        `${count} record${count === 1 ? '' : 's'} written.${routing || ' Checking them now…'}`,
+        { type: body.routed && !body.routed.ok ? 'warning' : 'success' },
+      )
       // Writing a record and it resolving are different claims, so fall through
       // to the same public DNS check the manual path uses.
       await verify()

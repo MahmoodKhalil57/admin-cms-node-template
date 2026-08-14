@@ -14,6 +14,7 @@ import { planDomain } from '#/server/domain-plan'
 import { getEnv } from '#/server/env'
 import { currentConnection } from '#/server/github-store'
 import { getSettings } from '#/server/settings'
+import { registerCustomHostname } from '#/server/domains'
 
 /**
  * Writes every DNS record the custom domain needs, into the operator's own
@@ -82,7 +83,32 @@ export const Route = createFileRoute('/api/cloudflare/apply')(
           )
         }
 
-        return Response.json({ ok: true, zone: zone.name, written, skipped })
+        /*
+          The records alone do not make a node reachable.
+
+          Only `/admin*` and `/api*` are handed to this node, by Worker routes
+          on the zone, and nothing about writing a DNS record creates one. So
+          pressing this used to leave a correct record, a working website, and a
+          panel that could not be opened — which reads like a broken panel
+          rather than a missing route.
+
+          Master does that half: it needs an account-scoped token that must
+          never reach a node. Asked for here so the button is the whole job
+          rather than the first half of it.
+
+          Never allowed to fail the records that were already written. They are
+          correct and worth keeping; what the route could not do is reported
+          beside them.
+        */
+        const routed = await registerCustomHostname(env, current.customDomain)
+
+        return Response.json({
+          ok: true,
+          zone: zone.name,
+          written,
+          skipped,
+          routed: { ok: routed.ok, note: routed.note },
+        })
       } catch (error) {
         const message =
           error instanceof CloudflareApiError || error instanceof Error
