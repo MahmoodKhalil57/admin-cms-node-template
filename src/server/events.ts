@@ -94,6 +94,30 @@ export const EVENT_CATALOG: Array<EventDefinition> = [
     description: 'An account no longer acts for a business.',
   },
   {
+    key: 'order.created',
+    area: 'Money',
+    name: 'An order was started',
+    description: 'Somebody began a checkout. Not yet paid.',
+  },
+  {
+    key: 'order.paid',
+    area: 'Money',
+    name: 'An order was paid',
+    description: 'The provider confirmed the money moved.',
+  },
+  {
+    key: 'order.failed',
+    area: 'Money',
+    name: 'An order failed',
+    description: 'The payment did not go through, or the session expired.',
+  },
+  {
+    key: 'order.refunded',
+    area: 'Money',
+    name: 'An order was refunded',
+    description: 'Money went back, in whole or in part.',
+  },
+  {
     key: 'resource.created',
     area: 'Panel',
     name: 'Something was created',

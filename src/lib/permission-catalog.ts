@@ -152,6 +152,33 @@ export const PERMISSION_CATALOG: Array<PermissionDefinition> = [
       'Decide what this node does at all. A switched-off feature takes its permissions with it.',
   },
   {
+    key: 'orders:read',
+    area: 'Money',
+    name: 'See orders',
+    description: 'View what has been bought and whether it was paid for.',
+    feature: 'payments',
+    scopes: [
+      { field: 'buyerUserId', label: 'Only their own' },
+      { field: 'status', label: 'Only these statuses' },
+    ],
+  },
+  {
+    key: 'orders:manage',
+    area: 'Money',
+    name: 'Refund and cancel',
+    description:
+      'Move money back. Separate from reading because reading the takings is a daily job and returning them is not.',
+    feature: 'payments',
+  },
+  {
+    key: 'payments:configure',
+    area: 'Money',
+    name: 'Set up the payment provider',
+    description:
+      'Enter the provider’s keys and read the webhook address. Effectively the keys to the money.',
+    feature: 'payments',
+  },
+  {
     key: 'vendors:read',
     area: 'Vendors',
     name: 'See vendors',
@@ -260,6 +287,8 @@ export const RESOURCE_PERMISSIONS: Record<
   // catalog, so no role can hold it — but `readOnly` below is what actually
   // refuses, and it does so without depending on that.
   events: { read: 'events:read', write: 'events:append' },
+  // Written by checkout and moved by webhooks; never posted to directly.
+  orders: { read: 'orders:read', write: 'orders:manage' },
   vendors: {
     read: 'vendors:read',
     write: 'vendors:write',

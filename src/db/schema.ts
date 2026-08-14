@@ -303,6 +303,158 @@ export const vendorMembers = sqliteTable(
 )
 
 /**
+ * How this node takes money.
+ *
+ * One row. The provider is chosen by rootAdmin, who pastes their own keys and
+ * is handed a webhook URL to paste into the provider's console — the same shape
+ * the GitHub and Cloudflare connections already use, because it is the shape
+ * that keeps the node out of the middle of somebody else's account.
+ *
+ * The secret and the webhook secret are sealed with a key that lives in the
+ * Worker's environment. See `secrets.ts` for what that does and does not buy.
+ */
+export const paymentProviders = sqliteTable('payment_providers', {
+  id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+  /** `stripe`, today */
+  key: text().notNull().unique(),
+  /** safe to show: it is in every checkout page already */
+  publishableKey: text('publishable_key'),
+  /** sealed */
+  secretKey: text('secret_key'),
+  /** sealed; proves a webhook came from the provider */
+  webhookSecret: text('webhook_secret'),
+  /** ISO 4217, upper case */
+  currency: text().notNull().default('USD'),
+  enabled: integer({ mode: 'boolean' }).notNull().default(false),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).default(
+    sql`(unixepoch())`,
+  ),
+})
+
+/**
+ * One purchase.
+ *
+ * `reference` rather than the id is what a buyer sees and what a return page
+ * looks up, so the sequence of this node's sales is not on the internet.
+ *
+ * Every amount is an integer in the currency's smallest unit — cents, pence,
+ * fils. Not a float, ever: a price is a count of the smallest thing that
+ * exists, and the moment it becomes 19.99 somebody eventually gets 19.989999.
+ */
+export const orders = sqliteTable(
+  'orders',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    /** public, unguessable, what the buyer is shown */
+    reference: text().notNull().unique(),
+    /** null for a guest checkout */
+    buyerUserId: text('buyer_user_id'),
+    buyerEmail: text('buyer_email'),
+    currency: text().notNull(),
+    /** smallest unit */
+    total: integer().notNull().default(0),
+    /**
+     * `pending` until the provider says otherwise, and it is the provider that
+     * says so — never the browser coming back from checkout.
+     */
+    status: text().notNull().default('pending'),
+    providerKey: text('provider_key').notNull(),
+    /** the checkout session, so a webhook can find its way home */
+    providerRef: text('provider_ref'),
+    paymentIntentId: text('payment_intent_id'),
+    /**
+     * Written at checkout even on a single-vendor node, where it looks
+     * pointless. It is what a later transfer is grouped by, and a charge
+     * created without one cannot be paid out against afterwards.
+     */
+    transferGroup: text('transfer_group'),
+    paidAt: integer('paid_at', { mode: 'timestamp' }),
+    refundedTotal: integer('refunded_total').notNull().default(0),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [
+    index('orders_provider_ref').on(table.providerRef),
+    index('orders_buyer').on(table.buyerUserId),
+  ],
+)
+
+/**
+ * What was bought, at the price it was bought at.
+ *
+ * The price is copied here rather than read from the product later. A product
+ * whose price changes must not rewrite what somebody already paid, and a
+ * refund six months on has to agree with the receipt.
+ *
+ * `vendorId` and `vendorShare` are here from the first single-vendor sale,
+ * when both look like ceremony. They are what every ledger line is posted from
+ * once vendors withdraw, and they cannot be reconstructed afterwards.
+ */
+export const orderItems = sqliteTable(
+  'order_items',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    orderId: integer('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+    /** what this line is: `product`, `booking`, … filled in by later features */
+    subjectType: text('subject_type'),
+    subjectId: text('subject_id'),
+    /** what the buyer saw it called, kept even if the thing is renamed */
+    name: text().notNull(),
+    quantity: integer().notNull().default(1),
+    /** smallest unit, per one */
+    unitAmount: integer('unit_amount').notNull().default(0),
+    /** smallest unit, the line total */
+    amount: integer().notNull().default(0),
+    vendorId: integer('vendor_id'),
+    /** what the vendor is owed for this line, before any withdrawal fee */
+    vendorShare: integer('vendor_share').notNull().default(0),
+    /** what the platform keeps */
+    platformFee: integer('platform_fee').notNull().default(0),
+  },
+  (table) => [index('order_items_order').on(table.orderId)],
+)
+
+/**
+ * Every webhook the provider has sent, kept whether or not it changed anything.
+ *
+ * This table *is* the idempotency guarantee, and it is a unique index rather
+ * than a check-then-write. Providers retry, and they deliver out of order: the
+ * same `payment_intent.succeeded` can arrive three times because the first two
+ * responses were slow. Reading "have I seen this" and then acting leaves a gap
+ * between the two where a second delivery fits, and the symptom is a customer
+ * charged once and fulfilled twice.
+ *
+ * So the insert comes first. If it conflicts, the event has been seen and there
+ * is nothing to do — the database decided, not the code.
+ */
+export const paymentEvents = sqliteTable(
+  'payment_events',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    providerKey: text('provider_key').notNull(),
+    /** the provider's own id for this delivery */
+    providerEventId: text('provider_event_id').notNull(),
+    type: text().notNull(),
+    payload: text({ mode: 'json' }).$type<Record<string, unknown>>().notNull().default({}),
+    /** null while it is being applied; set when it has been */
+    appliedAt: integer('applied_at', { mode: 'timestamp' }),
+    result: text(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [
+    uniqueIndex('payment_events_unique').on(
+      table.providerKey,
+      table.providerEventId,
+    ),
+  ],
+)
+
+/**
  * Something that happened, kept because it cannot be worked out later.
  *
  * The reason this exists before anything reads it: recording cannot be

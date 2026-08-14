@@ -16,6 +16,7 @@ import { Route as AdminBuilderRouteImport } from './routes/admin.builder'
 import { Route as AdminForgotRouteImport } from './routes/admin.forgot'
 import { Route as AdminJoinRouteImport } from './routes/admin.join'
 import { Route as AdminResetRouteImport } from './routes/admin.reset'
+import { Route as ApiCheckoutRouteImport } from './routes/api.checkout'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiMcpRouteImport } from './routes/api.mcp'
 import { Route as ApiPermissionsRouteImport } from './routes/api.permissions'
@@ -41,12 +42,15 @@ import { Route as ApiInternalProvisionRouteImport } from './routes/api.internal.
 import { Route as ApiInvitationsAcceptRouteImport } from './routes/api.invitations.accept'
 import { Route as ApiInvitationsCreateRouteImport } from './routes/api.invitations.create'
 import { Route as ApiMeProfileRouteImport } from './routes/api.me.profile'
+import { Route as ApiOrdersReferenceRouteImport } from './routes/api.orders.$reference'
+import { Route as ApiPaymentsProviderRouteImport } from './routes/api.payments.provider'
 import { Route as ApiPublicSignupRouteImport } from './routes/api.public.signup'
 import { Route as ApiSettingsVerifyRouteImport } from './routes/api.settings.verify'
 import { Route as ApiStaticIndexRouteImport } from './routes/api.static.index'
 import { Route as ApiTeamIndexRouteImport } from './routes/api.team.index'
 import { Route as ApiTeamIdRouteImport } from './routes/api.team.$id'
 import { Route as ApiWebhooksGithubRouteImport } from './routes/api.webhooks.github'
+import { Route as ApiWebhooksStripeRouteImport } from './routes/api.webhooks.stripe'
 import { Route as ApiStaticCollectionIndexRouteImport } from './routes/api.static.$collection.index'
 import { Route as ApiStaticCollectionIdRouteImport } from './routes/api.static.$collection.$id'
 import { Route as ApiTeamIdKeysRouteImport } from './routes/api.team.$id.keys'
@@ -89,6 +93,11 @@ const AdminJoinRoute = AdminJoinRouteImport.update({
 const AdminResetRoute = AdminResetRouteImport.update({
   id: '/admin/reset',
   path: '/admin/reset',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCheckoutRoute = ApiCheckoutRouteImport.update({
+  id: '/api/checkout',
+  path: '/api/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
@@ -216,6 +225,16 @@ const ApiMeProfileRoute = ApiMeProfileRouteImport.update({
   path: '/api/me/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiOrdersReferenceRoute = ApiOrdersReferenceRouteImport.update({
+  id: '/api/orders/$reference',
+  path: '/api/orders/$reference',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPaymentsProviderRoute = ApiPaymentsProviderRouteImport.update({
+  id: '/api/payments/provider',
+  path: '/api/payments/provider',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicSignupRoute = ApiPublicSignupRouteImport.update({
   id: '/api/public/signup',
   path: '/api/public/signup',
@@ -244,6 +263,11 @@ const ApiTeamIdRoute = ApiTeamIdRouteImport.update({
 const ApiWebhooksGithubRoute = ApiWebhooksGithubRouteImport.update({
   id: '/api/webhooks/github',
   path: '/api/webhooks/github',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
+  id: '/api/webhooks/stripe',
+  path: '/api/webhooks/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiStaticCollectionIndexRoute =
@@ -296,6 +320,7 @@ export interface FileRoutesByFullPath {
   '/admin/forgot': typeof AdminForgotRoute
   '/admin/join': typeof AdminJoinRoute
   '/admin/reset': typeof AdminResetRoute
+  '/api/checkout': typeof ApiCheckoutRoute
   '/api/health': typeof ApiHealthRoute
   '/api/mcp': typeof ApiMcpRoute
   '/api/permissions': typeof ApiPermissionsRoute
@@ -321,10 +346,13 @@ export interface FileRoutesByFullPath {
   '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
   '/api/invitations/create': typeof ApiInvitationsCreateRoute
   '/api/me/profile': typeof ApiMeProfileRoute
+  '/api/orders/$reference': typeof ApiOrdersReferenceRoute
+  '/api/payments/provider': typeof ApiPaymentsProviderRoute
   '/api/public/signup': typeof ApiPublicSignupRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
   '/api/team/$id': typeof ApiTeamIdRouteWithChildren
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
   '/api/static/': typeof ApiStaticIndexRoute
   '/api/team/': typeof ApiTeamIndexRoute
@@ -344,6 +372,7 @@ export interface FileRoutesByTo {
   '/admin/forgot': typeof AdminForgotRoute
   '/admin/join': typeof AdminJoinRoute
   '/admin/reset': typeof AdminResetRoute
+  '/api/checkout': typeof ApiCheckoutRoute
   '/api/health': typeof ApiHealthRoute
   '/api/mcp': typeof ApiMcpRoute
   '/api/permissions': typeof ApiPermissionsRoute
@@ -369,10 +398,13 @@ export interface FileRoutesByTo {
   '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
   '/api/invitations/create': typeof ApiInvitationsCreateRoute
   '/api/me/profile': typeof ApiMeProfileRoute
+  '/api/orders/$reference': typeof ApiOrdersReferenceRoute
+  '/api/payments/provider': typeof ApiPaymentsProviderRoute
   '/api/public/signup': typeof ApiPublicSignupRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
   '/api/team/$id': typeof ApiTeamIdRouteWithChildren
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/$resource': typeof ApiResourceIndexRoute
   '/api/static': typeof ApiStaticIndexRoute
   '/api/team': typeof ApiTeamIndexRoute
@@ -393,6 +425,7 @@ export interface FileRoutesById {
   '/admin/forgot': typeof AdminForgotRoute
   '/admin/join': typeof AdminJoinRoute
   '/admin/reset': typeof AdminResetRoute
+  '/api/checkout': typeof ApiCheckoutRoute
   '/api/health': typeof ApiHealthRoute
   '/api/mcp': typeof ApiMcpRoute
   '/api/permissions': typeof ApiPermissionsRoute
@@ -418,10 +451,13 @@ export interface FileRoutesById {
   '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
   '/api/invitations/create': typeof ApiInvitationsCreateRoute
   '/api/me/profile': typeof ApiMeProfileRoute
+  '/api/orders/$reference': typeof ApiOrdersReferenceRoute
+  '/api/payments/provider': typeof ApiPaymentsProviderRoute
   '/api/public/signup': typeof ApiPublicSignupRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
   '/api/team/$id': typeof ApiTeamIdRouteWithChildren
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
   '/api/static/': typeof ApiStaticIndexRoute
   '/api/team/': typeof ApiTeamIndexRoute
@@ -443,6 +479,7 @@ export interface FileRouteTypes {
     | '/admin/forgot'
     | '/admin/join'
     | '/admin/reset'
+    | '/api/checkout'
     | '/api/health'
     | '/api/mcp'
     | '/api/permissions'
@@ -468,10 +505,13 @@ export interface FileRouteTypes {
     | '/api/invitations/accept'
     | '/api/invitations/create'
     | '/api/me/profile'
+    | '/api/orders/$reference'
+    | '/api/payments/provider'
     | '/api/public/signup'
     | '/api/settings/verify'
     | '/api/team/$id'
     | '/api/webhooks/github'
+    | '/api/webhooks/stripe'
     | '/api/$resource/'
     | '/api/static/'
     | '/api/team/'
@@ -491,6 +531,7 @@ export interface FileRouteTypes {
     | '/admin/forgot'
     | '/admin/join'
     | '/admin/reset'
+    | '/api/checkout'
     | '/api/health'
     | '/api/mcp'
     | '/api/permissions'
@@ -516,10 +557,13 @@ export interface FileRouteTypes {
     | '/api/invitations/accept'
     | '/api/invitations/create'
     | '/api/me/profile'
+    | '/api/orders/$reference'
+    | '/api/payments/provider'
     | '/api/public/signup'
     | '/api/settings/verify'
     | '/api/team/$id'
     | '/api/webhooks/github'
+    | '/api/webhooks/stripe'
     | '/api/$resource'
     | '/api/static'
     | '/api/team'
@@ -539,6 +583,7 @@ export interface FileRouteTypes {
     | '/admin/forgot'
     | '/admin/join'
     | '/admin/reset'
+    | '/api/checkout'
     | '/api/health'
     | '/api/mcp'
     | '/api/permissions'
@@ -564,10 +609,13 @@ export interface FileRouteTypes {
     | '/api/invitations/accept'
     | '/api/invitations/create'
     | '/api/me/profile'
+    | '/api/orders/$reference'
+    | '/api/payments/provider'
     | '/api/public/signup'
     | '/api/settings/verify'
     | '/api/team/$id'
     | '/api/webhooks/github'
+    | '/api/webhooks/stripe'
     | '/api/$resource/'
     | '/api/static/'
     | '/api/team/'
@@ -588,6 +636,7 @@ export interface RootRouteChildren {
   AdminForgotRoute: typeof AdminForgotRoute
   AdminJoinRoute: typeof AdminJoinRoute
   AdminResetRoute: typeof AdminResetRoute
+  ApiCheckoutRoute: typeof ApiCheckoutRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiMcpRoute: typeof ApiMcpRoute
   ApiPermissionsRoute: typeof ApiPermissionsRoute
@@ -613,9 +662,12 @@ export interface RootRouteChildren {
   ApiInvitationsAcceptRoute: typeof ApiInvitationsAcceptRoute
   ApiInvitationsCreateRoute: typeof ApiInvitationsCreateRoute
   ApiMeProfileRoute: typeof ApiMeProfileRoute
+  ApiOrdersReferenceRoute: typeof ApiOrdersReferenceRoute
+  ApiPaymentsProviderRoute: typeof ApiPaymentsProviderRoute
   ApiPublicSignupRoute: typeof ApiPublicSignupRoute
   ApiTeamIdRoute: typeof ApiTeamIdRouteWithChildren
   ApiWebhooksGithubRoute: typeof ApiWebhooksGithubRoute
+  ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ApiResourceIndexRoute: typeof ApiResourceIndexRoute
   ApiStaticIndexRoute: typeof ApiStaticIndexRoute
   ApiTeamIndexRoute: typeof ApiTeamIndexRoute
@@ -676,6 +728,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/reset'
       fullPath: '/admin/reset'
       preLoaderRoute: typeof AdminResetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/checkout': {
+      id: '/api/checkout'
+      path: '/api/checkout'
+      fullPath: '/api/checkout'
+      preLoaderRoute: typeof ApiCheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/health': {
@@ -853,6 +912,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMeProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/orders/$reference': {
+      id: '/api/orders/$reference'
+      path: '/api/orders/$reference'
+      fullPath: '/api/orders/$reference'
+      preLoaderRoute: typeof ApiOrdersReferenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/payments/provider': {
+      id: '/api/payments/provider'
+      path: '/api/payments/provider'
+      fullPath: '/api/payments/provider'
+      preLoaderRoute: typeof ApiPaymentsProviderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/signup': {
       id: '/api/public/signup'
       path: '/api/public/signup'
@@ -893,6 +966,13 @@ declare module '@tanstack/react-router' {
       path: '/api/webhooks/github'
       fullPath: '/api/webhooks/github'
       preLoaderRoute: typeof ApiWebhooksGithubRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/stripe': {
+      id: '/api/webhooks/stripe'
+      path: '/api/webhooks/stripe'
+      fullPath: '/api/webhooks/stripe'
+      preLoaderRoute: typeof ApiWebhooksStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/static/$collection/': {
@@ -987,6 +1067,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminForgotRoute: AdminForgotRoute,
   AdminJoinRoute: AdminJoinRoute,
   AdminResetRoute: AdminResetRoute,
+  ApiCheckoutRoute: ApiCheckoutRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiMcpRoute: ApiMcpRoute,
   ApiPermissionsRoute: ApiPermissionsRoute,
@@ -1012,9 +1093,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiInvitationsAcceptRoute: ApiInvitationsAcceptRoute,
   ApiInvitationsCreateRoute: ApiInvitationsCreateRoute,
   ApiMeProfileRoute: ApiMeProfileRoute,
+  ApiOrdersReferenceRoute: ApiOrdersReferenceRoute,
+  ApiPaymentsProviderRoute: ApiPaymentsProviderRoute,
   ApiPublicSignupRoute: ApiPublicSignupRoute,
   ApiTeamIdRoute: ApiTeamIdRouteWithChildren,
   ApiWebhooksGithubRoute: ApiWebhooksGithubRoute,
+  ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   ApiResourceIndexRoute: ApiResourceIndexRoute,
   ApiStaticIndexRoute: ApiStaticIndexRoute,
   ApiTeamIndexRoute: ApiTeamIndexRoute,

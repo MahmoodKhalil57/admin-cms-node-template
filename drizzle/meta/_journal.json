@@ -71,6 +71,13 @@
       "when": 1786672218929,
       "tag": "0009_sloppy_dracula",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1786673264529,
+      "tag": "0010_flaky_rachel_grey",
+      "breakpoints": true
     }
   ]
 }

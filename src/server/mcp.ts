@@ -108,6 +108,12 @@ const SUBJECTS: Record<
     plural: 'invitations',
     about: 'An outstanding invitation to join this node.',
   },
+  orders: {
+    singular: 'order',
+    plural: 'orders',
+    about:
+      'A purchase and whether it was paid for. Amounts are integers in the currency’s smallest unit. Read-only: status comes from the payment provider.',
+  },
   vendors: {
     singular: 'vendor',
     plural: 'vendors',

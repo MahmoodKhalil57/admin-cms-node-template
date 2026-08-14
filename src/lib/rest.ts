@@ -22,6 +22,7 @@ import {
   invitations,
   events,
   notifications,
+  orders as ordersTable,
   vendors as vendorsTable,
   policies,
   roles,
@@ -58,6 +59,9 @@ const RESOURCES = {
   // Written by the node, never by a caller — see `readOnly` in `guard`.
   events: { table: events, feature: 'instrumentation', readOnly: true },
   vendors: { table: vendorsTable, feature: 'vendors' },
+  // An order is what a provider said happened. Readable, never editable —
+  // a refund is an action taken through the provider, not a status typed in.
+  orders: { table: ordersTable, feature: 'payments', readOnly: true },
 }
 
 // Drizzle's table types are heavily generic; the generic handlers below work

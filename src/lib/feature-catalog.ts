@@ -45,6 +45,13 @@ export const FEATURE_CATALOG: Array<FeatureDefinition> = [
     resources: ['team', 'roles', 'invitations'],
   },
   {
+    key: 'payments',
+    name: 'Payments',
+    description:
+      'Take money. rootAdmin chooses a provider, pastes their own keys, and adds the webhook in the provider’s console.',
+    defaultEnabled: false,
+  },
+  {
     key: 'vendors',
     name: 'Multiple vendors',
     description:
