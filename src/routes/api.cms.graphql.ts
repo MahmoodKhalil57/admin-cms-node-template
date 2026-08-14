@@ -18,6 +18,14 @@ import {
 } from '#/server/cms-proxy'
 import type { ProxyTarget, Subject } from '#/server/cms-proxy'
 import { decode, gh } from '#/server/static-store'
+import { getEnabledFeatures } from '#/server/features'
+import {
+  applyVirtualDelete,
+  applyVirtualWrite,
+  isVirtual,
+  virtualEntries,
+} from '#/server/cms-virtual'
+import type { VirtualEntry } from '#/server/cms-virtual'
 
 /**
  * Where every change to the site is decided.
@@ -67,15 +75,44 @@ export const Route = createFileRoute('/api/cms/graphql')(
             await repoPrefix(db),
           )
 
+          const entries = await virtualEntries(
+            db,
+            principal,
+            await getEnabledFeatures(db),
+          )
+
           const changes = commitChanges(body)
           if (changes) {
-            const denied = await audit(target, principal, changes)
-            if (denied) return refuse(403, denied)
+            // Paths the node answers for are never sent to GitHub. They are
+            // applied here, and the CMS is told the commit happened.
+            const mine = {
+              additions: changes.additions.filter((one) => isVirtual(one.path)),
+              deletions: changes.deletions.filter((one) => isVirtual(one.path)),
+            }
+            const theirs = {
+              additions: changes.additions.filter((one) => !isVirtual(one.path)),
+              deletions: changes.deletions.filter((one) => !isVirtual(one.path)),
+            }
+
+            if (theirs.additions.length || theirs.deletions.length) {
+              const denied = await audit(target, principal, theirs)
+              if (denied) return refuse(403, denied)
+            }
+
+            if (mine.additions.length || mine.deletions.length) {
+              const denied = await applyVirtual(db, principal, mine)
+              if (denied) return refuse(403, denied)
+              // Nothing left for GitHub: answer as a commit, so the editor
+              // settles the way it does after any other save.
+              if (!theirs.additions.length && !theirs.deletions.length) {
+                return synthesisedCommit(body)
+              }
+            }
           } else if (!can(principal, 'content:read')) {
             return refuse(403, 'Your account cannot read this site.')
           }
 
-          return forwardGraphql(target, body)
+          return forwardGraphql(target, body, entries)
         } catch (error) {
           if (error instanceof ProxyError) {
             return refuse(error.status, error.message)
@@ -203,10 +240,94 @@ async function auditFields(
   return `Your account cannot change ${denied.join(', ')} in ${addition.path}.`
 }
 
+/** Applies the half of a commit that belongs to the database. */
+async function applyVirtual(
+  db: Parameters<typeof applyVirtualWrite>[0],
+  principal: Principal,
+  changes: Changes,
+): Promise<string | null> {
+  for (const deletion of changes.deletions) {
+    const denied = await applyVirtualDelete(db, principal, deletion.path)
+    if (denied) return denied
+  }
+
+  for (const addition of changes.additions) {
+    let document: unknown
+    try {
+      document = JSON.parse(decode(addition.contents))
+    } catch {
+      return `${addition.path} is not a document this node can read.`
+    }
+    const denied = await applyVirtualWrite(db, principal, addition.path, document)
+    if (denied) return denied
+  }
+
+  return null
+}
+
+/**
+ * A commit that did not happen, described as though it had.
+ *
+ * Sveltia asks for the new object ids so it can keep its own cache in step, and
+ * these are answered from the paths — the same derivation the listing used, so
+ * what it caches is what the next listing will say.
+ */
+function synthesisedCommit(body: { query?: string }): Response {
+  const commit: Record<string, unknown> = {
+    oid: '0'.repeat(40),
+    committedDate: new Date().toISOString(),
+  }
+  // The mutation asks for `file_N: file(path: "...") { oid }` per addition.
+  for (const [, index] of [
+    ...(body.query ?? '').matchAll(/file_(\d+): file\(/g),
+  ].map((match) => [match[0], match[1]] as const)) {
+    commit[`file_${index}`] = { oid: '0'.repeat(40) }
+  }
+
+  return Response.json(
+    { data: { createCommitOnBranch: { commit } } },
+    { headers: { 'Cache-Control': 'private, no-store' } },
+  )
+}
+
+/**
+ * Forwards a query, answering the parts about files this node holds.
+ *
+ * Contents are asked for by object id, one alias per file, so a single query
+ * usually mixes the repository's files with the node's. The node's aliases are
+ * cut out before it is sent on and put back into the answer — GitHub is never
+ * asked about an id it has never heard of, and Sveltia gets one response with
+ * everything it asked for in it.
+ */
 async function forwardGraphql(
   target: ProxyTarget,
-  body: unknown,
+  body: { query?: string; variables?: Record<string, unknown> },
+  entries: Array<VirtualEntry>,
 ): Promise<Response> {
+  const byOid = new Map(entries.map((entry) => [entry.oid, entry]))
+  const mine = new Map<string, VirtualEntry>()
+  let query = body.query ?? ''
+
+  if (byOid.size && query.includes('object(oid:')) {
+    query = query.replace(
+      /(\w+): object\(oid: "([0-9a-f]+)"\) \{[^}]*\{[^}]*\}[^}]*\}/g,
+      (whole, alias: string, oid: string) => {
+        const entry = byOid.get(oid)
+        if (!entry) return whole
+        mine.set(alias, entry)
+        return ''
+      },
+    )
+  }
+
+  // Every alias was the node's, so there is nothing left to ask GitHub.
+  if (mine.size && !/\w+: (object|ref)\(/.test(query)) {
+    return Response.json(
+      { data: { repository: answersFor(mine) } },
+      { headers: { 'Cache-Control': 'private, no-store' } },
+    )
+  }
+
   const response = await fetch('https://api.github.com/graphql', {
     method: 'POST',
     headers: {
@@ -214,17 +335,56 @@ async function forwardGraphql(
       'Content-Type': 'application/json',
       'User-Agent': 'admin-cms-node',
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, query }),
   })
 
-  return new Response(response.body, {
+  if (!mine.size) {
+    return new Response(response.body, {
+      status: response.status,
+      headers: {
+        'Content-Type':
+          response.headers.get('content-type') ?? 'application/json',
+        'Cache-Control': 'private, no-store',
+      },
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const answer = (await response.json().catch(() => ({}))) as any
+  if (answer?.data?.repository) {
+    Object.assign(answer.data.repository, answersFor(mine))
+  }
+  return Response.json(answer, {
     status: response.status,
-    headers: {
-      'Content-Type':
-        response.headers.get('content-type') ?? 'application/json',
-      'Cache-Control': 'private, no-store',
-    },
+    headers: { 'Cache-Control': 'private, no-store' },
   })
+}
+
+/** The node's own aliases, in the shape the query asked for them. */
+function answersFor(
+  mine: Map<string, VirtualEntry>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [alias, entry] of mine) {
+    out[alias] = { text: entry.text }
+    // The matching `commit_N` alias, so the editor can say when it changed.
+    const commitAlias = alias.replace(/^content_/, 'commit_')
+    if (commitAlias !== alias) {
+      out[commitAlias] = {
+        target: {
+          history: {
+            nodes: [
+              {
+                author: { name: 'This node', email: '', user: null },
+                committedDate: (entry.updatedAt ?? new Date()).toISOString(),
+              },
+            ],
+          },
+        },
+      }
+    }
+  }
+  return out
 }
 
 async function repoPrefix(db: Parameters<typeof resolveTarget>[0]) {

@@ -4,6 +4,7 @@ import type { Principal } from './authz'
 import { allows, can } from './authz'
 import { CONFIG_PATH, decode, gh } from './static-store'
 import type { ProxyTarget } from './cms-proxy'
+import { virtualCollections } from './cms-virtual'
 
 /**
  * The CMS the repository defined, as this particular account may see it.
@@ -113,6 +114,12 @@ export async function buildConfig(
       return collection
     })
     .filter(Boolean)
+
+  // The node's own collections, added to the repo's. One sidebar with the
+  // site's content and the node's data in it, and no way to tell from the
+  // inside which is which — that is what makes this a dashboard rather than
+  // two dashboards sharing a stylesheet.
+  ;(config.collections as Array<unknown>).push(...virtualCollections(principal))
 
   // Said once, here, rather than left for a save to discover. A reader who
   // cannot write anything gets an editor that says so.

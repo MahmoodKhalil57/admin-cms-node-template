@@ -95,7 +95,16 @@ async function handle(request: Request): Promise<Response> {
       return refuse(403, 'Your account cannot read that.')
     }
 
-    return forward(target, request, url.search)
+    const response = await forward(target, request, url.search)
+
+    // The listing is where the answered files are added, because it is where
+    // the CMS decides what exists. Everything after this — opening one, editing
+    // it, saving it — follows from an entry being in here.
+    if (/^\/git\/trees\/[^/]+$/.test(target.rest) && response.status === 200) {
+      return withVirtualEntries(db, principal, response)
+    }
+
+    return response
   } catch (error) {
     if (error instanceof ProxyError) return refuse(error.status, error.message)
     return refuse(502, 'The repository could not be reached.')
@@ -106,4 +115,46 @@ async function handle(request: Request): Promise<Response> {
 function contentPath(rest: string): string {
   const match = /^\/contents\/(.+)$/.exec(rest)
   return match ? decodeURIComponent(match[1]!) : ''
+}
+
+/**
+ * Adds the node's own entries to a repository listing.
+ *
+ * Written as blobs with a size and an id, exactly like the real ones, because
+ * anything less would be a shape Sveltia has to be taught about. It is not
+ * taught about it: it reads a tree, and this is a tree.
+ */
+async function withVirtualEntries(
+  db: ReturnType<typeof getDb>,
+  principal: Awaited<ReturnType<typeof principalForUserId>>,
+  response: Response,
+): Promise<Response> {
+  if (!principal) return response
+
+  const tree = (await response.json()) as {
+    tree?: Array<Record<string, unknown>>
+  }
+  if (!Array.isArray(tree.tree)) return response
+
+  const { getEnabledFeatures } = await import('#/server/features')
+  const { virtualEntries } = await import('#/server/cms-virtual')
+  const entries = await virtualEntries(
+    db,
+    principal,
+    await getEnabledFeatures(db),
+  )
+
+  for (const entry of entries) {
+    tree.tree.push({
+      path: entry.path,
+      mode: '100644',
+      type: 'blob',
+      sha: entry.oid,
+      size: new TextEncoder().encode(entry.text).length,
+    })
+  }
+
+  return Response.json(tree, {
+    headers: { 'Cache-Control': 'private, no-store' },
+  })
 }
