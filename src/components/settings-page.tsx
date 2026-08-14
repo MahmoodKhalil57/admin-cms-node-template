@@ -277,10 +277,12 @@ export const SettingsPage = () => {
 
                   {purpose.requirement && state.onCloudflare && (
                     <p className="text-muted-foreground text-xs">
-                      In Cloudflare, set this record to{' '}
-                      <strong>DNS only</strong> (grey cloud). A proxied record
-                      answers with Cloudflare&rsquo;s own addresses, which
-                      breaks the certificate and fails the check below.
+                      In Cloudflare, leave this record{' '}
+                      <strong>proxied</strong> (orange cloud). The panel and the
+                      API are handed to this node by Worker routes, and those
+                      only fire on traffic that reaches Cloudflare — a DNS-only
+                      record goes straight to your website host, and the panel
+                      becomes unreachable.
                     </p>
                   )}
 

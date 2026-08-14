@@ -99,10 +99,17 @@ export interface AppliedRecord {
 /**
  * Writes the records a requirement asks for, replacing whatever is there.
  *
- * Records are created **unproxied** on purpose. A proxied record answers with
- * Cloudflare's own addresses, which would both break GitHub Pages' certificate
- * and make our public DNS check fail — the check asks what the world resolves,
- * and the world would not see GitHub's IPs.
+ * Records are created **proxied**, and the reason is the panel and the API.
+ * Only `/admin*` and `/api*` are handed to the node by Worker routes, and a
+ * Worker route can only fire on traffic that reaches Cloudflare's edge — a
+ * grey-cloud record goes straight to GitHub Pages and never gets there. So an
+ * unproxied record gives a working website and a panel that cannot be reached,
+ * which is the harder of the two failures to attribute.
+ *
+ * These were written unproxied on the theory that proxying breaks GitHub Pages'
+ * certificate. It does not: Cloudflare terminates TLS with its own certificate
+ * for the hostname and fetches from Pages behind it, which is how the node that
+ * has worked all along has been configured the entire time.
  */
 export async function applyRequirement(
   token: string,
@@ -134,7 +141,7 @@ export async function applyRequirement(
   for (const value of wanted) {
     const already = keep.find((record) => record.content === value)
 
-    if (already && already.proxied === false) {
+    if (already && already.proxied === true) {
       applied.push({
         name: requirement.name,
         type: requirement.type,
@@ -147,7 +154,7 @@ export async function applyRequirement(
     if (already) {
       const updated = await cf(token, `/zones/${zone.id}/dns_records/${already.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ proxied: false }),
+        body: JSON.stringify({ proxied: true }),
       })
       if (!updated.ok) throw new CloudflareApiError(describe(updated), updated.status)
       applied.push({
@@ -166,7 +173,7 @@ export async function applyRequirement(
         name: requirement.name,
         content: value,
         ttl: 1,
-        proxied: false,
+        proxied: true,
       }),
     })
     if (!created.ok) throw new CloudflareApiError(describe(created), created.status)
