@@ -90,10 +90,14 @@ export function publicApiBase(env: NodeEnv, current: NodeSettings): string {
 /**
  * Where the admin panel answers, for a link the browser will follow.
  *
- * Not the same as the API base. The provisioned address is a path under the
- * dispatcher — `…/n/<slug>/admin` — and the panel is a single-page app whose
- * router knows nothing about that prefix, so landing there renders Not Found.
- * A verified custom domain serves the panel at the root and routes cleanly.
+ * Not the same as the API base. Without a custom domain the panel is reached
+ * through the dispatcher at `…/n/<slug>/admin`, and `PUBLIC_URL` carries that
+ * prefix — which is why a redirect built from it lands in the right place.
+ *
+ * It did not used to render there. The panel's router was compiled with a
+ * basename of `/admin` and could not match its own URL under the prefix, so an
+ * OAuth callback returned 200 and displayed the words "Not Found". The basename
+ * is now read from the address bar instead; see `panelBasename`.
  */
 export function panelOrigin(env: NodeEnv, current: NodeSettings): string {
   if (current.customDomain && current.apiVerified) {
