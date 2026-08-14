@@ -152,6 +152,18 @@ export const PERMISSION_CATALOG: Array<PermissionDefinition> = [
       'Decide what this node does at all. A switched-off feature takes its permissions with it.',
   },
   {
+    key: 'events:read',
+    area: 'Instrumentation',
+    name: 'Read the event log',
+    description:
+      'See what has happened on this node. Narrowable, so a vendor reads their own and nobody else’s.',
+    feature: 'instrumentation',
+    scopes: [
+      { field: 'vendorId', label: 'Only these vendors' },
+      { field: 'name', label: 'Only these events' },
+    ],
+  },
+  {
     key: 'team:read',
     area: 'Team',
     name: 'See the team',
@@ -219,4 +231,8 @@ export const RESOURCE_PERMISSIONS: Record<
   // exactly what changing a role needs — anything less would be a way around it.
   policies: { read: 'team:read', write: 'team:manage', delete: 'team:manage' },
   invitations: { read: 'team:read', write: 'team:manage', delete: 'team:manage' },
+  // Append-only. `write` names a permission that is deliberately not in the
+  // catalog, so no role can hold it — but `readOnly` below is what actually
+  // refuses, and it does so without depending on that.
+  events: { read: 'events:read', write: 'events:append' },
 }

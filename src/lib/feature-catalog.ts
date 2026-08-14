@@ -45,6 +45,15 @@ export const FEATURE_CATALOG: Array<FeatureDefinition> = [
     resources: ['team', 'roles', 'invitations'],
   },
   {
+    key: 'instrumentation',
+    name: 'Logs and analytics',
+    description:
+      'What has happened on this node, and who may see it. Always recorded; this decides who can read it.',
+    // Off until somebody wants the screens. The log fills up either way, which
+    // is the whole point — switching this on later shows history, not a blank.
+    defaultEnabled: false,
+  },
+  {
     key: 'github-pages',
     name: 'GitHub Pages frontend',
     description:
@@ -54,6 +63,12 @@ export const FEATURE_CATALOG: Array<FeatureDefinition> = [
   },
 ]
 
+/**
+ * Note on this one: the flag decides who may *read* the event log, never
+ * whether it is written. A node that recorded nothing until somebody switched
+ * instrumentation on would have nothing to show them at the moment they asked
+ * — which is the one failure this whole feature exists to avoid.
+ */
 export function featureDefinition(key: string): FeatureDefinition | undefined {
   return FEATURE_CATALOG.find((feature) => feature.key === key)
 }

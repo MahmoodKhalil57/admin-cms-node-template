@@ -57,6 +57,13 @@
       "when": 1786667230338,
       "tag": "0007_giant_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1786671683257,
+      "tag": "0008_real_lila_cheney",
+      "breakpoints": true
     }
   ]
 }

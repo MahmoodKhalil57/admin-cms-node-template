@@ -239,6 +239,55 @@ export const notifications = sqliteTable(
 )
 
 /**
+ * Something that happened, kept because it cannot be worked out later.
+ *
+ * The reason this exists before anything reads it: recording cannot be
+ * backfilled. A node live for a month before somebody writes this table has
+ * lost a month, and no dashboard built afterwards can get it back. So it is
+ * written from the day the node runs and read whenever the reading is built.
+ *
+ * Decisions, not traffic. A row here is somebody doing something — an enquiry
+ * arriving, a form being published, an order paid, a slot booked — and never a
+ * request being served. The distinction is what keeps a busy node from filling
+ * its database with its own logs.
+ *
+ * `vendorId` is null until vendors exist. It is present now because adding a
+ * column to a table with history in it means deciding what the old rows meant,
+ * and there is nothing to decide while the table is empty.
+ */
+export const events = sqliteTable(
+  'events',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    /** a key from the event catalog, e.g. `submission.created` */
+    name: text().notNull(),
+    /** who did it; null for anything the node did on its own */
+    actorUserId: text('actor_user_id'),
+    /** whether that actor was a key rather than a person at a browser */
+    viaKey: integer('via_key', { mode: 'boolean' }).notNull().default(false),
+    /** whose business it concerns, once there is more than one */
+    vendorId: integer('vendor_id'),
+    /** what it happened to: a resource name and its id */
+    subjectType: text('subject_type'),
+    subjectId: text('subject_id'),
+    /** anything worth keeping that is not a column */
+    detail: text({ mode: 'json' })
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [
+    // The two questions a dashboard asks: what happened lately, and what
+    // happened to this vendor lately.
+    index('events_created').on(table.createdAt),
+    index('events_vendor_created').on(table.vendorId, table.createdAt),
+  ],
+)
+
+/**
  * A role, as the business defines it.
  *
  * Deliberately a row rather than a type in code. Whoever runs the business

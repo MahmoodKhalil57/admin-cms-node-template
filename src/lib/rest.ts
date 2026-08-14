@@ -20,6 +20,7 @@ import {
   formSubmissions,
   forms,
   invitations,
+  events,
   notifications,
   policies,
   roles,
@@ -28,6 +29,7 @@ import type { RoleCondition } from '#/db/schema'
 import { RESOURCE_PERMISSIONS } from '#/lib/permission-catalog'
 import type { Principal } from '#/server/authz'
 import { allowedWays, allows, can, deniedWays, forbidden } from '#/server/authz'
+import { record } from '#/server/events'
 
 /**
  * A generic REST layer speaking ra-data-simple-rest's dialect, so the admin's
@@ -52,6 +54,8 @@ const RESOURCES = {
   roles: { table: roles, feature: 'user-management' },
   policies: { table: policies, feature: 'user-management' },
   invitations: { table: invitations, feature: 'user-management' },
+  // Written by the node, never by a caller — see `readOnly` in `guard`.
+  events: { table: events, feature: 'instrumentation', readOnly: true },
 }
 
 // Drizzle's table types are heavily generic; the generic handlers below work
@@ -168,6 +172,15 @@ function guard(
   action: 'read' | 'write' | 'delete',
   principal: Principal | null,
 ): { ok: true; permission: string } | { ok: false; response: Response } {
+  // Append-only resources refuse every write here rather than relying on a
+  // permission nobody happens to hold. A history somebody can edit is not one.
+  const entry = RESOURCES[resource as keyof typeof RESOURCES] as
+    | { readOnly?: boolean }
+    | undefined
+  if (entry?.readOnly && action !== 'read') {
+    return { ok: false, response: forbidden(`${resource}:${action}`) }
+  }
+
   const required = RESOURCE_PERMISSIONS[resource]
   // A resource nobody thought to map is refused rather than opened: forgetting
   // an entry should cost a 403, not everything behind it.
@@ -324,6 +337,7 @@ export async function createResource(
     .values(stripReadOnly(table, body))
     .returning()) as Array<Record<string, unknown>>
 
+  noted(db, 'resource.created', resource, rows[0], principal)
   return Response.json(rows[0], { status: 201 })
 }
 
@@ -357,6 +371,7 @@ export async function updateResource(
     .returning()) as Array<Record<string, unknown>>
 
   if (!rows[0]) return Response.json({ error: 'Not found' }, { status: 404 })
+  noted(db, 'resource.updated', resource, rows[0], principal)
   return Response.json(rows[0])
 }
 
@@ -385,7 +400,37 @@ export async function deleteResource(
     .returning()) as Array<Record<string, unknown>>
 
   if (!rows[0]) return Response.json({ error: 'Not found' }, { status: 404 })
+  noted(db, 'resource.deleted', resource, rows[0], principal)
   return Response.json(rows[0])
+}
+
+/**
+ * Writes down a change somebody made through the panel.
+ *
+ * Here rather than in each route because every resource already passes through
+ * these three functions — so instrumenting the layer instruments every screen,
+ * including the ones added after this was written.
+ *
+ * Not awaited. The row is on its way back to the caller and a log that delayed
+ * it, or failed it, would be worse than a log that is a moment late.
+ */
+function noted(
+  db: NodeDb,
+  name: string,
+  resource: string,
+  row: Record<string, unknown> | undefined,
+  principal: Principal | null,
+) {
+  if (!row) return
+  void record(db, {
+    name,
+    actor: principal,
+    subjectType: resource,
+    subjectId: row.id as string | number | undefined,
+    // The row itself is deliberately not kept: it may hold somebody's enquiry,
+    // and an event log is a poor place to make a second copy of that.
+    detail: { resource },
+  })
 }
 
 /**

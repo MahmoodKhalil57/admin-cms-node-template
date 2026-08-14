@@ -7,6 +7,7 @@ import { formSubmissions, forms } from '#/db/schema'
 import type { FormFieldDef } from '#/db/schema'
 import { principalFrom } from './authz'
 import { resolveForm } from './form-fields'
+import { record } from './events'
 
 /**
  * The public face of a form: what an anonymous visitor's browser may see and
@@ -256,6 +257,17 @@ export async function acceptSubmission(
       userId: principal && !principal.viaKey ? principal.userId : null,
     })
     .returning()
+
+  // The enquiry itself is the event. Recorded before the notifications go out,
+  // because whether anybody was told is a separate question from whether it
+  // arrived — and the report wants the second one.
+  void record(db, {
+    name: 'submission.created',
+    actor: principal,
+    subjectType: 'submissions',
+    subjectId: saved?.id,
+    detail: { formId: form.id, formSlug: form.slug },
+  })
 
   // Whoever asked to hear about this, told now. Never allowed to fail the
   // submission: losing a notification is recoverable, losing what the visitor

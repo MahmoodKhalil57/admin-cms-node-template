@@ -108,6 +108,12 @@ const SUBJECTS: Record<
     plural: 'invitations',
     about: 'An outstanding invitation to join this node.',
   },
+  events: {
+    singular: 'event',
+    plural: 'events',
+    about:
+      'Something that happened on this node — an enquiry arriving, a record being changed. Append-only: readable, never written through here.',
+  },
   features: {
     singular: 'feature',
     plural: 'features',
