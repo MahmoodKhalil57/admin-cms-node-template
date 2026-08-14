@@ -10,6 +10,9 @@ import {
   policies,
   roles,
   settings,
+  products,
+  orders,
+  vendors,
 } from '#/db/schema'
 import type { FormFieldDef } from '#/lib/form-shape'
 import { FEATURE_CATALOG } from '#/lib/feature-catalog'
@@ -705,6 +708,246 @@ export const RESOURCES: Array<Resource> = [
       READ_ONLY('label', 'Name'),
       READ_ONLY('description', 'What it does'),
       { name: 'enabled', label: 'On', widget: 'boolean', required: false },
+    ],
+  },
+
+  /*
+    The shop and the businesses behind it.
+
+    These complete the parity with the react-admin panel: everything that
+    dashboard offers is now reachable from the repo-defined one, on the same
+    permissions and the same narrowing. What differs between them is who may
+    restyle them, which was the point of having both.
+  */
+  {
+    name: 'node_products',
+    label: 'Products',
+    labelSingular: 'Product',
+    icon: 'sell',
+    description:
+      'What this node sells. Prices are whole numbers in the smallest unit of the shop’s currency — 1500 is £15.00 — because that is what is charged and refunded.',
+    read: 'products:read',
+    write: 'products:write',
+    destroy: 'products:delete',
+    feature: 'payments',
+    // The file a buyer receives is uploaded in the panel: a CMS commit cannot
+    // carry a 200MB asset, and pretending otherwise would lose it silently.
+    create: false,
+    summary: '{{fields.name}} — {{fields.status}}',
+    list: async (db, _env, principal) =>
+      (await db.select().from(products).orderBy(desc(products.id)).limit(PAGE))
+        .filter((row) =>
+          allows(principal, 'products:read', {
+            id: row.id,
+            vendorId: row.vendorId,
+          }),
+        )
+        .map((row) => ({
+          slug: row.slug,
+          updatedAt: row.createdAt ?? null,
+          record: { id: row.id, vendorId: row.vendorId },
+          doc: {
+            name: row.name,
+            slug: row.slug,
+            blurb: row.blurb ?? '',
+            price: row.price,
+            status: row.status,
+            download_limit: row.downloadLimit,
+            download_days: row.downloadDays,
+          },
+        })),
+    save: async (db, _env, principal, slug, doc) => {
+      const [row] = await db
+        .select()
+        .from(products)
+        .where(eq(products.slug, slug))
+        .limit(1)
+      if (!row) return `There is no product called ${slug}.`
+      if (
+        !allows(principal, 'products:write', {
+          id: row.id,
+          vendorId: row.vendorId,
+        })
+      ) {
+        return `Your account cannot change ${slug}.`
+      }
+      const whole = (value: unknown, fallback: number) => {
+        const parsed = Number(value)
+        return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback
+      }
+      await db
+        .update(products)
+        .set({
+          name: String(doc.name ?? row.name),
+          blurb: doc.blurb === undefined ? row.blurb : String(doc.blurb),
+          // Refused rather than rounded: a price that quietly became 1499
+          // because somebody typed 14.99 is worse than one that would not save.
+          price: whole(doc.price, row.price),
+          status: String(doc.status ?? row.status),
+          downloadLimit: whole(doc.download_limit, row.downloadLimit),
+          downloadDays: whole(doc.download_days, row.downloadDays),
+        })
+        .where(eq(products.id, row.id))
+      return null
+    },
+    remove: async (db, _env, principal, slug) => {
+      const [row] = await db
+        .select()
+        .from(products)
+        .where(eq(products.slug, slug))
+        .limit(1)
+      if (!row) return null
+      if (
+        !allows(principal, 'products:delete', {
+          id: row.id,
+          vendorId: row.vendorId,
+        })
+      ) {
+        return `Your account cannot delete ${slug}.`
+      }
+      await db.delete(products).where(eq(products.id, row.id))
+      return null
+    },
+    fields: [
+      { name: 'name', label: 'Name', widget: 'string' },
+      { name: 'slug', label: 'Slug', widget: 'string', required: true },
+      { name: 'blurb', label: 'Blurb', widget: 'text', required: false },
+      {
+        name: 'price',
+        label: 'Price',
+        widget: 'number',
+        value_type: 'int',
+        hint: 'In the smallest unit: 1500 is £15.00. Whole numbers only.',
+      },
+      {
+        name: 'status',
+        label: 'Status',
+        widget: 'select',
+        options: ['draft', 'published', 'retired'],
+      },
+      {
+        name: 'download_limit',
+        label: 'Downloads allowed',
+        widget: 'number',
+        value_type: 'int',
+      },
+      {
+        name: 'download_days',
+        label: 'Link lasts (days)',
+        widget: 'number',
+        value_type: 'int',
+      },
+    ],
+  },
+
+  {
+    name: 'node_orders',
+    label: 'Orders',
+    labelSingular: 'Order',
+    icon: 'receipt_long',
+    description:
+      'What has been bought. Read-only, because an order is what the payment provider said happened — a status typed in here would be a claim about somebody else’s money.',
+    read: 'orders:read',
+    feature: 'payments',
+    create: false,
+    summary: '{{fields.reference}} — {{fields.status}}',
+    list: async (db, _env, principal) =>
+      (await db.select().from(orders).orderBy(desc(orders.id)).limit(PAGE))
+        .filter((row) =>
+          allows(principal, 'orders:read', {
+            id: row.id,
+            buyerUserId: row.buyerUserId,
+            status: row.status,
+          }),
+        )
+        .map((row) => ({
+          slug: row.reference,
+          updatedAt: row.createdAt ?? null,
+          doc: {
+            reference: row.reference,
+            status: row.status,
+            total: String(row.total),
+            currency: row.currency,
+            refunded: String(row.refundedTotal),
+            buyer: row.buyerEmail ?? '',
+            paid_at: row.paidAt?.toISOString() ?? '',
+          },
+        })),
+    fields: [
+      READ_ONLY('reference', 'Reference'),
+      READ_ONLY('status', 'Status'),
+      READ_ONLY('total', 'Total (smallest unit)'),
+      READ_ONLY('currency', 'Currency'),
+      READ_ONLY('refunded', 'Refunded'),
+      READ_ONLY('buyer', 'Buyer'),
+      READ_ONLY('paid_at', 'Paid at'),
+    ],
+  },
+
+  {
+    name: 'node_vendors',
+    label: 'Vendors',
+    labelSingular: 'Vendor',
+    icon: 'storefront',
+    description:
+      'The businesses selling here. A vendor sees their own row and nobody else’s — the same rule that scopes their listings.',
+    read: 'vendors:read',
+    write: 'vendors:write',
+    feature: 'vendors',
+    // Adding and removing a vendor is `vendors:manage`, which is the
+    // marketplace owner's call and belongs where the members list is.
+    create: false,
+    summary: '{{fields.name}} — {{fields.status}}',
+    list: async (db, _env, principal) =>
+      (await db.select().from(vendors).orderBy(desc(vendors.id)).limit(PAGE))
+        .filter((row) =>
+          allows(principal, 'vendors:read', { id: row.id, vendorId: row.id }),
+        )
+        .map((row) => ({
+          slug: row.slug,
+          updatedAt: row.createdAt ?? null,
+          record: { id: row.id, vendorId: row.id },
+          doc: {
+            name: row.name,
+            slug: row.slug,
+            description: row.description ?? '',
+            email: row.email ?? '',
+            status: row.status,
+          },
+        })),
+    save: async (db, _env, principal, slug, doc) => {
+      const [row] = await db
+        .select()
+        .from(vendors)
+        .where(eq(vendors.slug, slug))
+        .limit(1)
+      if (!row) return `There is no vendor called ${slug}.`
+      if (!allows(principal, 'vendors:write', { id: row.id, vendorId: row.id })) {
+        return `Your account cannot change ${slug}.`
+      }
+      await db
+        .update(vendors)
+        .set({
+          name: String(doc.name ?? row.name),
+          description:
+            doc.description === undefined ? row.description : String(doc.description),
+          email: doc.email === undefined ? row.email : String(doc.email),
+          status: String(doc.status ?? row.status),
+        })
+        .where(eq(vendors.id, row.id))
+      return null
+    },
+    fields: [
+      { name: 'name', label: 'Name', widget: 'string' },
+      { name: 'slug', label: 'Slug', widget: 'string', required: true },
+      { name: 'description', label: 'Description', widget: 'text', required: false },
+      { name: 'email', label: 'Contact email', widget: 'string', required: false },
+      {
+        name: 'status',
+        label: 'Status',
+        widget: 'select',
+        options: ['active', 'suspended'],
+      },
     ],
   },
 
