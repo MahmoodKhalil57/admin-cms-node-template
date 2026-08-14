@@ -108,6 +108,12 @@ const SUBJECTS: Record<
     plural: 'invitations',
     about: 'An outstanding invitation to join this node.',
   },
+  projects: {
+    singular: 'project',
+    plural: 'projects',
+    about:
+      'An isolated project this node built on its operator’s own Cloudflare account. Read-only: creating one provisions real infrastructure.',
+  },
   products: {
     singular: 'product',
     plural: 'products',

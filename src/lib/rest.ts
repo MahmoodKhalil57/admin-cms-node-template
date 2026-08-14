@@ -24,6 +24,7 @@ import {
   notifications,
   orders as ordersTable,
   products as productsTable,
+  projects as projectsTable,
   vendors as vendorsTable,
   policies,
   roles,
@@ -64,6 +65,9 @@ const RESOURCES = {
   // a refund is an action taken through the provider, not a status typed in.
   orders: { table: ordersTable, feature: 'payments', readOnly: true },
   products: { table: productsTable, feature: 'payments' },
+  // Created by the provisioning route, never by a POST — a row here without
+  // infrastructure behind it is a project that does not exist.
+  projects: { table: projectsTable, feature: 'projects', readOnly: true },
 }
 
 // Drizzle's table types are heavily generic; the generic handlers below work

@@ -152,6 +152,39 @@ export const PERMISSION_CATALOG: Array<PermissionDefinition> = [
       'Decide what this node does at all. A switched-off feature takes its permissions with it.',
   },
   {
+    key: 'infra:connect',
+    area: 'Projects',
+    name: 'Connect infrastructure accounts',
+    description:
+      'Link the Cloudflare and GitHub accounts new projects are built on. The account this grants over is the operator’s own, so this is effectively the keys to their hosting.',
+    feature: 'projects',
+  },
+  {
+    key: 'projects:read',
+    area: 'Projects',
+    name: 'See projects',
+    description: 'View the projects this node has created.',
+    feature: 'projects',
+    scopes: [{ field: 'ownerUserId', label: 'Only their own' }],
+  },
+  {
+    key: 'projects:create',
+    area: 'Projects',
+    name: 'Create a project',
+    description:
+      'Build a new, isolated project on the connected account. Each one is a database, a bucket and a Worker on their infrastructure.',
+    feature: 'projects',
+  },
+  {
+    key: 'projects:destroy',
+    area: 'Projects',
+    name: 'Destroy a project',
+    description:
+      'Remove a project and the infrastructure behind it. Its storage is deliberately kept, because it may hold somebody’s files.',
+    feature: 'projects',
+    scopes: [{ field: 'ownerUserId', label: 'Only their own' }],
+  },
+  {
     key: 'products:read',
     area: 'Shop',
     name: 'See what is for sale',
@@ -324,6 +357,11 @@ export const RESOURCE_PERMISSIONS: Record<
   events: { read: 'events:read', write: 'events:append' },
   // Written by checkout and moved by webhooks; never posted to directly.
   orders: { read: 'orders:read', write: 'orders:manage' },
+  projects: {
+    read: 'projects:read',
+    write: 'projects:create',
+    delete: 'projects:destroy',
+  },
   products: {
     read: 'products:read',
     write: 'products:write',

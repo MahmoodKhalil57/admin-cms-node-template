@@ -148,6 +148,24 @@ export const EVENT_CATALOG: Array<EventDefinition> = [
     description: 'Money left the platform balance for a vendor’s account.',
   },
   {
+    key: 'infra.connected',
+    area: 'Projects',
+    name: 'An infrastructure account was linked',
+    description: 'Cloudflare or GitHub was connected for building projects on.',
+  },
+  {
+    key: 'project.created',
+    area: 'Projects',
+    name: 'A project was built',
+    description: 'A new isolated project was provisioned on the linked account.',
+  },
+  {
+    key: 'project.destroyed',
+    area: 'Projects',
+    name: 'A project was removed',
+    description: 'Its infrastructure was deleted; its storage was kept.',
+  },
+  {
     key: 'resource.created',
     area: 'Panel',
     name: 'Something was created',

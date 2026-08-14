@@ -245,6 +245,84 @@ export const notifications = sqliteTable(
 )
 
 /**
+ * Somebody else's infrastructure, connected on purpose.
+ *
+ * Deliberately not the same row as the Cloudflare connection used for DNS.
+ * That one is scoped to records and routes; this one can create and destroy
+ * databases, buckets and Workers. Widening the first would mean an operator who
+ * connected Cloudflare to point a domain had silently granted the second, and
+ * consent that was never asked for is not consent.
+ *
+ * The token is sealed, like the payment keys and for the same reason: a
+ * database export on its own should not be somebody's account.
+ */
+export const infraConnections = sqliteTable(
+  'infra_connections',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    /** `cloudflare` | `github` */
+    provider: text().notNull(),
+    /** sealed */
+    accessToken: text('access_token').notNull(),
+    /** whose account this is, in the provider's terms */
+    accountId: text('account_id'),
+    accountName: text('account_name'),
+    login: text(),
+    /** what was actually granted, so a missing capability is legible */
+    scopes: text({ mode: 'json' }).$type<Array<string>>().notNull().default([]),
+    /**
+     * Cloudflare grants no refresh token — it does not offer `offline_access`
+     * as a scope. So this expires and the operator reconnects, and the only
+     * kind thing to do is know when that is coming.
+     */
+    expiresAt: integer('expires_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [uniqueIndex('infra_connections_provider').on(table.provider)],
+)
+
+/**
+ * A project this node created on its operator's own infrastructure.
+ *
+ * The same shape master keeps for its nodes, one layer down — and running the
+ * same image, which is what makes the arrangement recursive: a project can
+ * switch this feature on and create projects of its own.
+ *
+ * What it deliberately does not record is anything of ours. The Worker, the
+ * database, the bucket and the namespace all belong to the account that was
+ * connected, and nothing here can be reached with a key of ours.
+ */
+export const projects = sqliteTable(
+  'projects',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    slug: text().notNull().unique(),
+    name: text().notNull(),
+    /** `provisioning` | `active` | `failed` | `suspended` */
+    status: text().notNull().default('provisioning'),
+    /** the account this was built on, so an operator can tell them apart */
+    cloudflareAccountId: text('cloudflare_account_id'),
+    workerName: text('worker_name'),
+    /** where it answers */
+    hostname: text(),
+    d1DatabaseId: text('d1_database_id'),
+    r2Bucket: text('r2_bucket'),
+    kvNamespaceId: text('kv_namespace_id'),
+    /** which build is running there */
+    imageVersion: text('image_version'),
+    /** the account here that was seeded as its root admin */
+    ownerUserId: text('owner_user_id'),
+    lastError: text('last_error'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [index('projects_owner').on(table.ownerUserId)],
+)
+
+/**
  * A business selling on this node.
  *
  * On a single-vendor node there is one row and almost nobody thinks about it.

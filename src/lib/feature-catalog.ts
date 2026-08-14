@@ -45,6 +45,13 @@ export const FEATURE_CATALOG: Array<FeatureDefinition> = [
     resources: ['team', 'roles', 'invitations'],
   },
   {
+    key: 'projects',
+    name: 'Projects',
+    description:
+      'Lets this node create projects on its operator’s own Cloudflare and GitHub. What is built that way costs us nothing and uses none of our keys.',
+    defaultEnabled: false,
+  },
+  {
     key: 'payments',
     name: 'Payments',
     description:
