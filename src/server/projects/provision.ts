@@ -1,4 +1,5 @@
 import type { Connection } from './infra'
+import { assetHash, base64ToBytes, contentTypeFor } from './image'
 
 /**
  * Building a project on somebody else's Cloudflare account.
@@ -249,4 +250,190 @@ export async function deprovisionProject(
   })
 
   return steps
+}
+
+/* --- the Worker ----------------------------------------------------------- */
+
+/**
+ * Uploads the static assets and returns the token the script upload needs.
+ *
+ * Cloudflare is told a manifest of hashes first and answers with only the ones
+ * it does not already hold — so a second project on the same account uploads
+ * almost nothing, and a redeploy of an unchanged build uploads nothing at all.
+ *
+ * The bucket uploads authenticate with the session's own JWT rather than the
+ * operator's API token. That is Cloudflare's design and a good one: the
+ * short-lived token is scoped to this upload and nothing else.
+ */
+export async function uploadAssets(
+  connection: Connection,
+  scriptName: string,
+  assets: Record<string, string>,
+): Promise<string | null> {
+  const paths = Object.keys(assets)
+  if (paths.length === 0) return null
+
+  const byHash = new Map<string, { path: string; base64: string }>()
+  const manifest: Record<string, { hash: string; size: number }> = {}
+
+  for (const path of paths) {
+    const base64 = assets[path]!
+    const bytes = base64ToBytes(base64)
+    const hash = await assetHash(bytes)
+    manifest[path] = { hash, size: bytes.length }
+    byHash.set(hash, { path, base64 })
+  }
+
+  const session = await cf(
+    connection,
+    `/accounts/${connection.accountId}/workers/scripts/${scriptName}/assets-upload-session`,
+    { method: 'POST', body: JSON.stringify({ manifest }) },
+  )
+  if (!session.ok) throw new Error(explain(session))
+
+  const buckets: Array<Array<string>> = session.result?.buckets ?? []
+  let completion: string | null = session.result?.jwt ?? null
+
+  // Nothing missing: every byte is already held, and the session token is the
+  // completion token.
+  if (buckets.every((bucket) => bucket.length === 0)) return completion
+
+  for (const bucket of buckets) {
+    if (bucket.length === 0) continue
+
+    const form = new FormData()
+    for (const hash of bucket) {
+      const asset = byHash.get(hash)
+      if (!asset) continue
+      form.set(
+        hash,
+        new File([asset.base64], hash, { type: contentTypeFor(asset.path) }),
+      )
+    }
+
+    const response = await fetch(
+      `${API}/accounts/${connection.accountId}/workers/assets/upload?base64=true`,
+      {
+        method: 'POST',
+        // The session JWT, and no Content-Type — fetch sets the multipart
+        // boundary itself, and setting it by hand produces a body Cloudflare
+        // cannot parse.
+        headers: { Authorization: `Bearer ${session.result?.jwt}` },
+        body: form,
+      },
+    )
+    const body = (await response.json().catch(() => ({}))) as {
+      result?: { jwt?: string }
+      errors?: Array<{ code: number; message: string }>
+    }
+    if (!response.ok) {
+      throw new Error(
+        body.errors?.[0]?.message ?? 'Uploading the interface failed.',
+      )
+    }
+    if (body.result?.jwt) completion = body.result.jwt
+  }
+
+  return completion
+}
+
+export interface WorkerSecrets {
+  betterAuthSecret: string
+  provisionToken: string
+}
+
+/**
+ * Uploads the Worker itself, with its bindings.
+ *
+ * A plain Worker on the operator's account: no dispatch namespace, so nothing
+ * here needs Workers for Platforms. The bindings name the database, bucket and
+ * namespace made above — which is why those come first, since a script
+ * referring to a binding that does not exist fails in a way that reads like a
+ * code problem.
+ */
+export async function uploadWorker(
+  connection: Connection,
+  scriptName: string,
+  image: {
+    mainModule: string
+    modules: Array<{ path: string; source: string }>
+    compatibilityDate: string
+    compatibilityFlags: Array<string>
+  },
+  bindings: {
+    d1DatabaseId: string
+    r2Bucket: string
+    kvNamespaceId: string
+    assetsToken: string | null
+    secrets: WorkerSecrets
+  },
+): Promise<void> {
+  const form = new FormData()
+
+  const metadata: Record<string, unknown> = {
+    main_module: image.mainModule,
+    compatibility_date: image.compatibilityDate,
+    compatibility_flags: image.compatibilityFlags,
+    bindings: [
+      { type: 'd1', name: 'DB', id: bindings.d1DatabaseId },
+      { type: 'r2_bucket', name: 'MEDIA', bucket_name: bindings.r2Bucket },
+      { type: 'kv_namespace', name: 'KV', namespace_id: bindings.kvNamespaceId },
+      // Its own, generated per project — a secret shared between projects would
+      // make one project's sessions valid in another.
+      {
+        type: 'secret_text',
+        name: 'BETTER_AUTH_SECRET',
+        text: bindings.secrets.betterAuthSecret,
+      },
+      {
+        type: 'secret_text',
+        name: 'PROVISION_TOKEN',
+        text: bindings.secrets.provisionToken,
+      },
+      ...(bindings.assetsToken
+        ? [{ type: 'assets', name: 'ASSETS' }]
+        : []),
+    ],
+    ...(bindings.assetsToken
+      ? { assets: { jwt: bindings.assetsToken } }
+      : {}),
+  }
+
+  form.set(
+    'metadata',
+    new File([JSON.stringify(metadata)], 'metadata.json', {
+      type: 'application/json',
+    }),
+  )
+
+  for (const module of image.modules) {
+    form.set(
+      module.path,
+      // The path is the exact string Cloudflare resolves imports by, so it is
+      // used verbatim as the part name rather than being normalised.
+      new File([module.source], module.path, {
+        type: 'application/javascript+module',
+      }),
+    )
+  }
+
+  const uploaded = await cf(
+    connection,
+    `/accounts/${connection.accountId}/workers/scripts/${scriptName}`,
+    { method: 'PUT', body: form },
+  )
+  if (!uploaded.ok) throw new Error(explain(uploaded))
+}
+
+/** So a project answers on the internet without a domain being set up first. */
+export async function enableWorkersDev(
+  connection: Connection,
+  scriptName: string,
+): Promise<boolean> {
+  const answer = await cf(
+    connection,
+    `/accounts/${connection.accountId}/workers/scripts/${scriptName}/subdomain`,
+    { method: 'POST', body: JSON.stringify({ enabled: true }) },
+  )
+  return answer.ok
 }
