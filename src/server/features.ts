@@ -1,8 +1,8 @@
-import { inArray } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 
 import type { NodeDb } from '#/db'
 import { features } from '#/db/schema'
-import { FEATURE_CATALOG } from '#/lib/feature-catalog'
+import { ALWAYS_ON, FEATURE_CATALOG } from '#/lib/feature-catalog'
 
 /**
  * Which features are switched on, read from the node's own database.
@@ -23,7 +23,22 @@ export async function getEnabledFeatures(db: NodeDb): Promise<Array<string>> {
     .from(features)
     .where(inArray(features.key, known))
 
-  return rows.filter((row) => row.enabled).map((row) => row.key)
+  const enabled = rows.filter((row) => row.enabled).map((row) => row.key)
+
+  /*
+    The always-on ones, whatever their row says.
+
+    Here rather than only in the seeder because this is the authority. A node
+    provisioned by an older build has a row saying `payments: false`, and a
+    check that trusted it would leave that node behaving as though a capability
+    it now has does not exist. Deciding it here means the answer is right on the
+    first request, before anything has had a chance to reconcile.
+  */
+  for (const key of ALWAYS_ON) {
+    if (!enabled.includes(key)) enabled.push(key)
+  }
+
+  return enabled
 }
 
 /**
@@ -42,5 +57,19 @@ export async function ensureFeatureRows(db: NodeDb): Promise<number> {
   ).map((feature) => ({ key: feature.key, enabled: feature.defaultEnabled }))
 
   if (missing.length > 0) await db.insert(features).values(missing)
+
+  // An always-on feature whose row says otherwise is corrected, so the screen
+  // agrees with the behaviour. This is the one case where an operator's stored
+  // choice is overruled — because it is no longer a choice.
+  const wrong = existing.filter(
+    (row) => ALWAYS_ON.includes(row.key) && !row.enabled,
+  )
+  for (const row of wrong) {
+    await db
+      .update(features)
+      .set({ enabled: true, updatedAt: new Date() })
+      .where(eq(features.id, row.id))
+  }
+
   return missing.length
 }

@@ -18,6 +18,19 @@ export interface FeatureDefinition {
   /** whether a freshly provisioned node starts with this on */
   defaultEnabled: boolean
   /**
+   * Not a feature so much as part of what a node is.
+   *
+   * A node exists to be the back end of a website, to take money, and to know
+   * who is allowed to do what — and a node with any of those switched off is
+   * not a smaller node, it is a broken one. Switching them off was never a
+   * capability anybody wanted; it was a consequence of the catalog treating
+   * every feature the same way.
+   *
+   * These cannot be turned off, and the screen says so rather than offering a
+   * toggle that refuses.
+   */
+  alwaysOn?: boolean
+  /**
    * Admin resources this feature brings with it.
    *
    * Declared here so the sidebar can group them under the feature that owns
@@ -37,11 +50,12 @@ export const FEATURE_CATALOG: Array<FeatureDefinition> = [
   },
   {
     key: 'user-management',
+    alwaysOn: true,
     name: 'Team and permissions',
     description:
       'Invite the rest of the team and decide what each of them can reach. ' +
       'Roles are yours to define — the node only says what can be granted, not who should have it.',
-    defaultEnabled: false,
+    defaultEnabled: true,
     resources: ['team', 'roles', 'invitations'],
   },
   {
@@ -53,10 +67,11 @@ export const FEATURE_CATALOG: Array<FeatureDefinition> = [
   },
   {
     key: 'payments',
+    alwaysOn: true,
     name: 'Payments',
     description:
       'Take money. rootAdmin chooses a provider, pastes their own keys, and adds the webhook in the provider’s console.',
-    defaultEnabled: false,
+    defaultEnabled: true,
   },
   {
     key: 'vendors',
@@ -76,15 +91,11 @@ export const FEATURE_CATALOG: Array<FeatureDefinition> = [
   },
   {
     key: 'github-pages',
+    alwaysOn: true,
     name: 'GitHub Pages frontend',
     description:
       'Connect GitHub and publish a static website that posts to this node. ' +
       'Create one from the starter template, or adopt a repository you already have.',
-    // On from the start. A node exists to be the back end of a website, so
-    // arriving with the website switched off makes the first thing anybody
-    // does a step they did not know they needed. Nothing is published until
-    // GitHub is actually connected, so this costs a node that never uses it
-    // nothing at all.
     defaultEnabled: true,
   },
 ]
@@ -95,6 +106,11 @@ export const FEATURE_CATALOG: Array<FeatureDefinition> = [
  * instrumentation on would have nothing to show them at the moment they asked
  * — which is the one failure this whole feature exists to avoid.
  */
+/** The ones that cannot be switched off. */
+export const ALWAYS_ON = FEATURE_CATALOG.filter(
+  (feature) => feature.alwaysOn,
+).map((feature) => feature.key)
+
 export function featureDefinition(key: string): FeatureDefinition | undefined {
   return FEATURE_CATALOG.find((feature) => feature.key === key)
 }

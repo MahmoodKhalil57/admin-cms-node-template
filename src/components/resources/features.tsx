@@ -1,4 +1,5 @@
 import { useRecordContext } from 'ra-core'
+import { Lock } from 'lucide-react'
 
 import {
   BooleanField,
@@ -32,6 +33,34 @@ const FeatureDescription = () => {
     <span className="text-muted-foreground">
       {definition?.description ?? 'Not available in this build.'}
     </span>
+  )
+}
+
+/**
+ * The switch, or the reason there is not one.
+ *
+ * Three of these are part of what a node is rather than things it may also do:
+ * being the back end of a website, taking money, and knowing who may do what.
+ * Turning one off does not make a smaller node, it makes a broken one — so the
+ * screen says so instead of showing a control that would be refused.
+ */
+const FeatureSwitch = () => {
+  const record = useRecordContext<FeatureRecord>()
+  const definition = featureDefinition(record?.key ?? '')
+
+  if (!definition?.alwaysOn) return <BooleanInput source="enabled" />
+
+  return (
+    <div className="border-border/70 bg-muted/30 flex items-start gap-2.5 rounded-lg border p-3">
+      <Lock className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+      <div className="min-w-0">
+        <p className="text-sm font-medium">Always on</p>
+        <p className="text-muted-foreground text-xs">
+          This is part of what a node is, not something it may also do. It
+          cannot be switched off.
+        </p>
+      </div>
+    </div>
   )
 }
 
@@ -97,7 +126,7 @@ export const FeatureEdit = () => (
     <SimpleForm>
       <TextField source="key" />
       <FeatureDescription />
-      <BooleanInput source="enabled" />
+      <FeatureSwitch />
     </SimpleForm>
     <div className="px-4 pb-6">
       <FeatureConfig />

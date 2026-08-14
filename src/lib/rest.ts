@@ -30,6 +30,7 @@ import {
   roles,
 } from '#/db/schema'
 import type { RoleCondition } from '#/db/schema'
+import { ALWAYS_ON } from '#/lib/feature-catalog'
 import { RESOURCE_PERMISSIONS } from '#/lib/permission-catalog'
 import type { Principal } from '#/server/authz'
 import { allowedWays, allows, can, deniedWays, forbidden } from '#/server/authz'
@@ -185,6 +186,27 @@ function conditionWhere(
 
   if (parts.length === 0) return undefined
   return parts.length === 1 ? parts[0] : and(...parts)
+}
+
+/**
+ * Refuses to switch off something that is part of what a node is.
+ *
+ * A node exists to be the back end of a website, to take money, and to know who
+ * may do what. Turning any of those off does not make a smaller node, it makes
+ * a broken one — and the ability to do it was never a capability anybody asked
+ * for, only a consequence of the catalog treating every feature alike.
+ */
+function lockedFeature(
+  resource: string,
+  body: Record<string, unknown>,
+): Response | null {
+  if (resource !== 'features') return null
+  const key = String(body.key ?? '')
+  if (!ALWAYS_ON.includes(key)) return null
+  if (body.enabled !== false) return null
+
+  const said = `"${key}" is part of what a node is and cannot be switched off.`
+  return Response.json({ error: said, message: said }, { status: 409 })
 }
 
 /** What this call needs, and whether the caller has it. */
@@ -407,6 +429,12 @@ export async function updateResource(
 
   const columns = getTableColumns(table as LooseTable)
   const body = (await request.json()) as Record<string, unknown>
+
+  // A toggle that accepts the click and changes nothing is worse than one that
+  // is not offered at all. The screen does not show these; this is what makes
+  // that true rather than decorative.
+  const locked = lockedFeature(resource, body)
+  if (locked) return locked
   const rows = (await db
     .update(table as LooseTable)
     .set(stripReadOnly(table, body))
