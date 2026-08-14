@@ -136,6 +136,18 @@ export const EVENT_CATALOG: Array<EventDefinition> = [
     description: 'The file a buyer receives was set or replaced.',
   },
   {
+    key: 'vendor.payouts_started',
+    area: 'Vendors',
+    name: 'A vendor began payout setup',
+    description: 'A connected account was created for them at the provider.',
+  },
+  {
+    key: 'vendor.withdrew',
+    area: 'Vendors',
+    name: 'A vendor withdrew',
+    description: 'Money left the platform balance for a vendor’s account.',
+  },
+  {
     key: 'resource.created',
     area: 'Panel',
     name: 'Something was created',

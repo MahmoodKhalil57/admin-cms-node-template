@@ -53,6 +53,9 @@ export const Route = createFileRoute('/api/payments/provider')(
                 webhookSecretHint: hint(await open(env, row.webhookSecret)),
                 currency: row.currency,
                 enabled: row.enabled,
+                payoutFeeFixed: row.payoutFeeFixed,
+                payoutFeeBasisPoints: row.payoutFeeBasisPoints,
+                payoutMinimum: row.payoutMinimum,
               }
             : null,
         },
@@ -78,6 +81,9 @@ export const Route = createFileRoute('/api/payments/provider')(
         webhookSecret?: string
         currency?: string
         enabled?: boolean
+        payoutFeeFixed?: number
+        payoutFeeBasisPoints?: number
+        payoutMinimum?: number
       }
 
       const key = String(body.key ?? 'stripe')
@@ -107,6 +113,15 @@ export const Route = createFileRoute('/api/payments/provider')(
           : (existing?.webhookSecret ?? null),
         currency,
         enabled: Boolean(body.enabled),
+        // Quoted to vendors before they withdraw. There is no endpoint that
+        // answers what a payout will cost, so this is rootAdmin's own figure
+        // and the real one is written back afterwards.
+        payoutFeeFixed: Math.max(0, Number(body.payoutFeeFixed ?? existing?.payoutFeeFixed ?? 0)),
+        payoutFeeBasisPoints: Math.max(
+          0,
+          Number(body.payoutFeeBasisPoints ?? existing?.payoutFeeBasisPoints ?? 0),
+        ),
+        payoutMinimum: Math.max(0, Number(body.payoutMinimum ?? existing?.payoutMinimum ?? 0)),
         updatedAt: new Date(),
       }
 

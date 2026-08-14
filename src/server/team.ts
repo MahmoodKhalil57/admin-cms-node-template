@@ -163,7 +163,14 @@ const BUILTIN_ROLES = [
     description:
       'A business selling here. Sees its own storefront, its own enquiries and its own numbers, and nobody else’s — the same role for every vendor, because the narrowing resolves to whoever is asking.',
     builtin: false,
-    permissions: ['vendors:read', 'vendors:write', 'forms:read'],
+    permissions: [
+      'vendors:read',
+      'vendors:write',
+      'forms:read',
+      // Their own money, and only theirs — the condition below covers this
+      // the same way it covers the storefront.
+      'payouts:withdraw',
+    ],
     /**
      * The rule that makes one role serve a marketplace.
      *
@@ -174,6 +181,7 @@ const BUILTIN_ROLES = [
     conditions: {
       'vendors:read': { id: { mine: true } },
       'vendors:write': { id: { mine: true } },
+      'payouts:withdraw': { vendorId: { mine: true } },
     },
   },
   {

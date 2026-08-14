@@ -222,6 +222,15 @@ export const PERMISSION_CATALOG: Array<PermissionDefinition> = [
     scopes: [{ field: 'id', label: 'Only these vendors' }],
   },
   {
+    key: 'payouts:withdraw',
+    area: 'Vendors',
+    name: 'Take money out',
+    description:
+      'Set up payouts and withdraw what is owed. Narrowed to their own vendor, this is what a vendor holds; reading a balance is separate from moving it.',
+    feature: 'vendors',
+    scopes: [{ field: 'vendorId', label: 'Only these vendors' }],
+  },
+  {
     key: 'vendors:manage',
     area: 'Vendors',
     name: 'Add and remove vendors',

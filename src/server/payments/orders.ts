@@ -11,6 +11,7 @@ import {
   fulfilOrder,
   revokeForOrder,
 } from '../store/fulfil'
+import { creditSale, debitRefund } from '../payouts/ledger'
 import type { OrderOutcome, ProviderConfig, VerifiedEvent } from './provider'
 
 /**
@@ -229,6 +230,7 @@ async function transition(
     reference: string
     status: string
     total: number
+    currency?: string
     buyerUserId?: string | null
     buyerEmail?: string | null
   },
@@ -261,6 +263,11 @@ async function transition(
       who paid must have them before this returns — and not for the email,
       which is allowed to be late or to fail.
     */
+    // What each vendor is owed, posted from the shares written at the moment of
+    // sale. Before fulfilment, because owing somebody money is the fact that
+    // matters most and the one hardest to reconstruct.
+    await creditSale(db, order.id, order.currency ?? 'USD')
+
     if (deliver) {
       const granted = await fulfilOrder(
         deliver.env,
@@ -316,6 +323,15 @@ async function transition(
 
     // The file has already been read; taking the link away is still worth
     // doing, and is the only half of this that is actually possible.
+    // Taken back in proportion. They may already have withdrawn it, which is
+    // exactly why the ledger is allowed to go below zero.
+    await debitRefund(
+      db,
+      order.id,
+      order.currency ?? 'USD',
+      refunded,
+      order.total,
+    )
     if (refunded >= order.total) await revokeForOrder(db, order.id)
     return true
   }

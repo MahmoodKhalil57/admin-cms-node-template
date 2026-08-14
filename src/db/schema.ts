@@ -268,6 +268,20 @@ export const vendors = sqliteTable('vendors', {
   email: text(),
   /** `active` sells; `suspended` keeps its rows and stops taking money */
   status: text().notNull().default('active'),
+  /**
+   * The connected account at the payment provider.
+   *
+   * Not a bank account. Vendors give their bank details to Stripe on its own
+   * hosted onboarding, and what comes back here is an id — so this node never
+   * holds an account number, and Stripe carries the identity checks.
+   */
+  stripeAccountId: text('stripe_account_id'),
+  /** what the provider says: `none`, `pending`, `restricted`, `ready` */
+  onboardingStatus: text('onboarding_status').notNull().default('none'),
+  /** the provider's own answer to "may this account be paid" */
+  payoutsEnabled: integer('payouts_enabled', { mode: 'boolean' })
+    .notNull()
+    .default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).default(
     sql`(unixepoch())`,
   ),
@@ -429,10 +443,109 @@ export const paymentProviders = sqliteTable('payment_providers', {
   /** ISO 4217, upper case */
   currency: text().notNull().default('USD'),
   enabled: integer({ mode: 'boolean' }).notNull().default(false),
+  /**
+   * What a withdrawal costs, quoted to the vendor before they take it.
+   *
+   * Entered by rootAdmin to match their own provider pricing, because there is
+   * no endpoint that answers "what will this payout cost" — it depends on
+   * country, account type and whatever agreement they have. The real figure is
+   * written back afterwards from the payout's balance transaction; this is what
+   * is shown at the button.
+   */
+  payoutFeeFixed: integer('payout_fee_fixed').notNull().default(0),
+  /** basis points, so 25 is 0.25% */
+  payoutFeeBasisPoints: integer('payout_fee_basis_points').notNull().default(0),
+  /** below this, a withdrawal is refused rather than eaten by its own fee */
+  payoutMinimum: integer('payout_minimum').notNull().default(0),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(
     sql`(unixepoch())`,
   ),
 })
+
+/**
+ * Everything that has ever moved a vendor's balance.
+ *
+ * Append-only, and the balance is its sum. The same reasoning as the event log,
+ * for a stronger reason: a running total can explain itself, and it can hold
+ * the one case a subtracted column cannot — **a vendor owing the platform
+ * money**, after a refund lands on a sale they have already withdrawn. There is
+ * no clawback from somebody's bank account, so that has to be a number the
+ * system carries rather than an error it raises.
+ *
+ * Positive is owed to the vendor, negative is taken away. A withdrawal posts
+ * two lines, the net and the fee, which together are the gross — so the fee is
+ * visible in the history rather than implied by a gap.
+ */
+export const vendorLedger = sqliteTable(
+  'vendor_ledger',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    vendorId: integer('vendor_id').notNull(),
+    /** `sale` | `refund` | `withdrawal` | `fee` | `adjustment` */
+    kind: text().notNull(),
+    /** smallest unit; signed */
+    amount: integer().notNull(),
+    currency: text().notNull(),
+    orderItemId: integer('order_item_id'),
+    payoutId: integer('payout_id'),
+    note: text(),
+    /**
+     * What makes a line unrepeatable.
+     *
+     * `sale:12`, `refund:12`, `withdrawal:3`. A retried webhook posts the same
+     * key and the unique index refuses it — the same discipline the payment
+     * events table uses, because the failure is the same one: paying somebody
+     * twice for one sale.
+     */
+    dedupeKey: text('dedupe_key'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [
+    uniqueIndex('vendor_ledger_dedupe').on(table.dedupeKey),
+    index('vendor_ledger_vendor').on(table.vendorId),
+  ],
+)
+
+/**
+ * One withdrawal a vendor asked for.
+ *
+ * `feeEstimate` is what they were shown and agreed to; `feeActual` is what the
+ * provider charged, written back when it is known. Keeping both is the
+ * difference between a transparent fee and a number somebody made up — and the
+ * gap between them, over time, is how a wrong formula is noticed.
+ */
+export const payouts = sqliteTable(
+  'payouts',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    vendorId: integer('vendor_id').notNull(),
+    currency: text().notNull(),
+    /** what left the balance, in the smallest unit */
+    gross: integer().notNull(),
+    feeEstimate: integer('fee_estimate').notNull().default(0),
+    feeActual: integer('fee_actual'),
+    /** what the vendor receives */
+    net: integer().notNull(),
+    /** platform balance -> connected account */
+    transferId: text('transfer_id'),
+    /** connected account -> their bank */
+    providerPayoutId: text('provider_payout_id'),
+    /** `pending` | `paid` | `failed` */
+    status: text().notNull().default('pending'),
+    failureReason: text('failure_reason'),
+    /** one per request, so a double-click cannot pay twice */
+    idempotencyKey: text('idempotency_key').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [
+    uniqueIndex('payouts_idempotency').on(table.idempotencyKey),
+    index('payouts_vendor').on(table.vendorId),
+  ],
+)
 
 /**
  * One purchase.
