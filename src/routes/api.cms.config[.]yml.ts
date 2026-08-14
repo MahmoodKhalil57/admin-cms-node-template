@@ -40,7 +40,13 @@ export const Route = createFileRoute('/api/cms/config.yml')(
             // this one exists only to satisfy the check.
             await repoPath(db),
           )
-          const yaml = await buildConfig(target, principal, request)
+          const { getEnabledFeatures } = await import('#/server/features')
+          const yaml = await buildConfig(
+            target,
+            principal,
+            request,
+            await getEnabledFeatures(db),
+          )
           return new Response(yaml, {
             headers: {
               'Content-Type': 'application/yaml; charset=utf-8',

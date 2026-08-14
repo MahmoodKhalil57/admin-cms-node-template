@@ -65,6 +65,7 @@ export async function buildConfig(
   target: ProxyTarget,
   principal: Principal,
   request: Request,
+  enabledFeatures: Array<string>,
 ): Promise<string> {
   const response = await gh(
     target,
@@ -119,7 +120,9 @@ export async function buildConfig(
   // site's content and the node's data in it, and no way to tell from the
   // inside which is which — that is what makes this a dashboard rather than
   // two dashboards sharing a stylesheet.
-  ;(config.collections as Array<unknown>).push(...virtualCollections(principal))
+  ;(config.collections as Array<unknown>).push(
+    ...virtualCollections(principal, enabledFeatures),
+  )
 
   // Said once, here, rather than left for a save to discover. A reader who
   // cannot write anything gets an editor that says so.

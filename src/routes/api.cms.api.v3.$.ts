@@ -101,7 +101,7 @@ async function handle(request: Request): Promise<Response> {
     // the CMS decides what exists. Everything after this — opening one, editing
     // it, saving it — follows from an entry being in here.
     if (/^\/git\/trees\/[^/]+$/.test(target.rest) && response.status === 200) {
-      return withVirtualEntries(db, principal, response)
+      return withVirtualEntries(db, env, principal, response)
     }
 
     return response
@@ -126,6 +126,7 @@ function contentPath(rest: string): string {
  */
 async function withVirtualEntries(
   db: ReturnType<typeof getDb>,
+  env: ReturnType<typeof getEnv>,
   principal: Awaited<ReturnType<typeof principalForUserId>>,
   response: Response,
 ): Promise<Response> {
@@ -140,6 +141,7 @@ async function withVirtualEntries(
   const { virtualEntries } = await import('#/server/cms-virtual')
   const entries = await virtualEntries(
     db,
+    env,
     principal,
     await getEnabledFeatures(db),
   )

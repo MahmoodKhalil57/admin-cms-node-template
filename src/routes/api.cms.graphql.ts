@@ -75,11 +75,8 @@ export const Route = createFileRoute('/api/cms/graphql')(
             await repoPrefix(db),
           )
 
-          const entries = await virtualEntries(
-            db,
-            principal,
-            await getEnabledFeatures(db),
-          )
+          const enabled = await getEnabledFeatures(db)
+          const entries = await virtualEntries(db, env, principal, enabled)
 
           const changes = commitChanges(body)
           if (changes) {
@@ -100,7 +97,7 @@ export const Route = createFileRoute('/api/cms/graphql')(
             }
 
             if (mine.additions.length || mine.deletions.length) {
-              const denied = await applyVirtual(db, principal, mine)
+              const denied = await applyVirtual(db, env, principal, enabled, mine)
               if (denied) return refuse(403, denied)
               // Nothing left for GitHub: answer as a commit, so the editor
               // settles the way it does after any other save.
@@ -243,11 +240,19 @@ async function auditFields(
 /** Applies the half of a commit that belongs to the database. */
 async function applyVirtual(
   db: Parameters<typeof applyVirtualWrite>[0],
+  env: Parameters<typeof applyVirtualWrite>[1],
   principal: Principal,
+  enabled: Array<string>,
   changes: Changes,
 ): Promise<string | null> {
   for (const deletion of changes.deletions) {
-    const denied = await applyVirtualDelete(db, principal, deletion.path)
+    const denied = await applyVirtualDelete(
+      db,
+      env,
+      principal,
+      enabled,
+      deletion.path,
+    )
     if (denied) return denied
   }
 
@@ -258,7 +263,14 @@ async function applyVirtual(
     } catch {
       return `${addition.path} is not a document this node can read.`
     }
-    const denied = await applyVirtualWrite(db, principal, addition.path, document)
+    const denied = await applyVirtualWrite(
+      db,
+      env,
+      principal,
+      enabled,
+      addition.path,
+      document,
+    )
     if (denied) return denied
   }
 
