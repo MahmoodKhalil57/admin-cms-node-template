@@ -23,6 +23,7 @@ import {
   events,
   notifications,
   orders as ordersTable,
+  products as productsTable,
   vendors as vendorsTable,
   policies,
   roles,
@@ -62,6 +63,7 @@ const RESOURCES = {
   // An order is what a provider said happened. Readable, never editable —
   // a refund is an action taken through the provider, not a status typed in.
   orders: { table: ordersTable, feature: 'payments', readOnly: true },
+  products: { table: productsTable, feature: 'payments' },
 }
 
 // Drizzle's table types are heavily generic; the generic handlers below work
@@ -352,7 +354,7 @@ export async function createResource(
     .values(stripReadOnly(table, body))
     .returning()) as Array<Record<string, unknown>>
 
-  noted(db, 'resource.created', resource, rows[0], principal)
+  await noted(db, 'resource.created', resource, rows[0], principal)
   return Response.json(rows[0], { status: 201 })
 }
 
@@ -386,7 +388,7 @@ export async function updateResource(
     .returning()) as Array<Record<string, unknown>>
 
   if (!rows[0]) return Response.json({ error: 'Not found' }, { status: 404 })
-  noted(db, 'resource.updated', resource, rows[0], principal)
+  await noted(db, 'resource.updated', resource, rows[0], principal)
   return Response.json(rows[0])
 }
 
@@ -415,7 +417,7 @@ export async function deleteResource(
     .returning()) as Array<Record<string, unknown>>
 
   if (!rows[0]) return Response.json({ error: 'Not found' }, { status: 404 })
-  noted(db, 'resource.deleted', resource, rows[0], principal)
+  await noted(db, 'resource.deleted', resource, rows[0], principal)
   return Response.json(rows[0])
 }
 
@@ -426,10 +428,15 @@ export async function deleteResource(
  * these three functions — so instrumenting the layer instruments every screen,
  * including the ones added after this was written.
  *
- * Not awaited. The row is on its way back to the caller and a log that delayed
- * it, or failed it, would be worse than a log that is a moment late.
+ * Awaited, and that is not the obvious choice. Firing it and moving on reads
+ * cheaper, and on a normal server it would be — but a Worker cancels whatever
+ * is still pending when the response goes out, so a log written that way is
+ * one that lands when the request happened to be slow and vanishes when it did
+ * not. A recording that cannot be backfilled is not worth making conditional
+ * on timing. `record` swallows its own failures, so this adds latency and no
+ * failure mode.
  */
-function noted(
+async function noted(
   db: NodeDb,
   name: string,
   resource: string,
@@ -437,7 +444,7 @@ function noted(
   principal: Principal | null,
 ) {
   if (!row) return
-  void record(db, {
+  await record(db, {
     name,
     actor: principal,
     subjectType: resource,

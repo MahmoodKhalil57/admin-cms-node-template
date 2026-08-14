@@ -118,6 +118,24 @@ export const EVENT_CATALOG: Array<EventDefinition> = [
     description: 'Money went back, in whole or in part.',
   },
   {
+    key: 'order.fulfilled',
+    area: 'Money',
+    name: 'Downloads were issued',
+    description: 'A paid order was turned into rights to download.',
+  },
+  {
+    key: 'product.downloaded',
+    area: 'Money',
+    name: 'Somebody downloaded',
+    description: 'A buyer used one of their downloads.',
+  },
+  {
+    key: 'product.asset_uploaded',
+    area: 'Shop',
+    name: 'A file was uploaded',
+    description: 'The file a buyer receives was set or replaced.',
+  },
+  {
     key: 'resource.created',
     area: 'Panel',
     name: 'Something was created',

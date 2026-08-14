@@ -152,6 +152,32 @@ export const PERMISSION_CATALOG: Array<PermissionDefinition> = [
       'Decide what this node does at all. A switched-off feature takes its permissions with it.',
   },
   {
+    key: 'products:read',
+    area: 'Shop',
+    name: 'See what is for sale',
+    description: 'View the catalogue, including drafts.',
+    feature: 'payments',
+    scopes: [{ field: 'vendorId', label: 'Only these vendors' }],
+  },
+  {
+    key: 'products:write',
+    area: 'Shop',
+    name: 'Add and edit products',
+    description:
+      'Create listings, set prices and upload the file a buyer receives.',
+    feature: 'payments',
+    scopes: [{ field: 'vendorId', label: 'Only these vendors' }],
+  },
+  {
+    key: 'products:delete',
+    area: 'Shop',
+    name: 'Delete a product',
+    description:
+      'Remove a listing. Its orders and downloads stay, because they are somebody’s receipt.',
+    feature: 'payments',
+    scopes: [{ field: 'vendorId', label: 'Only these vendors' }],
+  },
+  {
     key: 'orders:read',
     area: 'Money',
     name: 'See orders',
@@ -289,6 +315,11 @@ export const RESOURCE_PERMISSIONS: Record<
   events: { read: 'events:read', write: 'events:append' },
   // Written by checkout and moved by webhooks; never posted to directly.
   orders: { read: 'orders:read', write: 'orders:manage' },
+  products: {
+    read: 'products:read',
+    write: 'products:write',
+    delete: 'products:delete',
+  },
   vendors: {
     read: 'vendors:read',
     write: 'vendors:write',

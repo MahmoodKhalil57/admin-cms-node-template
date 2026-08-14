@@ -261,7 +261,7 @@ export async function acceptSubmission(
   // The enquiry itself is the event. Recorded before the notifications go out,
   // because whether anybody was told is a separate question from whether it
   // arrived — and the report wants the second one.
-  void record(db, {
+  await record(db, {
     name: 'submission.created',
     actor: principal,
     subjectType: 'submissions',

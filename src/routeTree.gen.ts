@@ -33,6 +33,7 @@ import { Route as ApiCmsAuthRouteImport } from './routes/api.cms.auth'
 import { Route as ApiCmsConfigDotymlRouteImport } from './routes/api.cms.config[.]yml'
 import { Route as ApiCmsGraphqlRouteImport } from './routes/api.cms.graphql'
 import { Route as ApiCmsTokenRouteImport } from './routes/api.cms.token'
+import { Route as ApiDownloadTokenRouteImport } from './routes/api.download.$token'
 import { Route as ApiFSlugRouteImport } from './routes/api.f.$slug'
 import { Route as ApiGithubAuthorizeRouteImport } from './routes/api.github.authorize'
 import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
@@ -41,16 +42,19 @@ import { Route as ApiGithubStatusRouteImport } from './routes/api.github.status'
 import { Route as ApiInternalProvisionRouteImport } from './routes/api.internal.provision'
 import { Route as ApiInvitationsAcceptRouteImport } from './routes/api.invitations.accept'
 import { Route as ApiInvitationsCreateRouteImport } from './routes/api.invitations.create'
+import { Route as ApiMeDownloadsRouteImport } from './routes/api.me.downloads'
 import { Route as ApiMeProfileRouteImport } from './routes/api.me.profile'
 import { Route as ApiOrdersReferenceRouteImport } from './routes/api.orders.$reference'
 import { Route as ApiPaymentsProviderRouteImport } from './routes/api.payments.provider'
 import { Route as ApiPublicSignupRouteImport } from './routes/api.public.signup'
 import { Route as ApiSettingsVerifyRouteImport } from './routes/api.settings.verify'
+import { Route as ApiShopProductsRouteImport } from './routes/api.shop.products'
 import { Route as ApiStaticIndexRouteImport } from './routes/api.static.index'
 import { Route as ApiTeamIndexRouteImport } from './routes/api.team.index'
 import { Route as ApiTeamIdRouteImport } from './routes/api.team.$id'
 import { Route as ApiWebhooksGithubRouteImport } from './routes/api.webhooks.github'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api.webhooks.stripe'
+import { Route as ApiProductsIdAssetRouteImport } from './routes/api.products.$id.asset'
 import { Route as ApiStaticCollectionIndexRouteImport } from './routes/api.static.$collection.index'
 import { Route as ApiStaticCollectionIdRouteImport } from './routes/api.static.$collection.$id'
 import { Route as ApiTeamIdKeysRouteImport } from './routes/api.team.$id.keys'
@@ -180,6 +184,11 @@ const ApiCmsTokenRoute = ApiCmsTokenRouteImport.update({
   path: '/api/cms/token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDownloadTokenRoute = ApiDownloadTokenRouteImport.update({
+  id: '/api/download/$token',
+  path: '/api/download/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiFSlugRoute = ApiFSlugRouteImport.update({
   id: '/api/f/$slug',
   path: '/api/f/$slug',
@@ -220,6 +229,11 @@ const ApiInvitationsCreateRoute = ApiInvitationsCreateRouteImport.update({
   path: '/api/invitations/create',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMeDownloadsRoute = ApiMeDownloadsRouteImport.update({
+  id: '/api/me/downloads',
+  path: '/api/me/downloads',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMeProfileRoute = ApiMeProfileRouteImport.update({
   id: '/api/me/profile',
   path: '/api/me/profile',
@@ -245,6 +259,11 @@ const ApiSettingsVerifyRoute = ApiSettingsVerifyRouteImport.update({
   path: '/verify',
   getParentRoute: () => ApiSettingsRoute,
 } as any)
+const ApiShopProductsRoute = ApiShopProductsRouteImport.update({
+  id: '/api/shop/products',
+  path: '/api/shop/products',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiStaticIndexRoute = ApiStaticIndexRouteImport.update({
   id: '/api/static/',
   path: '/api/static/',
@@ -268,6 +287,11 @@ const ApiWebhooksGithubRoute = ApiWebhooksGithubRouteImport.update({
 const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
   id: '/api/webhooks/stripe',
   path: '/api/webhooks/stripe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProductsIdAssetRoute = ApiProductsIdAssetRouteImport.update({
+  id: '/api/products/$id/asset',
+  path: '/api/products/$id/asset',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiStaticCollectionIndexRoute =
@@ -337,6 +361,7 @@ export interface FileRoutesByFullPath {
   '/api/cms/config.yml': typeof ApiCmsConfigDotymlRoute
   '/api/cms/graphql': typeof ApiCmsGraphqlRoute
   '/api/cms/token': typeof ApiCmsTokenRoute
+  '/api/download/$token': typeof ApiDownloadTokenRoute
   '/api/f/$slug': typeof ApiFSlugRoute
   '/api/github/authorize': typeof ApiGithubAuthorizeRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
@@ -345,17 +370,20 @@ export interface FileRoutesByFullPath {
   '/api/internal/provision': typeof ApiInternalProvisionRoute
   '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
   '/api/invitations/create': typeof ApiInvitationsCreateRoute
+  '/api/me/downloads': typeof ApiMeDownloadsRoute
   '/api/me/profile': typeof ApiMeProfileRoute
   '/api/orders/$reference': typeof ApiOrdersReferenceRoute
   '/api/payments/provider': typeof ApiPaymentsProviderRoute
   '/api/public/signup': typeof ApiPublicSignupRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
+  '/api/shop/products': typeof ApiShopProductsRoute
   '/api/team/$id': typeof ApiTeamIdRouteWithChildren
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
   '/api/static/': typeof ApiStaticIndexRoute
   '/api/team/': typeof ApiTeamIndexRoute
+  '/api/products/$id/asset': typeof ApiProductsIdAssetRoute
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
   '/api/team/$id/keys': typeof ApiTeamIdKeysRoute
   '/api/team/$id/permissions': typeof ApiTeamIdPermissionsRoute
@@ -389,6 +417,7 @@ export interface FileRoutesByTo {
   '/api/cms/config.yml': typeof ApiCmsConfigDotymlRoute
   '/api/cms/graphql': typeof ApiCmsGraphqlRoute
   '/api/cms/token': typeof ApiCmsTokenRoute
+  '/api/download/$token': typeof ApiDownloadTokenRoute
   '/api/f/$slug': typeof ApiFSlugRoute
   '/api/github/authorize': typeof ApiGithubAuthorizeRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
@@ -397,17 +426,20 @@ export interface FileRoutesByTo {
   '/api/internal/provision': typeof ApiInternalProvisionRoute
   '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
   '/api/invitations/create': typeof ApiInvitationsCreateRoute
+  '/api/me/downloads': typeof ApiMeDownloadsRoute
   '/api/me/profile': typeof ApiMeProfileRoute
   '/api/orders/$reference': typeof ApiOrdersReferenceRoute
   '/api/payments/provider': typeof ApiPaymentsProviderRoute
   '/api/public/signup': typeof ApiPublicSignupRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
+  '/api/shop/products': typeof ApiShopProductsRoute
   '/api/team/$id': typeof ApiTeamIdRouteWithChildren
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/$resource': typeof ApiResourceIndexRoute
   '/api/static': typeof ApiStaticIndexRoute
   '/api/team': typeof ApiTeamIndexRoute
+  '/api/products/$id/asset': typeof ApiProductsIdAssetRoute
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
   '/api/team/$id/keys': typeof ApiTeamIdKeysRoute
   '/api/team/$id/permissions': typeof ApiTeamIdPermissionsRoute
@@ -442,6 +474,7 @@ export interface FileRoutesById {
   '/api/cms/config.yml': typeof ApiCmsConfigDotymlRoute
   '/api/cms/graphql': typeof ApiCmsGraphqlRoute
   '/api/cms/token': typeof ApiCmsTokenRoute
+  '/api/download/$token': typeof ApiDownloadTokenRoute
   '/api/f/$slug': typeof ApiFSlugRoute
   '/api/github/authorize': typeof ApiGithubAuthorizeRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
@@ -450,17 +483,20 @@ export interface FileRoutesById {
   '/api/internal/provision': typeof ApiInternalProvisionRoute
   '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
   '/api/invitations/create': typeof ApiInvitationsCreateRoute
+  '/api/me/downloads': typeof ApiMeDownloadsRoute
   '/api/me/profile': typeof ApiMeProfileRoute
   '/api/orders/$reference': typeof ApiOrdersReferenceRoute
   '/api/payments/provider': typeof ApiPaymentsProviderRoute
   '/api/public/signup': typeof ApiPublicSignupRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
+  '/api/shop/products': typeof ApiShopProductsRoute
   '/api/team/$id': typeof ApiTeamIdRouteWithChildren
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
   '/api/static/': typeof ApiStaticIndexRoute
   '/api/team/': typeof ApiTeamIndexRoute
+  '/api/products/$id/asset': typeof ApiProductsIdAssetRoute
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
   '/api/team/$id/keys': typeof ApiTeamIdKeysRoute
   '/api/team/$id/permissions': typeof ApiTeamIdPermissionsRoute
@@ -496,6 +532,7 @@ export interface FileRouteTypes {
     | '/api/cms/config.yml'
     | '/api/cms/graphql'
     | '/api/cms/token'
+    | '/api/download/$token'
     | '/api/f/$slug'
     | '/api/github/authorize'
     | '/api/github/callback'
@@ -504,17 +541,20 @@ export interface FileRouteTypes {
     | '/api/internal/provision'
     | '/api/invitations/accept'
     | '/api/invitations/create'
+    | '/api/me/downloads'
     | '/api/me/profile'
     | '/api/orders/$reference'
     | '/api/payments/provider'
     | '/api/public/signup'
     | '/api/settings/verify'
+    | '/api/shop/products'
     | '/api/team/$id'
     | '/api/webhooks/github'
     | '/api/webhooks/stripe'
     | '/api/$resource/'
     | '/api/static/'
     | '/api/team/'
+    | '/api/products/$id/asset'
     | '/api/static/$collection/$id'
     | '/api/team/$id/keys'
     | '/api/team/$id/permissions'
@@ -548,6 +588,7 @@ export interface FileRouteTypes {
     | '/api/cms/config.yml'
     | '/api/cms/graphql'
     | '/api/cms/token'
+    | '/api/download/$token'
     | '/api/f/$slug'
     | '/api/github/authorize'
     | '/api/github/callback'
@@ -556,17 +597,20 @@ export interface FileRouteTypes {
     | '/api/internal/provision'
     | '/api/invitations/accept'
     | '/api/invitations/create'
+    | '/api/me/downloads'
     | '/api/me/profile'
     | '/api/orders/$reference'
     | '/api/payments/provider'
     | '/api/public/signup'
     | '/api/settings/verify'
+    | '/api/shop/products'
     | '/api/team/$id'
     | '/api/webhooks/github'
     | '/api/webhooks/stripe'
     | '/api/$resource'
     | '/api/static'
     | '/api/team'
+    | '/api/products/$id/asset'
     | '/api/static/$collection/$id'
     | '/api/team/$id/keys'
     | '/api/team/$id/permissions'
@@ -600,6 +644,7 @@ export interface FileRouteTypes {
     | '/api/cms/config.yml'
     | '/api/cms/graphql'
     | '/api/cms/token'
+    | '/api/download/$token'
     | '/api/f/$slug'
     | '/api/github/authorize'
     | '/api/github/callback'
@@ -608,17 +653,20 @@ export interface FileRouteTypes {
     | '/api/internal/provision'
     | '/api/invitations/accept'
     | '/api/invitations/create'
+    | '/api/me/downloads'
     | '/api/me/profile'
     | '/api/orders/$reference'
     | '/api/payments/provider'
     | '/api/public/signup'
     | '/api/settings/verify'
+    | '/api/shop/products'
     | '/api/team/$id'
     | '/api/webhooks/github'
     | '/api/webhooks/stripe'
     | '/api/$resource/'
     | '/api/static/'
     | '/api/team/'
+    | '/api/products/$id/asset'
     | '/api/static/$collection/$id'
     | '/api/team/$id/keys'
     | '/api/team/$id/permissions'
@@ -653,6 +701,7 @@ export interface RootRouteChildren {
   ApiCmsConfigDotymlRoute: typeof ApiCmsConfigDotymlRoute
   ApiCmsGraphqlRoute: typeof ApiCmsGraphqlRoute
   ApiCmsTokenRoute: typeof ApiCmsTokenRoute
+  ApiDownloadTokenRoute: typeof ApiDownloadTokenRoute
   ApiFSlugRoute: typeof ApiFSlugRoute
   ApiGithubAuthorizeRoute: typeof ApiGithubAuthorizeRoute
   ApiGithubCallbackRoute: typeof ApiGithubCallbackRoute
@@ -661,16 +710,19 @@ export interface RootRouteChildren {
   ApiInternalProvisionRoute: typeof ApiInternalProvisionRoute
   ApiInvitationsAcceptRoute: typeof ApiInvitationsAcceptRoute
   ApiInvitationsCreateRoute: typeof ApiInvitationsCreateRoute
+  ApiMeDownloadsRoute: typeof ApiMeDownloadsRoute
   ApiMeProfileRoute: typeof ApiMeProfileRoute
   ApiOrdersReferenceRoute: typeof ApiOrdersReferenceRoute
   ApiPaymentsProviderRoute: typeof ApiPaymentsProviderRoute
   ApiPublicSignupRoute: typeof ApiPublicSignupRoute
+  ApiShopProductsRoute: typeof ApiShopProductsRoute
   ApiTeamIdRoute: typeof ApiTeamIdRouteWithChildren
   ApiWebhooksGithubRoute: typeof ApiWebhooksGithubRoute
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ApiResourceIndexRoute: typeof ApiResourceIndexRoute
   ApiStaticIndexRoute: typeof ApiStaticIndexRoute
   ApiTeamIndexRoute: typeof ApiTeamIndexRoute
+  ApiProductsIdAssetRoute: typeof ApiProductsIdAssetRoute
   ApiStaticCollectionIdRoute: typeof ApiStaticCollectionIdRoute
   ApiVendorsIdMembersRoute: typeof ApiVendorsIdMembersRoute
   ApiStaticCollectionIndexRoute: typeof ApiStaticCollectionIndexRoute
@@ -849,6 +901,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCmsTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/download/$token': {
+      id: '/api/download/$token'
+      path: '/api/download/$token'
+      fullPath: '/api/download/$token'
+      preLoaderRoute: typeof ApiDownloadTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/f/$slug': {
       id: '/api/f/$slug'
       path: '/api/f/$slug'
@@ -905,6 +964,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiInvitationsCreateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/me/downloads': {
+      id: '/api/me/downloads'
+      path: '/api/me/downloads'
+      fullPath: '/api/me/downloads'
+      preLoaderRoute: typeof ApiMeDownloadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/me/profile': {
       id: '/api/me/profile'
       path: '/api/me/profile'
@@ -940,6 +1006,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSettingsVerifyRouteImport
       parentRoute: typeof ApiSettingsRoute
     }
+    '/api/shop/products': {
+      id: '/api/shop/products'
+      path: '/api/shop/products'
+      fullPath: '/api/shop/products'
+      preLoaderRoute: typeof ApiShopProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/static/': {
       id: '/api/static/'
       path: '/api/static'
@@ -973,6 +1046,13 @@ declare module '@tanstack/react-router' {
       path: '/api/webhooks/stripe'
       fullPath: '/api/webhooks/stripe'
       preLoaderRoute: typeof ApiWebhooksStripeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/products/$id/asset': {
+      id: '/api/products/$id/asset'
+      path: '/api/products/$id/asset'
+      fullPath: '/api/products/$id/asset'
+      preLoaderRoute: typeof ApiProductsIdAssetRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/static/$collection/': {
@@ -1084,6 +1164,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCmsConfigDotymlRoute: ApiCmsConfigDotymlRoute,
   ApiCmsGraphqlRoute: ApiCmsGraphqlRoute,
   ApiCmsTokenRoute: ApiCmsTokenRoute,
+  ApiDownloadTokenRoute: ApiDownloadTokenRoute,
   ApiFSlugRoute: ApiFSlugRoute,
   ApiGithubAuthorizeRoute: ApiGithubAuthorizeRoute,
   ApiGithubCallbackRoute: ApiGithubCallbackRoute,
@@ -1092,16 +1173,19 @@ const rootRouteChildren: RootRouteChildren = {
   ApiInternalProvisionRoute: ApiInternalProvisionRoute,
   ApiInvitationsAcceptRoute: ApiInvitationsAcceptRoute,
   ApiInvitationsCreateRoute: ApiInvitationsCreateRoute,
+  ApiMeDownloadsRoute: ApiMeDownloadsRoute,
   ApiMeProfileRoute: ApiMeProfileRoute,
   ApiOrdersReferenceRoute: ApiOrdersReferenceRoute,
   ApiPaymentsProviderRoute: ApiPaymentsProviderRoute,
   ApiPublicSignupRoute: ApiPublicSignupRoute,
+  ApiShopProductsRoute: ApiShopProductsRoute,
   ApiTeamIdRoute: ApiTeamIdRouteWithChildren,
   ApiWebhooksGithubRoute: ApiWebhooksGithubRoute,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   ApiResourceIndexRoute: ApiResourceIndexRoute,
   ApiStaticIndexRoute: ApiStaticIndexRoute,
   ApiTeamIndexRoute: ApiTeamIndexRoute,
+  ApiProductsIdAssetRoute: ApiProductsIdAssetRoute,
   ApiStaticCollectionIdRoute: ApiStaticCollectionIdRoute,
   ApiVendorsIdMembersRoute: ApiVendorsIdMembersRoute,
   ApiStaticCollectionIndexRoute: ApiStaticCollectionIndexRoute,

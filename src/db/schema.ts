@@ -303,6 +303,109 @@ export const vendorMembers = sqliteTable(
 )
 
 /**
+ * Something for sale.
+ *
+ * Price is an integer in the smallest unit, like everything else that is money,
+ * and it is copied onto the order line at the moment of sale — so changing it
+ * here changes what the next buyer pays and nothing about what the last one did.
+ *
+ * `vendorId` is null on a single-vendor node and set on a marketplace. Nothing
+ * in this table behaves differently either way; what changes is which policy
+ * lets somebody edit the row.
+ */
+export const products = sqliteTable(
+  'products',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    /** what a storefront URL says */
+    slug: text().notNull().unique(),
+    name: text().notNull(),
+    blurb: text(),
+    /** smallest unit of `currency` on the payment provider */
+    price: integer().notNull().default(0),
+    /** `draft` is invisible; `published` sells; `retired` keeps its orders */
+    status: text().notNull().default('draft'),
+    vendorId: integer('vendor_id'),
+    /**
+     * How many times one purchase may be downloaded, and for how long.
+     *
+     * Not DRM. A determined buyer downloads once and does what they like, and
+     * pretending otherwise would mean building something that annoys honest
+     * people. This is a bound on a link being passed around, which is a
+     * different and much smaller problem.
+     */
+    downloadLimit: integer('download_limit').notNull().default(5),
+    downloadDays: integer('download_days').notNull().default(30),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [index('products_vendor').on(table.vendorId)],
+)
+
+/**
+ * The file somebody is actually buying.
+ *
+ * Stored in the node's own R2 bucket, which every node has had since it was
+ * provisioned and nothing has used until now. The key is opaque and includes a
+ * random part: a bucket is not a public directory, but a guessable key in one
+ * is a worse thing to rely on than a key that cannot be guessed.
+ */
+export const productAssets = sqliteTable(
+  'product_assets',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    productId: integer('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    /** what the buyer's file is called when it lands */
+    filename: text().notNull(),
+    contentType: text('content_type').notNull().default('application/octet-stream'),
+    /** the R2 object key; never shown to anybody */
+    objectKey: text('object_key').notNull(),
+    size: integer().notNull().default(0),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [index('product_assets_product').on(table.productId)],
+)
+
+/**
+ * Somebody's right to download something they paid for.
+ *
+ * The link in the email is not the thing being checked. The link says *which*
+ * entitlement, and this row says whether it may still be used — so a link
+ * forwarded to a friend stops working when the count runs out rather than
+ * never, and a refund can take it away without chasing the email.
+ */
+export const entitlements = sqliteTable(
+  'entitlements',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    orderId: integer('order_id').notNull(),
+    orderItemId: integer('order_item_id').notNull(),
+    productId: integer('product_id').notNull(),
+    /** null for a guest purchase; the email is then the only way back */
+    buyerUserId: text('buyer_user_id'),
+    buyerEmail: text('buyer_email'),
+    downloadsUsed: integer('downloads_used').notNull().default(0),
+    downloadLimit: integer('download_limit').notNull().default(5),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }),
+    /** set by a refund; the file is already read, and this is still worth doing */
+    revokedAt: integer('revoked_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [
+    // One per line, so a webhook delivered twice cannot mint a second right.
+    uniqueIndex('entitlements_order_item').on(table.orderItemId),
+    index('entitlements_buyer').on(table.buyerUserId),
+  ],
+)
+
+/**
  * How this node takes money.
  *
  * One row. The provider is chosen by rootAdmin, who pastes their own keys and

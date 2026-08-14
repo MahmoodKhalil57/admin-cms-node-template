@@ -6,6 +6,11 @@ import type { NodeEnv } from '../env'
 import { open } from '../secrets'
 import { record } from '../events'
 import { providerFor } from './stripe'
+import {
+  emailDownloads,
+  fulfilOrder,
+  revokeForOrder,
+} from '../store/fulfil'
 import type { OrderOutcome, ProviderConfig, VerifiedEvent } from './provider'
 
 /**
@@ -113,7 +118,7 @@ export async function openOrder(
     }),
   )
 
-  void record(db, {
+  await record(db, {
     name: 'order.created',
     subjectType: 'orders',
     subjectId: order!.id,
@@ -154,6 +159,8 @@ export async function applyEvent(
   db: NodeDb,
   providerKey: string,
   event: VerifiedEvent,
+  /** what fulfilment needs, when there is any; omitted by the tests */
+  deliver?: { env: NodeEnv; origin: string },
 ): Promise<Applied> {
   try {
     await db.insert(paymentEvents).values({
@@ -190,7 +197,7 @@ export async function applyEvent(
   // Whether it actually moved matters to whoever is reading this back. An
   // event that arrived too late to mean anything is not a failure, but calling
   // it `applied` would send somebody looking for a change that never happened.
-  const moved = await transition(db, order, outcome)
+  const moved = await transition(db, order, outcome, deliver)
   const result = moved ? 'applied' : 'stale'
   await mark(db, event.id, `${result}:${outcome.status}`)
   return { outcome: result, reference: outcome.reference, status: outcome.status }
@@ -217,8 +224,16 @@ async function mark(
  */
 async function transition(
   db: NodeDb,
-  order: { id: number; reference: string; status: string; total: number },
+  order: {
+    id: number
+    reference: string
+    status: string
+    total: number
+    buyerUserId?: string | null
+    buyerEmail?: string | null
+  },
   outcome: OrderOutcome,
+  deliver?: { env: NodeEnv; origin: string },
 ): Promise<boolean> {
   if (outcome.status === 'paid') {
     if (order.status === 'paid' || order.status === 'refunded') return false
@@ -231,12 +246,40 @@ async function transition(
       })
       .where(eq(orders.id, order.id))
 
-    void record(db, {
+    await record(db, {
       name: 'order.paid',
       subjectType: 'orders',
       subjectId: order.id,
       detail: { reference: order.reference, total: order.total },
     })
+
+    /*
+      Handing over what they bought.
+
+      Inside the transition rather than after it, so it happens exactly where
+      the order becomes paid and nowhere else. Awaited for the rights — a buyer
+      who paid must have them before this returns — and not for the email,
+      which is allowed to be late or to fail.
+    */
+    if (deliver) {
+      const granted = await fulfilOrder(
+        deliver.env,
+        db,
+        {
+          id: order.id,
+          reference: order.reference,
+          buyerUserId: order.buyerUserId ?? null,
+          buyerEmail: order.buyerEmail ?? null,
+        },
+        deliver.origin,
+      )
+      await emailDownloads(
+        deliver.env,
+        db,
+        { reference: order.reference, buyerEmail: order.buyerEmail ?? null },
+        granted,
+      )
+    }
     return true
   }
 
@@ -244,7 +287,7 @@ async function transition(
     // A failure after payment is not a failure of this order.
     if (order.status === 'paid' || order.status === 'refunded') return false
     await db.update(orders).set({ status: 'failed' }).where(eq(orders.id, order.id))
-    void record(db, {
+    await record(db, {
       name: 'order.failed',
       subjectType: 'orders',
       subjectId: order.id,
@@ -264,12 +307,16 @@ async function transition(
       })
       .where(eq(orders.id, order.id))
 
-    void record(db, {
+    await record(db, {
       name: 'order.refunded',
       subjectType: 'orders',
       subjectId: order.id,
       detail: { reference: order.reference, refunded },
     })
+
+    // The file has already been read; taking the link away is still worth
+    // doing, and is the only half of this that is actually possible.
+    if (refunded >= order.total) await revokeForOrder(db, order.id)
     return true
   }
 

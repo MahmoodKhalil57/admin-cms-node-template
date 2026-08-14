@@ -53,7 +53,10 @@ export const Route = createFileRoute('/api/webhooks/stripe')(
           return Response.json({ error: 'Bad signature' }, { status: 400 })
         }
 
-        const applied = await applyEvent(db, 'stripe', event)
+        const applied = await applyEvent(db, 'stripe', event, {
+          env,
+          origin: new URL(request.url).origin,
+        })
         return Response.json({ received: true, ...applied })
       },
     },

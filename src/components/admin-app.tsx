@@ -3,6 +3,8 @@ import { tanStackRouterProvider } from 'ra-router-tanstack'
 import {
   BellRing,
   FileText,
+  Package,
+  Receipt,
   Scale,
   Send,
   Settings2,
@@ -33,6 +35,12 @@ import {
   PolicyList,
 } from '#/components/resources/policies'
 import { ProfileGate } from '#/components/profile-gate'
+import {
+  ProductCreate,
+  ProductEdit,
+  ProductList,
+} from '#/components/resources/products'
+import { OrderList, OrderShow } from '#/components/resources/orders'
 import {
   VendorCreate,
   VendorEdit,
@@ -104,6 +112,7 @@ export function AdminApp() {
   // answer 403 is worse than one that does not offer them.
   const team = enabled.includes('user-management')
   const vendors = enabled.includes('vendors')
+  const payments = enabled.includes('payments')
 
   return (
     <>
@@ -209,6 +218,27 @@ export function AdminApp() {
             create={PolicyCreate}
             icon={Scale}
             recordRepresentation="name"
+          />
+        )}
+
+        {payments && holds(mine, 'products:read') && (
+          <Resource
+            name="products"
+            options={{ label: 'Products', group: 'Shop' }}
+            list={ProductList}
+            edit={ProductEdit}
+            create={ProductCreate}
+            icon={Package}
+            recordRepresentation="name"
+          />
+        )}
+        {payments && holds(mine, 'orders:read') && (
+          <Resource
+            name="orders"
+            options={{ label: 'Orders', group: 'Shop' }}
+            list={OrderList}
+            show={OrderShow}
+            icon={Receipt}
           />
         )}
 

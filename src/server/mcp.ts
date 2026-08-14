@@ -108,6 +108,12 @@ const SUBJECTS: Record<
     plural: 'invitations',
     about: 'An outstanding invitation to join this node.',
   },
+  products: {
+    singular: 'product',
+    plural: 'products',
+    about:
+      'Something for sale. `price` is an integer in the smallest unit of the shop’s currency. Only `published` ones can be bought.',
+  },
   orders: {
     singular: 'order',
     plural: 'orders',

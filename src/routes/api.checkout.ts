@@ -9,7 +9,11 @@ import { openOrder, providerConfig } from '#/server/payments/orders'
 import type { Line } from '#/server/payments/orders'
 import { providerFor } from '#/server/payments/stripe'
 import { eq } from 'drizzle-orm'
-import { orders } from '#/db/schema'
+import { orders, products } from '#/db/schema'
+
+/** A cart, not a wholesale order. Both are bounds on an unauthenticated POST. */
+const MAX_LINES = 20
+const MAX_QTY = 99
 
 /**
  * Starting a checkout.
@@ -19,10 +23,11 @@ import { orders } from '#/db/schema'
  * which is what lets them find it again later; a stranger gives an email and
  * gets a receipt.
  *
- * **What is on sale is not taken from the request.** M3 will look prices up
- * from the products table; until that exists this accepts lines only from an
- * operator who could set the price anyway. A public endpoint that believed a
- * browser about what things cost would be a shop where everything is free.
+ * **What is on sale is not taken from the request.** The browser names product
+ * ids and quantities; every price, name and vendor is read from the database.
+ * A public endpoint that believed a browser about what things cost would be a
+ * shop where everything is free, and it is worth being blunt about that because
+ * the convenient version of this code is the broken one.
  */
 export const Route = createFileRoute('/api/checkout')(
   serverRoute(
@@ -49,36 +54,57 @@ export const Route = createFileRoute('/api/checkout')(
 
         const principal = await principalFrom(env, db, request)
         const body = (await request.json().catch(() => ({}))) as {
-          lines?: Array<Line>
+          items?: Array<{ productId?: number; slug?: string; quantity?: number }>
           email?: string
           successUrl?: string
           cancelUrl?: string
         }
 
-        // Until products exist, only somebody who may already set prices may
-        // name one. This whole branch disappears in M3.
-        const lines = Array.isArray(body.lines) ? body.lines : []
-        if (!lines.length) {
+        const wanted = Array.isArray(body.items) ? body.items : []
+        if (!wanted.length) {
           return Response.json({ error: 'Nothing to buy.' }, { status: 422 })
         }
-        if (!principal || !principal.permissions.includes('forms:write')) {
-          return Response.json(
-            { error: 'Prices are not yet set by the caller.' },
-            { status: 403 },
-          )
+        if (wanted.length > MAX_LINES) {
+          return Response.json({ error: 'Too many items.' }, { status: 422 })
         }
-        for (const line of lines) {
-          if (
-            !Number.isInteger(line.unitAmount) ||
-            line.unitAmount < 0 ||
-            !Number.isInteger(line.quantity) ||
-            line.quantity < 1
-          ) {
+
+        const lines: Array<Line> = []
+        for (const item of wanted) {
+          const quantity = Number(item.quantity ?? 1)
+          if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QTY) {
             return Response.json(
-              { error: 'Amounts are whole numbers of the smallest unit.' },
+              { error: 'Quantities are whole numbers, at least one.' },
               { status: 422 },
             )
           }
+
+          const [product] = await db
+            .select()
+            .from(products)
+            .where(
+              item.slug
+                ? eq(products.slug, String(item.slug))
+                : eq(products.id, Number(item.productId)),
+            )
+            .limit(1)
+
+          // A draft or retired product is indistinguishable from one that never
+          // existed, so an old link cannot be used to buy something withdrawn.
+          if (!product || product.status !== 'published') {
+            return Response.json(
+              { error: 'That is not for sale.' },
+              { status: 404 },
+            )
+          }
+
+          lines.push({
+            name: product.name,
+            unitAmount: product.price,
+            quantity,
+            vendorId: product.vendorId,
+            subjectType: 'product',
+            subjectId: String(product.id),
+          })
         }
 
         const origin = new URL(request.url).origin

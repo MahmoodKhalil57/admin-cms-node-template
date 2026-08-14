@@ -109,7 +109,7 @@ export const Route = createFileRoute('/api/vendors/$id/members')(
         .values({ vendorId, userId })
         .returning()
 
-      void record(db, {
+      await record(db, {
         name: 'vendor.member_added',
         actor: principal,
         vendorId,
@@ -144,7 +144,7 @@ export const Route = createFileRoute('/api/vendors/$id/members')(
           ),
         )
 
-      void record(db, {
+      await record(db, {
         name: 'vendor.member_removed',
         actor: principal,
         vendorId,
