@@ -93,6 +93,17 @@ export const PERMISSION_CATALOG: Array<PermissionDefinition> = [
     name: 'See site content',
     description: "Open the site's pages, symbols and settings.",
     feature: 'github-pages',
+    /**
+     * The three levels a rule about a site can name, from the repo's own CMS
+     * configuration. A collection is what a designer sees in the sidebar; an
+     * entry is one singleton or one page inside it; a field is one key of the
+     * document. Left blank, the grant covers the whole site.
+     */
+    scopes: [
+      { field: 'collection', label: 'Only these collections' },
+      { field: 'file', label: 'Only these entries' },
+      { field: 'field', label: 'Only these fields' },
+    ],
   },
   {
     key: 'content:write',
@@ -101,6 +112,17 @@ export const PERMISSION_CATALOG: Array<PermissionDefinition> = [
     description:
       'Change the site content and the page builder. Every save is a commit.',
     feature: 'github-pages',
+    /**
+     * The three levels a rule about a site can name, from the repo's own CMS
+     * configuration. A collection is what a designer sees in the sidebar; an
+     * entry is one singleton or one page inside it; a field is one key of the
+     * document. Left blank, the grant covers the whole site.
+     */
+    scopes: [
+      { field: 'collection', label: 'Only these collections' },
+      { field: 'file', label: 'Only these entries' },
+      { field: 'field', label: 'Only these fields' },
+    ],
   },
   {
     key: 'config:write',

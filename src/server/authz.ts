@@ -115,6 +115,40 @@ async function resolvePrincipal(
     if (!session) return null
     user = session.user as unknown as SessionUser
   }
+
+  return grantFor(db, user, Boolean(bearer))
+}
+
+/**
+ * Everything a principal is, once it is known which account is asking.
+ *
+ * Split from the lookup because there is more than one way to arrive: a session
+ * cookie, a key, and now a signed CMS token, which names an account without
+ * carrying a session at all. All three end here, so all three get the same
+ * answer about what that account may do.
+ */
+export async function principalForUserId(
+  env: NodeEnv,
+  db: NodeDb,
+  userId: string,
+): Promise<Principal | null> {
+  const found = await (
+    await getAuth(env).$context
+  ).adapter.findOne({
+    model: 'user',
+    where: [{ field: 'id', value: userId }],
+  })
+  const user = (found as SessionUser | null) ?? null
+  // A token naming an account that has since been removed names nothing.
+  if (!user) return null
+  return grantFor(db, user, false)
+}
+
+async function grantFor(
+  db: NodeDb,
+  user: SessionUser,
+  bearer: boolean,
+): Promise<Principal> {
   // Seeded by master, so this is the account the node was handed over to.
   const isOwner = Boolean(user.masterUserId)
   // A permission for a feature that has since been switched off is not a

@@ -27,6 +27,9 @@ import { Route as ApiBuilderFileRouteImport } from './routes/api.builder.file'
 import { Route as ApiCloudflareApplyRouteImport } from './routes/api.cloudflare.apply'
 import { Route as ApiCloudflareAuthorizeRouteImport } from './routes/api.cloudflare.authorize'
 import { Route as ApiCloudflareCallbackRouteImport } from './routes/api.cloudflare.callback'
+import { Route as ApiCmsAuthRouteImport } from './routes/api.cms.auth'
+import { Route as ApiCmsConfigDotymlRouteImport } from './routes/api.cms.config[.]yml'
+import { Route as ApiCmsGraphqlRouteImport } from './routes/api.cms.graphql'
 import { Route as ApiFSlugRouteImport } from './routes/api.f.$slug'
 import { Route as ApiGithubAuthorizeRouteImport } from './routes/api.github.authorize'
 import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
@@ -45,6 +48,7 @@ import { Route as ApiWebhooksGithubRouteImport } from './routes/api.webhooks.git
 import { Route as ApiStaticCollectionIndexRouteImport } from './routes/api.static.$collection.index'
 import { Route as ApiStaticCollectionIdRouteImport } from './routes/api.static.$collection.$id'
 import { Route as ApiTeamIdKeysRouteImport } from './routes/api.team.$id.keys'
+import { Route as ApiCmsApiV3SplatRouteImport } from './routes/api.cms.api.v3.$'
 import { Route as ApiPublicFormsSlugIndexRouteImport } from './routes/api.public.forms.$slug.index'
 import { Route as ApiPublicFormsSlugSubmissionsRouteImport } from './routes/api.public.forms.$slug.submissions'
 
@@ -138,6 +142,21 @@ const ApiCloudflareCallbackRoute = ApiCloudflareCallbackRouteImport.update({
   path: '/api/cloudflare/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCmsAuthRoute = ApiCmsAuthRouteImport.update({
+  id: '/api/cms/auth',
+  path: '/api/cms/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCmsConfigDotymlRoute = ApiCmsConfigDotymlRouteImport.update({
+  id: '/api/cms/config.yml',
+  path: '/api/cms/config.yml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCmsGraphqlRoute = ApiCmsGraphqlRouteImport.update({
+  id: '/api/cms/graphql',
+  path: '/api/cms/graphql',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiFSlugRoute = ApiFSlugRouteImport.update({
   id: '/api/f/$slug',
   path: '/api/f/$slug',
@@ -229,6 +248,11 @@ const ApiTeamIdKeysRoute = ApiTeamIdKeysRouteImport.update({
   path: '/keys',
   getParentRoute: () => ApiTeamIdRoute,
 } as any)
+const ApiCmsApiV3SplatRoute = ApiCmsApiV3SplatRouteImport.update({
+  id: '/api/cms/api/v3/$',
+  path: '/api/cms/api/v3/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicFormsSlugIndexRoute = ApiPublicFormsSlugIndexRouteImport.update({
   id: '/api/public/forms/$slug/',
   path: '/api/public/forms/$slug/',
@@ -259,6 +283,9 @@ export interface FileRoutesByFullPath {
   '/api/cloudflare/apply': typeof ApiCloudflareApplyRoute
   '/api/cloudflare/authorize': typeof ApiCloudflareAuthorizeRoute
   '/api/cloudflare/callback': typeof ApiCloudflareCallbackRoute
+  '/api/cms/auth': typeof ApiCmsAuthRoute
+  '/api/cms/config.yml': typeof ApiCmsConfigDotymlRoute
+  '/api/cms/graphql': typeof ApiCmsGraphqlRoute
   '/api/f/$slug': typeof ApiFSlugRoute
   '/api/github/authorize': typeof ApiGithubAuthorizeRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
@@ -278,6 +305,7 @@ export interface FileRoutesByFullPath {
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
   '/api/team/$id/keys': typeof ApiTeamIdKeysRoute
   '/api/static/$collection/': typeof ApiStaticCollectionIndexRoute
+  '/api/cms/api/v3/$': typeof ApiCmsApiV3SplatRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
   '/api/public/forms/$slug/': typeof ApiPublicFormsSlugIndexRoute
 }
@@ -299,6 +327,9 @@ export interface FileRoutesByTo {
   '/api/cloudflare/apply': typeof ApiCloudflareApplyRoute
   '/api/cloudflare/authorize': typeof ApiCloudflareAuthorizeRoute
   '/api/cloudflare/callback': typeof ApiCloudflareCallbackRoute
+  '/api/cms/auth': typeof ApiCmsAuthRoute
+  '/api/cms/config.yml': typeof ApiCmsConfigDotymlRoute
+  '/api/cms/graphql': typeof ApiCmsGraphqlRoute
   '/api/f/$slug': typeof ApiFSlugRoute
   '/api/github/authorize': typeof ApiGithubAuthorizeRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
@@ -318,6 +349,7 @@ export interface FileRoutesByTo {
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
   '/api/team/$id/keys': typeof ApiTeamIdKeysRoute
   '/api/static/$collection': typeof ApiStaticCollectionIndexRoute
+  '/api/cms/api/v3/$': typeof ApiCmsApiV3SplatRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
   '/api/public/forms/$slug': typeof ApiPublicFormsSlugIndexRoute
 }
@@ -340,6 +372,9 @@ export interface FileRoutesById {
   '/api/cloudflare/apply': typeof ApiCloudflareApplyRoute
   '/api/cloudflare/authorize': typeof ApiCloudflareAuthorizeRoute
   '/api/cloudflare/callback': typeof ApiCloudflareCallbackRoute
+  '/api/cms/auth': typeof ApiCmsAuthRoute
+  '/api/cms/config.yml': typeof ApiCmsConfigDotymlRoute
+  '/api/cms/graphql': typeof ApiCmsGraphqlRoute
   '/api/f/$slug': typeof ApiFSlugRoute
   '/api/github/authorize': typeof ApiGithubAuthorizeRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
@@ -359,6 +394,7 @@ export interface FileRoutesById {
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
   '/api/team/$id/keys': typeof ApiTeamIdKeysRoute
   '/api/static/$collection/': typeof ApiStaticCollectionIndexRoute
+  '/api/cms/api/v3/$': typeof ApiCmsApiV3SplatRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
   '/api/public/forms/$slug/': typeof ApiPublicFormsSlugIndexRoute
 }
@@ -382,6 +418,9 @@ export interface FileRouteTypes {
     | '/api/cloudflare/apply'
     | '/api/cloudflare/authorize'
     | '/api/cloudflare/callback'
+    | '/api/cms/auth'
+    | '/api/cms/config.yml'
+    | '/api/cms/graphql'
     | '/api/f/$slug'
     | '/api/github/authorize'
     | '/api/github/callback'
@@ -401,6 +440,7 @@ export interface FileRouteTypes {
     | '/api/static/$collection/$id'
     | '/api/team/$id/keys'
     | '/api/static/$collection/'
+    | '/api/cms/api/v3/$'
     | '/api/public/forms/$slug/submissions'
     | '/api/public/forms/$slug/'
   fileRoutesByTo: FileRoutesByTo
@@ -422,6 +462,9 @@ export interface FileRouteTypes {
     | '/api/cloudflare/apply'
     | '/api/cloudflare/authorize'
     | '/api/cloudflare/callback'
+    | '/api/cms/auth'
+    | '/api/cms/config.yml'
+    | '/api/cms/graphql'
     | '/api/f/$slug'
     | '/api/github/authorize'
     | '/api/github/callback'
@@ -441,6 +484,7 @@ export interface FileRouteTypes {
     | '/api/static/$collection/$id'
     | '/api/team/$id/keys'
     | '/api/static/$collection'
+    | '/api/cms/api/v3/$'
     | '/api/public/forms/$slug/submissions'
     | '/api/public/forms/$slug'
   id:
@@ -462,6 +506,9 @@ export interface FileRouteTypes {
     | '/api/cloudflare/apply'
     | '/api/cloudflare/authorize'
     | '/api/cloudflare/callback'
+    | '/api/cms/auth'
+    | '/api/cms/config.yml'
+    | '/api/cms/graphql'
     | '/api/f/$slug'
     | '/api/github/authorize'
     | '/api/github/callback'
@@ -481,6 +528,7 @@ export interface FileRouteTypes {
     | '/api/static/$collection/$id'
     | '/api/team/$id/keys'
     | '/api/static/$collection/'
+    | '/api/cms/api/v3/$'
     | '/api/public/forms/$slug/submissions'
     | '/api/public/forms/$slug/'
   fileRoutesById: FileRoutesById
@@ -503,6 +551,9 @@ export interface RootRouteChildren {
   ApiCloudflareApplyRoute: typeof ApiCloudflareApplyRoute
   ApiCloudflareAuthorizeRoute: typeof ApiCloudflareAuthorizeRoute
   ApiCloudflareCallbackRoute: typeof ApiCloudflareCallbackRoute
+  ApiCmsAuthRoute: typeof ApiCmsAuthRoute
+  ApiCmsConfigDotymlRoute: typeof ApiCmsConfigDotymlRoute
+  ApiCmsGraphqlRoute: typeof ApiCmsGraphqlRoute
   ApiFSlugRoute: typeof ApiFSlugRoute
   ApiGithubAuthorizeRoute: typeof ApiGithubAuthorizeRoute
   ApiGithubCallbackRoute: typeof ApiGithubCallbackRoute
@@ -520,6 +571,7 @@ export interface RootRouteChildren {
   ApiTeamIndexRoute: typeof ApiTeamIndexRoute
   ApiStaticCollectionIdRoute: typeof ApiStaticCollectionIdRoute
   ApiStaticCollectionIndexRoute: typeof ApiStaticCollectionIndexRoute
+  ApiCmsApiV3SplatRoute: typeof ApiCmsApiV3SplatRoute
   ApiPublicFormsSlugSubmissionsRoute: typeof ApiPublicFormsSlugSubmissionsRoute
   ApiPublicFormsSlugIndexRoute: typeof ApiPublicFormsSlugIndexRoute
 }
@@ -652,6 +704,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCloudflareCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cms/auth': {
+      id: '/api/cms/auth'
+      path: '/api/cms/auth'
+      fullPath: '/api/cms/auth'
+      preLoaderRoute: typeof ApiCmsAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cms/config.yml': {
+      id: '/api/cms/config.yml'
+      path: '/api/cms/config.yml'
+      fullPath: '/api/cms/config.yml'
+      preLoaderRoute: typeof ApiCmsConfigDotymlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cms/graphql': {
+      id: '/api/cms/graphql'
+      path: '/api/cms/graphql'
+      fullPath: '/api/cms/graphql'
+      preLoaderRoute: typeof ApiCmsGraphqlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/f/$slug': {
       id: '/api/f/$slug'
       path: '/api/f/$slug'
@@ -778,6 +851,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTeamIdKeysRouteImport
       parentRoute: typeof ApiTeamIdRoute
     }
+    '/api/cms/api/v3/$': {
+      id: '/api/cms/api/v3/$'
+      path: '/api/cms/api/v3/$'
+      fullPath: '/api/cms/api/v3/$'
+      preLoaderRoute: typeof ApiCmsApiV3SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/forms/$slug/': {
       id: '/api/public/forms/$slug/'
       path: '/api/public/forms/$slug'
@@ -837,6 +917,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCloudflareApplyRoute: ApiCloudflareApplyRoute,
   ApiCloudflareAuthorizeRoute: ApiCloudflareAuthorizeRoute,
   ApiCloudflareCallbackRoute: ApiCloudflareCallbackRoute,
+  ApiCmsAuthRoute: ApiCmsAuthRoute,
+  ApiCmsConfigDotymlRoute: ApiCmsConfigDotymlRoute,
+  ApiCmsGraphqlRoute: ApiCmsGraphqlRoute,
   ApiFSlugRoute: ApiFSlugRoute,
   ApiGithubAuthorizeRoute: ApiGithubAuthorizeRoute,
   ApiGithubCallbackRoute: ApiGithubCallbackRoute,
@@ -854,6 +937,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiTeamIndexRoute: ApiTeamIndexRoute,
   ApiStaticCollectionIdRoute: ApiStaticCollectionIdRoute,
   ApiStaticCollectionIndexRoute: ApiStaticCollectionIndexRoute,
+  ApiCmsApiV3SplatRoute: ApiCmsApiV3SplatRoute,
   ApiPublicFormsSlugSubmissionsRoute: ApiPublicFormsSlugSubmissionsRoute,
   ApiPublicFormsSlugIndexRoute: ApiPublicFormsSlugIndexRoute,
 }
