@@ -366,8 +366,9 @@ export async function requirePermission(
 }
 
 export function forbidden(permission: string): Response {
-  return Response.json(
-    { error: `Not allowed. This needs "${permission}".` },
-    { status: 403 },
-  )
+  const said = `Not allowed. This needs "${permission}".`
+  // `message` as well as `error`: react-admin reads the first, and the rest of
+  // this API answers with the second. Sending only one meant every refusal the
+  // panel showed was the word "HTTPError".
+  return Response.json({ error: said, message: said }, { status: 403 })
 }

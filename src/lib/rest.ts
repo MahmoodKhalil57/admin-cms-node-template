@@ -247,6 +247,28 @@ function buildWhere(
   return conditions.length > 0 ? and(...conditions) : undefined
 }
 
+/**
+ * Turns a thrown error into an answer somebody can read.
+ *
+ * Without this an exception escapes into the runtime and comes back as a 500
+ * whose body says `HTTPError` — which tells whoever is looking at the panel
+ * nothing at all, including whether it was their fault. `message` as well as
+ * `error` because react-admin reads the first and the rest of this API answers
+ * with the second.
+ */
+async function answering<T>(run: () => Promise<T>): Promise<T | Response> {
+  try {
+    return await run()
+  } catch (error) {
+    const detail =
+      error instanceof Error ? error.message : 'Something went wrong.'
+    return Response.json(
+      { error: detail, message: detail },
+      { status: 500 },
+    )
+  }
+}
+
 export async function listResource(
   db: NodeDb,
   features: Array<string>,
@@ -254,6 +276,7 @@ export async function listResource(
   url: URL,
   principal: Principal | null,
 ) {
+  return answering(async () => {
   const table = resolveResource(resource, features)
   if (!table) return notFound(resource)
 
@@ -303,6 +326,7 @@ export async function listResource(
       'Access-Control-Expose-Headers': 'Content-Range',
     },
   })
+  })
 }
 
 export async function getResource(
@@ -312,6 +336,7 @@ export async function getResource(
   id: string,
   principal: Principal | null,
 ) {
+  return answering(async () => {
   const table = resolveResource(resource, features)
   if (!table) return notFound(resource)
 
@@ -332,6 +357,7 @@ export async function getResource(
     return Response.json({ error: 'Not found' }, { status: 404 })
   }
   return Response.json(row)
+  })
 }
 
 export async function createResource(
@@ -341,6 +367,7 @@ export async function createResource(
   request: Request,
   principal: Principal | null,
 ) {
+  return answering(async () => {
   const table = resolveResource(resource, features)
   if (!table) return notFound(resource)
 
@@ -360,6 +387,7 @@ export async function createResource(
 
   await noted(db, 'resource.created', resource, rows[0], principal)
   return Response.json(rows[0], { status: 201 })
+  })
 }
 
 export async function updateResource(
@@ -370,6 +398,7 @@ export async function updateResource(
   request: Request,
   principal: Principal | null,
 ) {
+  return answering(async () => {
   const table = resolveResource(resource, features)
   if (!table) return notFound(resource)
 
@@ -394,6 +423,7 @@ export async function updateResource(
   if (!rows[0]) return Response.json({ error: 'Not found' }, { status: 404 })
   await noted(db, 'resource.updated', resource, rows[0], principal)
   return Response.json(rows[0])
+  })
 }
 
 export async function deleteResource(
@@ -403,6 +433,7 @@ export async function deleteResource(
   id: string,
   principal: Principal | null,
 ) {
+  return answering(async () => {
   const table = resolveResource(resource, features)
   if (!table) return notFound(resource)
 
@@ -423,6 +454,7 @@ export async function deleteResource(
   if (!rows[0]) return Response.json({ error: 'Not found' }, { status: 404 })
   await noted(db, 'resource.deleted', resource, rows[0], principal)
   return Response.json(rows[0])
+  })
 }
 
 /**
@@ -469,8 +501,27 @@ function stripReadOnly(table: LooseTable, body: Record<string, unknown>) {
   const values: Record<string, unknown> = {}
 
   for (const [key, value] of Object.entries(body)) {
-    if (key === 'id' || key === 'createdAt') continue
-    if (!columns[key]) continue
+    if (key === 'id') continue
+    const column = columns[key]
+    if (!column) continue
+
+    /*
+      Timestamps are the server's.
+
+      react-admin round-trips the whole record on update, so every date it was
+      shown comes back as an ISO string — and Drizzle's timestamp columns want a
+      Date, so one of those thrown at an update is an exception rather than a
+      validation error. It surfaced as an unhandled 500 reading "HTTPError",
+      which is the least useful sentence a panel can print.
+
+      Dropped rather than parsed, because none of them is a field anybody is
+      editing: `createdAt` is when the row appeared and `updatedAt` is when it
+      last changed, and both are facts the database keeps rather than opinions
+      a form holds. Anything else that is a timestamp is treated the same way
+      for the same reason, so a table added later cannot reintroduce this.
+    */
+    if (column.dataType === 'date') continue
+
     values[key] = value
   }
 

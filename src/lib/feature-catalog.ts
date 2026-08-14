@@ -80,7 +80,12 @@ export const FEATURE_CATALOG: Array<FeatureDefinition> = [
     description:
       'Connect GitHub and publish a static website that posts to this node. ' +
       'Create one from the starter template, or adopt a repository you already have.',
-    defaultEnabled: false,
+    // On from the start. A node exists to be the back end of a website, so
+    // arriving with the website switched off makes the first thing anybody
+    // does a step they did not know they needed. Nothing is published until
+    // GitHub is actually connected, so this costs a node that never uses it
+    // nothing at all.
+    defaultEnabled: true,
   },
 ]
 

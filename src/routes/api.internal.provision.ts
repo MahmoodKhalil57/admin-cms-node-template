@@ -10,6 +10,8 @@ import { ensureFeatureRows } from '#/server/features'
 interface SeedRequest {
   email: string
   password: string
+  /** replace the owner's password when they already exist */
+  reset?: boolean
   name?: string
   /** the master account this operator corresponds to */
   masterUserId?: string
@@ -72,11 +74,70 @@ export const Route = createFileRoute('/api/internal/provision')(
 
         const existing = await ctx.internalAdapter.findUserByEmail(body.email)
         if (existing) {
+          /*
+            The owner is already here, which is the ordinary outcome of a
+            reprovision. Their password is left alone unless master explicitly
+            asks — a redeploy must not change somebody's credentials underneath
+            them.
+
+            When it does ask, the password is genuinely applied. It used to be
+            returned by master without being set, which is the worst kind of
+            wrong: a credential that looks real, is written down, and refuses to
+            work.
+          */
+          if (!body.reset) {
+            return Response.json({
+              ok: true,
+              migrated,
+              featuresAdded,
+              seeded: false,
+              reset: false,
+            })
+          }
+
+          const hash = await ctx.password.hash(body.password)
+          const accounts = await ctx.adapter.findMany<{
+            id: string
+            providerId: string
+          }>({
+            model: 'account',
+            where: [{ field: 'userId', value: existing.user.id }],
+          })
+          const credential = accounts.find(
+            (account) => account.providerId === 'credential',
+          )
+
+          if (credential) {
+            await ctx.adapter.update({
+              model: 'account',
+              where: [{ field: 'id', value: credential.id }],
+              update: { password: hash },
+            })
+          } else {
+            // Signed up by a code or a passkey and never given a password.
+            // Linking one now is what makes the reset mean anything.
+            await ctx.internalAdapter.linkAccount({
+              userId: existing.user.id,
+              accountId: existing.user.id,
+              providerId: 'credential',
+              password: hash,
+            })
+          }
+
+          // Every live session ends. A reset that left the old ones running
+          // would not be a reset.
+          await ctx.adapter.deleteMany({
+            model: 'session',
+            where: [{ field: 'userId', value: existing.user.id }],
+          })
+
           return Response.json({
             ok: true,
             migrated,
             featuresAdded,
             seeded: false,
+            reset: true,
+            userId: existing.user.id,
           })
         }
 
