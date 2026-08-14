@@ -1,7 +1,11 @@
 import { eq, inArray } from 'drizzle-orm'
 
 import type { NodeDb } from '#/db'
-import { policies as policiesTable, roles as rolesTable } from '#/db/schema'
+import {
+  policies as policiesTable,
+  roles as rolesTable,
+  vendorMembers,
+} from '#/db/schema'
 import type { RoleCondition } from '#/db/schema'
 import { permissionKeys } from '#/lib/permission-catalog'
 import type { NodeEnv } from './env'
@@ -45,6 +49,14 @@ export interface Principal {
   /** a key acting as this account, rather than the person at a browser */
   viaKey: boolean
   roleKey: string | null
+  /**
+   * The vendors this account acts for.
+   *
+   * Empty for everybody who is not one, which is most accounts and every
+   * single-vendor node. A rule written as `{ vendorId: { mine: true } }` reads
+   * against this, so the same policy serves every vendor without naming any.
+   */
+  vendorIds: Array<number>
   permissions: Array<string>
   grant: Grant
 }
@@ -206,11 +218,21 @@ async function grantFor(
     )
   }
 
+  // One query, and empty for almost everyone — a node with no marketplace has
+  // no rows here at all.
+  const vendorIds = (
+    await db
+      .select({ vendorId: vendorMembers.vendorId })
+      .from(vendorMembers)
+      .where(eq(vendorMembers.userId, user.id))
+  ).map((row) => row.vendorId)
+
   const identity = {
     userId: user.id,
     email: user.email,
     name: user.name ?? null,
     viaKey: Boolean(bearer),
+    vendorIds,
   }
 
   if (isOwner) {
@@ -317,7 +339,10 @@ export function allows(
 ): boolean {
   if (!principal) return false
   if (principal.isOwner) return true
-  return grantAllows(principal.grant, permission, record, principal.userId)
+  return grantAllows(principal.grant, permission, record, {
+    userId: principal.userId,
+    vendorIds: principal.vendorIds,
+  })
 }
 
 /**

@@ -200,34 +200,57 @@ export function intersect(outer: Grant, inner: Grant): Grant {
  * against the rule directly. A condition that only filtered lists would be a
  * display preference rather than a permission.
  */
+export interface Asker {
+  userId: string
+  /** vendors this account acts for; empty for everyone who is not one */
+  vendorIds: Array<number>
+}
+
+/** Accepts a bare user id for the many callers that have no vendor question. */
+function askerOf(who: Asker | string): Asker {
+  return typeof who === 'string' ? { userId: who, vendorIds: [] } : who
+}
+
 export function grantAllows(
   grant: Grant,
   permission: string,
   record: Record<string, unknown>,
-  userId: string,
+  who: Asker | string,
 ): boolean {
+  const userId = who
   if (!grant.permissions.includes(permission)) return false
 
   // Every group, each satisfied by any one of its conditions.
+  const asker = askerOf(userId)
   const groups = grant.allow[permission] ?? []
   const allowed = groups.every((group) =>
-    group.some((way) => matches(way, record, userId)),
+    group.some((way) => matches(way, record, asker)),
   )
   if (!allowed) return false
 
   const refusals = grant.deny[permission] ?? []
-  return !refusals.some((refusal) => matches(refusal, record, userId))
+  return !refusals.some((refusal) => matches(refusal, record, asker))
 }
 
 /** Whether a record satisfies every field of one condition. */
 export function matches(
   condition: RoleCondition,
   record: Record<string, unknown>,
-  userId: string,
+  who: Asker | string,
 ): boolean {
+  const asker = askerOf(who)
   return Object.entries(condition).every(([field, rule]) => {
     const value = record[field]
-    if (rule.self) return String(value) === userId
+    // Resolved against the asker rather than written down, so one rule serves
+    // everybody who holds it.
+    if (rule.mine) {
+      return (
+        value !== null &&
+        value !== undefined &&
+        asker.vendorIds.includes(Number(value))
+      )
+    }
+    if (rule.self) return String(value) === asker.userId
     if (rule.eq !== undefined) return String(value) === String(rule.eq)
     if (rule.in) return rule.in.map(String).includes(String(value))
     // A rule that says nothing is not a rule that says yes to everything by

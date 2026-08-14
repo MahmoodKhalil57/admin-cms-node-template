@@ -321,3 +321,85 @@ describe('two gates', () => {
     expect(grantAllows(grant, 'forms:read', {}, 'u1')).toBe(false)
   })
 })
+
+/**
+ * Vendor ownership.
+ *
+ * The rule that makes a marketplace one role instead of forty. `mine` resolves
+ * against the vendors the asking account acts for, so the same policy serves
+ * every vendor — and the failure that matters is one vendor reading another's
+ * rows, which looks like nothing at all from the screen.
+ */
+describe('own vendor', () => {
+  const scoped = (field: string) =>
+    evaluate({
+      ...bare,
+      available: ['submissions:read'],
+      permissions: ['submissions:read'],
+      conditions: { 'submissions:read': { [field]: { mine: true } } },
+    })
+
+  const acting = (...vendorIds: Array<number>) => ({ userId: 'u1', vendorIds })
+
+  test('reaches a row belonging to a vendor they act for', () => {
+    expect(
+      grantAllows(scoped('vendorId'), 'submissions:read', { vendorId: 7 }, acting(7)),
+    ).toBe(true)
+  })
+
+  test('does not reach another vendor’s row', () => {
+    expect(
+      grantAllows(scoped('vendorId'), 'submissions:read', { vendorId: 8 }, acting(7)),
+    ).toBe(false)
+  })
+
+  test('reaches every vendor they act for, and no more', () => {
+    const grant = scoped('vendorId')
+    expect(grantAllows(grant, 'submissions:read', { vendorId: 7 }, acting(7, 9))).toBe(true)
+    expect(grantAllows(grant, 'submissions:read', { vendorId: 9 }, acting(7, 9))).toBe(true)
+    expect(grantAllows(grant, 'submissions:read', { vendorId: 8 }, acting(7, 9))).toBe(false)
+  })
+
+  test('an account acting for nobody reaches nothing', () => {
+    expect(
+      grantAllows(scoped('vendorId'), 'submissions:read', { vendorId: 7 }, acting()),
+    ).toBe(false)
+  })
+
+  test('a row belonging to no vendor is not everybody’s', () => {
+    // The unowned row is the one that quietly appears in every vendor's list if
+    // null is treated as a match.
+    const grant = scoped('vendorId')
+    expect(grantAllows(grant, 'submissions:read', { vendorId: null }, acting(7))).toBe(false)
+    expect(grantAllows(grant, 'submissions:read', {}, acting(7))).toBe(false)
+  })
+
+  test('a string id from the wire still matches', () => {
+    expect(
+      grantAllows(scoped('vendorId'), 'submissions:read', { vendorId: '7' }, acting(7)),
+    ).toBe(true)
+  })
+
+  test('a bare user id means no vendors, not all of them', () => {
+    // Every existing caller passes a plain string. None of them may
+    // accidentally satisfy a vendor rule.
+    expect(
+      grantAllows(scoped('vendorId'), 'submissions:read', { vendorId: 7 }, 'u1'),
+    ).toBe(false)
+  })
+
+  test('a key scoped to one vendor cannot reach the account’s other', () => {
+    // Both gates again, with the vendor rule on one side: the account acts for
+    // 7 and 9, the key it minted names only 7.
+    const account = scoped('vendorId')
+    const key = evaluate({
+      ...bare,
+      available: ['submissions:read'],
+      permissions: ['submissions:read'],
+      conditions: { 'submissions:read': { vendorId: { in: [7] } } },
+    })
+    const both = intersect(account, key)
+    expect(grantAllows(both, 'submissions:read', { vendorId: 7 }, acting(7, 9))).toBe(true)
+    expect(grantAllows(both, 'submissions:read', { vendorId: 9 }, acting(7, 9))).toBe(false)
+  })
+})

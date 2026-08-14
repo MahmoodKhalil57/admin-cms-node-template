@@ -51,6 +51,7 @@ import { Route as ApiStaticCollectionIndexRouteImport } from './routes/api.stati
 import { Route as ApiStaticCollectionIdRouteImport } from './routes/api.static.$collection.$id'
 import { Route as ApiTeamIdKeysRouteImport } from './routes/api.team.$id.keys'
 import { Route as ApiTeamIdPermissionsRouteImport } from './routes/api.team.$id.permissions'
+import { Route as ApiVendorsIdMembersRouteImport } from './routes/api.vendors.$id.members'
 import { Route as ApiCmsApiV3SplatRouteImport } from './routes/api.cms.api.v3.$'
 import { Route as ApiPublicFormsSlugIndexRouteImport } from './routes/api.public.forms.$slug.index'
 import { Route as ApiPublicFormsSlugSubmissionsRouteImport } from './routes/api.public.forms.$slug.submissions'
@@ -266,6 +267,11 @@ const ApiTeamIdPermissionsRoute = ApiTeamIdPermissionsRouteImport.update({
   path: '/permissions',
   getParentRoute: () => ApiTeamIdRoute,
 } as any)
+const ApiVendorsIdMembersRoute = ApiVendorsIdMembersRouteImport.update({
+  id: '/api/vendors/$id/members',
+  path: '/api/vendors/$id/members',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCmsApiV3SplatRoute = ApiCmsApiV3SplatRouteImport.update({
   id: '/api/cms/api/v3/$',
   path: '/api/cms/api/v3/$',
@@ -325,6 +331,7 @@ export interface FileRoutesByFullPath {
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
   '/api/team/$id/keys': typeof ApiTeamIdKeysRoute
   '/api/team/$id/permissions': typeof ApiTeamIdPermissionsRoute
+  '/api/vendors/$id/members': typeof ApiVendorsIdMembersRoute
   '/api/static/$collection/': typeof ApiStaticCollectionIndexRoute
   '/api/cms/api/v3/$': typeof ApiCmsApiV3SplatRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
@@ -372,6 +379,7 @@ export interface FileRoutesByTo {
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
   '/api/team/$id/keys': typeof ApiTeamIdKeysRoute
   '/api/team/$id/permissions': typeof ApiTeamIdPermissionsRoute
+  '/api/vendors/$id/members': typeof ApiVendorsIdMembersRoute
   '/api/static/$collection': typeof ApiStaticCollectionIndexRoute
   '/api/cms/api/v3/$': typeof ApiCmsApiV3SplatRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
@@ -420,6 +428,7 @@ export interface FileRoutesById {
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
   '/api/team/$id/keys': typeof ApiTeamIdKeysRoute
   '/api/team/$id/permissions': typeof ApiTeamIdPermissionsRoute
+  '/api/vendors/$id/members': typeof ApiVendorsIdMembersRoute
   '/api/static/$collection/': typeof ApiStaticCollectionIndexRoute
   '/api/cms/api/v3/$': typeof ApiCmsApiV3SplatRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
@@ -469,6 +478,7 @@ export interface FileRouteTypes {
     | '/api/static/$collection/$id'
     | '/api/team/$id/keys'
     | '/api/team/$id/permissions'
+    | '/api/vendors/$id/members'
     | '/api/static/$collection/'
     | '/api/cms/api/v3/$'
     | '/api/public/forms/$slug/submissions'
@@ -516,6 +526,7 @@ export interface FileRouteTypes {
     | '/api/static/$collection/$id'
     | '/api/team/$id/keys'
     | '/api/team/$id/permissions'
+    | '/api/vendors/$id/members'
     | '/api/static/$collection'
     | '/api/cms/api/v3/$'
     | '/api/public/forms/$slug/submissions'
@@ -563,6 +574,7 @@ export interface FileRouteTypes {
     | '/api/static/$collection/$id'
     | '/api/team/$id/keys'
     | '/api/team/$id/permissions'
+    | '/api/vendors/$id/members'
     | '/api/static/$collection/'
     | '/api/cms/api/v3/$'
     | '/api/public/forms/$slug/submissions'
@@ -608,6 +620,7 @@ export interface RootRouteChildren {
   ApiStaticIndexRoute: typeof ApiStaticIndexRoute
   ApiTeamIndexRoute: typeof ApiTeamIndexRoute
   ApiStaticCollectionIdRoute: typeof ApiStaticCollectionIdRoute
+  ApiVendorsIdMembersRoute: typeof ApiVendorsIdMembersRoute
   ApiStaticCollectionIndexRoute: typeof ApiStaticCollectionIndexRoute
   ApiCmsApiV3SplatRoute: typeof ApiCmsApiV3SplatRoute
   ApiPublicFormsSlugSubmissionsRoute: typeof ApiPublicFormsSlugSubmissionsRoute
@@ -910,6 +923,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTeamIdPermissionsRouteImport
       parentRoute: typeof ApiTeamIdRoute
     }
+    '/api/vendors/$id/members': {
+      id: '/api/vendors/$id/members'
+      path: '/api/vendors/$id/members'
+      fullPath: '/api/vendors/$id/members'
+      preLoaderRoute: typeof ApiVendorsIdMembersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/cms/api/v3/$': {
       id: '/api/cms/api/v3/$'
       path: '/api/cms/api/v3/$'
@@ -999,6 +1019,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiStaticIndexRoute: ApiStaticIndexRoute,
   ApiTeamIndexRoute: ApiTeamIndexRoute,
   ApiStaticCollectionIdRoute: ApiStaticCollectionIdRoute,
+  ApiVendorsIdMembersRoute: ApiVendorsIdMembersRoute,
   ApiStaticCollectionIndexRoute: ApiStaticCollectionIndexRoute,
   ApiCmsApiV3SplatRoute: ApiCmsApiV3SplatRoute,
   ApiPublicFormsSlugSubmissionsRoute: ApiPublicFormsSlugSubmissionsRoute,

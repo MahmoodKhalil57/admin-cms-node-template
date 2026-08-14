@@ -1,4 +1,10 @@
-import { sqliteTable, integer, text, index } from 'drizzle-orm/sqlite-core'
+import {
+  sqliteTable,
+  integer,
+  text,
+  index,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core'
 import { sql } from 'drizzle-orm'
 
 import type { FormFieldDef } from '#/lib/form-shape'
@@ -239,6 +245,64 @@ export const notifications = sqliteTable(
 )
 
 /**
+ * A business selling on this node.
+ *
+ * On a single-vendor node there is one row and almost nobody thinks about it.
+ * On a marketplace there are many, and every sellable thing carries a
+ * `vendorId` — which is the entire difference between features 1 and 2, and
+ * between 3 and 4. There is no second permission system for marketplaces:
+ * "a vendor sees their own listings" is a policy condition, evaluated by the
+ * same engine that already keeps a member to their own profile.
+ *
+ * Introduced before anything sellable exists, on purpose. Adding this column to
+ * a table with history in it means deciding what the old rows meant, and there
+ * is nothing to decide while those tables do not exist yet.
+ */
+export const vendors = sqliteTable('vendors', {
+  id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+  /** what a storefront URL says, and what a rule names */
+  slug: text().notNull().unique(),
+  name: text().notNull(),
+  description: text(),
+  /** where this vendor is written to about their own sales */
+  email: text(),
+  /** `active` sells; `suspended` keeps its rows and stops taking money */
+  status: text().notNull().default('active'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(
+    sql`(unixepoch())`,
+  ),
+})
+
+/**
+ * Who acts for a vendor.
+ *
+ * A join table rather than a column on the account, for two reasons. Better
+ * Auth owns the user table and migrates it itself, so Drizzle should not be
+ * adding columns to it. And a person can work for two businesses — rare on day
+ * one, and impossible to add later without a migration that has to guess.
+ */
+export const vendorMembers = sqliteTable(
+  'vendor_members',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    vendorId: integer('vendor_id')
+      .notNull()
+      .references(() => vendors.id, { onDelete: 'cascade' }),
+    /** a better-auth user id */
+    userId: text('user_id').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [
+    // Belonging twice is not a stronger belonging, and would double every row
+    // a join produces.
+    uniqueIndex('vendor_members_unique').on(table.vendorId, table.userId),
+    index('vendor_members_user').on(table.userId),
+  ],
+)
+
+/**
  * Something that happened, kept because it cannot be worked out later.
  *
  * The reason this exists before anything reads it: recording cannot be
@@ -330,10 +394,24 @@ export const roles = sqliteTable('roles', {
   ),
 })
 
-/** How a permission is narrowed. Each entry is a field and what it must match. */
+/**
+ * How a permission is narrowed. Each entry is a field and what it must match.
+ *
+ * `in` and `eq` are written down when the rule is written. `self` and `mine`
+ * are resolved against whoever is asking, which is what lets one rule serve
+ * everybody who holds the role — one policy saying "their own vendor's orders"
+ * works for forty vendors without being written forty times.
+ */
 export type RoleCondition = Record<
   string,
-  { in?: Array<string | number>; eq?: string | number; self?: boolean }
+  {
+    in?: Array<string | number>
+    eq?: string | number
+    /** the asking account's own id */
+    self?: boolean
+    /** any vendor the asking account acts for */
+    mine?: boolean
+  }
 >
 
 /**

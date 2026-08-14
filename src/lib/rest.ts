@@ -22,6 +22,7 @@ import {
   invitations,
   events,
   notifications,
+  vendors as vendorsTable,
   policies,
   roles,
 } from '#/db/schema'
@@ -56,6 +57,7 @@ const RESOURCES = {
   invitations: { table: invitations, feature: 'user-management' },
   // Written by the node, never by a caller — see `readOnly` in `guard`.
   events: { table: events, feature: 'instrumentation', readOnly: true },
+  vendors: { table: vendorsTable, feature: 'vendors' },
 }
 
 // Drizzle's table types are heavily generic; the generic handlers below work
@@ -100,7 +102,7 @@ function notFound(resource: string) {
 function conditionSql(
   table: LooseTable,
   condition: RoleCondition,
-  userId: string,
+  principal: Principal,
 ): SQL | undefined {
   const columns = getTableColumns(table)
   const parts: Array<SQL> = []
@@ -108,7 +110,16 @@ function conditionSql(
   for (const [field, rule] of Object.entries(condition)) {
     const column = columns[field]
     if (!column) continue
-    if (rule.self) parts.push(eq(column, userId))
+    if (rule.mine) {
+      // An account that acts for no vendor matches no row. Said explicitly
+      // because `IN ()` is not valid SQL and would otherwise have to be
+      // special-cased somewhere less obvious.
+      parts.push(
+        principal.vendorIds.length
+          ? inArray(column, principal.vendorIds)
+          : sql`1 = 0`,
+      )
+    } else if (rule.self) parts.push(eq(column, principal.userId))
     else if (rule.eq !== undefined) parts.push(eq(column, rule.eq))
     else if (rule.in?.length) parts.push(inArray(column, rule.in))
   }
@@ -145,7 +156,7 @@ function conditionWhere(
   // way for the second to widen the first.
   for (const group of allowedWays(principal, permission)) {
     const ways = group
-      .map((way) => conditionSql(table, way, principal.userId))
+      .map((way) => conditionSql(table, way, principal))
       .filter((part): part is SQL => part !== undefined)
 
     // Every alternative named something this table has not got. This narrowing
@@ -156,7 +167,7 @@ function conditionWhere(
   }
 
   for (const way of deniedWays(principal, permission)) {
-    const part = conditionSql(table, way, principal.userId)
+    const part = conditionSql(table, way, principal)
     // A denial this table cannot express is not a denial of everything: it
     // names records that do not live here.
     if (part) parts.push(not(part))

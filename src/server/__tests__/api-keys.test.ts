@@ -24,6 +24,7 @@ const person: Principal = {
   name: 'Someone',
   isOwner: false,
   viaKey: false,
+  vendorIds: [],
   roleKey: 'operator',
   permissions: [],
   grant: EMPTY_GRANT,

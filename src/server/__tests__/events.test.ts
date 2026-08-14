@@ -18,6 +18,7 @@ const person: Principal = {
   name: 'Someone',
   isOwner: false,
   viaKey: false,
+  vendorIds: [],
   roleKey: 'operator',
   permissions: [],
   grant: EMPTY_GRANT,
@@ -100,7 +101,9 @@ describe('the catalog', () => {
 
   test('names read as subject.past-tense', () => {
     for (const entry of EVENT_CATALOG) {
-      expect(entry.key).toMatch(/^[a-z]+\.[a-z]+$/)
+      // A compound verb keeps its underscore — `vendor.member_added` says what
+      // happened more precisely than any single word would.
+      expect(entry.key).toMatch(/^[a-z]+\.[a-z]+(_[a-z]+)*$/)
     }
   })
 

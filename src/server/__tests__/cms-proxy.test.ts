@@ -70,6 +70,7 @@ function designer(
     name: 'Designer',
     isOwner: false,
     viaKey: false,
+    vendorIds: [],
     roleKey: 'designer',
     permissions: grant.permissions,
     grant,

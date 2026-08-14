@@ -108,6 +108,12 @@ const SUBJECTS: Record<
     plural: 'invitations',
     about: 'An outstanding invitation to join this node.',
   },
+  vendors: {
+    singular: 'vendor',
+    plural: 'vendors',
+    about:
+      'A business selling on this node. On a single-vendor node there is one; on a marketplace, many, and each sees only its own rows.',
+  },
   events: {
     singular: 'event',
     plural: 'events',
@@ -146,6 +152,7 @@ function narrowingNote(principal: Principal, permission: string): string {
     const parts = group.map((way) =>
       Object.entries(way)
         .map(([field, rule]) => {
+          if (rule.mine) return `${field} is a vendor you act for`
           if (rule.self) return `${field} is your own`
           if (rule.eq !== undefined) return `${field} is ${rule.eq}`
           if (rule.in) return `${field} is one of ${rule.in.join(', ')}`
@@ -157,9 +164,12 @@ function narrowingNote(principal: Principal, permission: string): string {
   }
   for (const refusal of denials) {
     const said = Object.entries(refusal)
-      .map(([field, rule]) =>
-        rule.in ? `${field} is one of ${rule.in.join(', ')}` : field,
-      )
+      .map(([field, rule]) => {
+        if (rule.mine) return `${field} is a vendor you act for`
+        if (rule.self) return `${field} is your own`
+        if (rule.in) return `${field} is one of ${rule.in.join(', ')}`
+        return field
+      })
       .join(' and ')
     if (said) notes.push(`never where ${said}`)
   }

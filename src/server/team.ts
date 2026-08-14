@@ -158,6 +158,25 @@ const BUILTIN_ROLES = [
     permissions: ['forms:read'],
   },
   {
+    key: 'vendor',
+    name: 'Vendor',
+    description:
+      'A business selling here. Sees its own storefront, its own enquiries and its own numbers, and nobody else’s — the same role for every vendor, because the narrowing resolves to whoever is asking.',
+    builtin: false,
+    permissions: ['vendors:read', 'vendors:write', 'forms:read'],
+    /**
+     * The rule that makes one role serve a marketplace.
+     *
+     * `mine` resolves against the vendors the asking account acts for, so forty
+     * vendors share this role and none of them can read another's rows. Written
+     * once here; the same shape is what every sellable table will carry.
+     */
+    conditions: {
+      'vendors:read': { id: { mine: true } },
+      'vendors:write': { id: { mine: true } },
+    },
+  },
+  {
     key: 'aiAgent',
     name: 'AI agent',
     description:
@@ -230,6 +249,15 @@ const BUILTIN_POLICIES: Array<{
     effect: 'deny',
     permissions: ['submissions:delete'],
     condition: {},
+  },
+  {
+    key: 'own-vendor-only',
+    name: 'Their own vendor only',
+    description:
+      'Reaches the rows belonging to a vendor the account acts for, and no other. Attach it to any role that should be scoped to one business.',
+    effect: 'allow',
+    permissions: ['vendors:read', 'vendors:write', 'events:read'],
+    condition: { vendorId: { mine: true } },
   },
   {
     key: 'read-only',

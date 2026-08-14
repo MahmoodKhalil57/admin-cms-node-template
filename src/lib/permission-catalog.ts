@@ -152,6 +152,31 @@ export const PERMISSION_CATALOG: Array<PermissionDefinition> = [
       'Decide what this node does at all. A switched-off feature takes its permissions with it.',
   },
   {
+    key: 'vendors:read',
+    area: 'Vendors',
+    name: 'See vendors',
+    description: 'View the businesses selling on this node.',
+    feature: 'vendors',
+    scopes: [{ field: 'id', label: 'Only these vendors' }],
+  },
+  {
+    key: 'vendors:write',
+    area: 'Vendors',
+    name: 'Edit a vendor',
+    description:
+      'Change a vendor’s name, description and contact address. Narrowed to their own, this is how a vendor edits their own storefront.',
+    feature: 'vendors',
+    scopes: [{ field: 'id', label: 'Only these vendors' }],
+  },
+  {
+    key: 'vendors:manage',
+    area: 'Vendors',
+    name: 'Add and remove vendors',
+    description:
+      'Create a vendor, suspend one, and decide who acts for it. The keys to the marketplace.',
+    feature: 'vendors',
+  },
+  {
     key: 'events:read',
     area: 'Instrumentation',
     name: 'Read the event log',
@@ -235,4 +260,9 @@ export const RESOURCE_PERMISSIONS: Record<
   // catalog, so no role can hold it — but `readOnly` below is what actually
   // refuses, and it does so without depending on that.
   events: { read: 'events:read', write: 'events:append' },
+  vendors: {
+    read: 'vendors:read',
+    write: 'vendors:write',
+    delete: 'vendors:manage',
+  },
 }

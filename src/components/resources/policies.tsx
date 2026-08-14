@@ -140,7 +140,10 @@ const Records = ({
   catalog,
   permissions,
 }: {
-  condition: Record<string, { in?: Array<string | number>; self?: boolean }>
+  condition: Record<
+    string,
+    { in?: Array<string | number>; self?: boolean; mine?: boolean }
+  >
   onChange: (next: Record<string, unknown>) => void
   catalog: Array<PermissionDefinition>
   permissions: Array<string>
@@ -177,6 +180,19 @@ const Records = ({
     onChange(next)
   }
 
+  /**
+   * "Their own vendor's", resolved per person rather than written down.
+   *
+   * The reason a marketplace needs one role and not one per vendor: this rule
+   * reads against whoever is asking, so the same policy serves all of them.
+   */
+  const toggleMine = (field: string) => {
+    const next = { ...condition }
+    if (next[field]?.mine) delete next[field]
+    else next[field] = { mine: true }
+    onChange(next)
+  }
+
   return (
     <fieldset className="border-border/70 bg-muted/30 min-w-0 rounded-lg border p-4">
       <legend className="text-muted-foreground px-1.5 text-[0.7rem] font-semibold tracking-[0.08em] uppercase">
@@ -192,7 +208,9 @@ const Records = ({
             <input
               className="border-input bg-background focus-visible:ring-ring/60 h-9 w-full rounded-md border px-3 font-mono text-sm focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
               placeholder="3, 4"
-              disabled={Boolean(condition[scope.field]?.self)}
+              disabled={Boolean(
+                condition[scope.field]?.self || condition[scope.field]?.mine,
+              )}
               defaultValue={(condition[scope.field]?.in ?? []).join(', ')}
               onChange={(event) => setScope(scope.field, event.target.value)}
             />
@@ -203,6 +221,15 @@ const Records = ({
                   onCheckedChange={() => toggleSelf(scope.field)}
                 />
                 Whoever is asking — their own rows, resolved per person
+              </label>
+            ) : null}
+            {scope.field === 'vendorId' || scope.field === 'id' ? (
+              <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs">
+                <Checkbox
+                  checked={Boolean(condition[scope.field]?.mine)}
+                  onCheckedChange={() => toggleMine(scope.field)}
+                />
+                Their own vendor's — one rule that serves every vendor
               </label>
             ) : null}
           </div>

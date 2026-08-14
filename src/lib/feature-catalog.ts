@@ -45,6 +45,13 @@ export const FEATURE_CATALOG: Array<FeatureDefinition> = [
     resources: ['team', 'roles', 'invitations'],
   },
   {
+    key: 'vendors',
+    name: 'Multiple vendors',
+    description:
+      'Lets more than one business sell here, each seeing only their own rows. Off means this node is one shop.',
+    defaultEnabled: false,
+  },
+  {
     key: 'instrumentation',
     name: 'Logs and analytics',
     description:

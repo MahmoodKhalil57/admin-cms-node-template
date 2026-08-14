@@ -6,6 +6,7 @@ import {
   Scale,
   Send,
   Settings2,
+  Store,
   ShieldCheck,
   SlidersHorizontal,
   Users,
@@ -32,6 +33,11 @@ import {
   PolicyList,
 } from '#/components/resources/policies'
 import { ProfileGate } from '#/components/profile-gate'
+import {
+  VendorCreate,
+  VendorEdit,
+  VendorList,
+} from '#/components/resources/vendors'
 import {
   AutomationCreate,
   AutomationEdit,
@@ -97,6 +103,7 @@ export function AdminApp() {
   // these is checked again on the server — but a panel offering screens that
   // answer 403 is worse than one that does not offer them.
   const team = enabled.includes('user-management')
+  const vendors = enabled.includes('vendors')
 
   return (
     <>
@@ -201,6 +208,18 @@ export function AdminApp() {
             edit={PolicyEdit}
             create={PolicyCreate}
             icon={Scale}
+            recordRepresentation="name"
+          />
+        )}
+
+        {vendors && holds(mine, 'vendors:read') && (
+          <Resource
+            name="vendors"
+            options={{ label: 'Vendors', group: 'Vendors' }}
+            list={VendorList}
+            edit={VendorEdit}
+            create={VendorCreate}
+            icon={Store}
             recordRepresentation="name"
           />
         )}

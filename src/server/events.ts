@@ -82,6 +82,18 @@ export const EVENT_CATALOG: Array<EventDefinition> = [
     description: 'Somebody sent in a form on the site.',
   },
   {
+    key: 'vendor.member_added',
+    area: 'Vendors',
+    name: 'Somebody was given a vendor',
+    description: 'An account was allowed to act for a business.',
+  },
+  {
+    key: 'vendor.member_removed',
+    area: 'Vendors',
+    name: 'Somebody lost a vendor',
+    description: 'An account no longer acts for a business.',
+  },
+  {
     key: 'resource.created',
     area: 'Panel',
     name: 'Something was created',
