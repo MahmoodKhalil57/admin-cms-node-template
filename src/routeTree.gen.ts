@@ -31,6 +31,7 @@ import { Route as ApiCloudflareCallbackRouteImport } from './routes/api.cloudfla
 import { Route as ApiCmsAuthRouteImport } from './routes/api.cms.auth'
 import { Route as ApiCmsConfigDotymlRouteImport } from './routes/api.cms.config[.]yml'
 import { Route as ApiCmsGraphqlRouteImport } from './routes/api.cms.graphql'
+import { Route as ApiCmsTokenRouteImport } from './routes/api.cms.token'
 import { Route as ApiFSlugRouteImport } from './routes/api.f.$slug'
 import { Route as ApiGithubAuthorizeRouteImport } from './routes/api.github.authorize'
 import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
@@ -162,6 +163,11 @@ const ApiCmsConfigDotymlRoute = ApiCmsConfigDotymlRouteImport.update({
 const ApiCmsGraphqlRoute = ApiCmsGraphqlRouteImport.update({
   id: '/api/cms/graphql',
   path: '/api/cms/graphql',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCmsTokenRoute = ApiCmsTokenRouteImport.update({
+  id: '/api/cms/token',
+  path: '/api/cms/token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiFSlugRoute = ApiFSlugRouteImport.update({
@@ -299,6 +305,7 @@ export interface FileRoutesByFullPath {
   '/api/cms/auth': typeof ApiCmsAuthRoute
   '/api/cms/config.yml': typeof ApiCmsConfigDotymlRoute
   '/api/cms/graphql': typeof ApiCmsGraphqlRoute
+  '/api/cms/token': typeof ApiCmsTokenRoute
   '/api/f/$slug': typeof ApiFSlugRoute
   '/api/github/authorize': typeof ApiGithubAuthorizeRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
@@ -345,6 +352,7 @@ export interface FileRoutesByTo {
   '/api/cms/auth': typeof ApiCmsAuthRoute
   '/api/cms/config.yml': typeof ApiCmsConfigDotymlRoute
   '/api/cms/graphql': typeof ApiCmsGraphqlRoute
+  '/api/cms/token': typeof ApiCmsTokenRoute
   '/api/f/$slug': typeof ApiFSlugRoute
   '/api/github/authorize': typeof ApiGithubAuthorizeRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
@@ -392,6 +400,7 @@ export interface FileRoutesById {
   '/api/cms/auth': typeof ApiCmsAuthRoute
   '/api/cms/config.yml': typeof ApiCmsConfigDotymlRoute
   '/api/cms/graphql': typeof ApiCmsGraphqlRoute
+  '/api/cms/token': typeof ApiCmsTokenRoute
   '/api/f/$slug': typeof ApiFSlugRoute
   '/api/github/authorize': typeof ApiGithubAuthorizeRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
@@ -440,6 +449,7 @@ export interface FileRouteTypes {
     | '/api/cms/auth'
     | '/api/cms/config.yml'
     | '/api/cms/graphql'
+    | '/api/cms/token'
     | '/api/f/$slug'
     | '/api/github/authorize'
     | '/api/github/callback'
@@ -486,6 +496,7 @@ export interface FileRouteTypes {
     | '/api/cms/auth'
     | '/api/cms/config.yml'
     | '/api/cms/graphql'
+    | '/api/cms/token'
     | '/api/f/$slug'
     | '/api/github/authorize'
     | '/api/github/callback'
@@ -532,6 +543,7 @@ export interface FileRouteTypes {
     | '/api/cms/auth'
     | '/api/cms/config.yml'
     | '/api/cms/graphql'
+    | '/api/cms/token'
     | '/api/f/$slug'
     | '/api/github/authorize'
     | '/api/github/callback'
@@ -579,6 +591,7 @@ export interface RootRouteChildren {
   ApiCmsAuthRoute: typeof ApiCmsAuthRoute
   ApiCmsConfigDotymlRoute: typeof ApiCmsConfigDotymlRoute
   ApiCmsGraphqlRoute: typeof ApiCmsGraphqlRoute
+  ApiCmsTokenRoute: typeof ApiCmsTokenRoute
   ApiFSlugRoute: typeof ApiFSlugRoute
   ApiGithubAuthorizeRoute: typeof ApiGithubAuthorizeRoute
   ApiGithubCallbackRoute: typeof ApiGithubCallbackRoute
@@ -755,6 +768,13 @@ declare module '@tanstack/react-router' {
       path: '/api/cms/graphql'
       fullPath: '/api/cms/graphql'
       preLoaderRoute: typeof ApiCmsGraphqlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cms/token': {
+      id: '/api/cms/token'
+      path: '/api/cms/token'
+      fullPath: '/api/cms/token'
+      preLoaderRoute: typeof ApiCmsTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/f/$slug': {
@@ -962,6 +982,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCmsAuthRoute: ApiCmsAuthRoute,
   ApiCmsConfigDotymlRoute: ApiCmsConfigDotymlRoute,
   ApiCmsGraphqlRoute: ApiCmsGraphqlRoute,
+  ApiCmsTokenRoute: ApiCmsTokenRoute,
   ApiFSlugRoute: ApiFSlugRoute,
   ApiGithubAuthorizeRoute: ApiGithubAuthorizeRoute,
   ApiGithubCallbackRoute: ApiGithubCallbackRoute,

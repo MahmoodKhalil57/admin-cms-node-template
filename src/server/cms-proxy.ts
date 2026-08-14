@@ -118,6 +118,33 @@ export function identity(principal: Principal): Response {
   })
 }
 
+/**
+ * The signed-in account, in the shape Sveltia keeps in local storage.
+ *
+ * Built here rather than in the page because this is where the same answer is
+ * already given to `/user` — one place decides who the CMS thinks it is, and
+ * the page does not have to know the shape to hand it over.
+ *
+ * The fields Sveltia does not use are still present and empty. It writes back
+ * whatever it holds, and an object missing half its keys is one that looks
+ * corrupted the next time something reads it.
+ */
+export function sveltiaAccount(
+  principal: Principal,
+  token: string,
+): Record<string, unknown> {
+  return {
+    backendName: 'github',
+    id: 0,
+    name: principal.name ?? principal.email,
+    login: principal.email,
+    avatarURL: '',
+    profileURL: '',
+    bot: false,
+    token,
+  }
+}
+
 /* --- what a path is ------------------------------------------------------ */
 
 export interface Subject {
