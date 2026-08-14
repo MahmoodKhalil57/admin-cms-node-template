@@ -8,8 +8,9 @@ import type { NodeEnv } from './env'
 import { getAuth } from './auth'
 import { getEnabledFeatures } from './features'
 import { KEY_FORBIDDEN, bearerFor } from './api-keys'
-import { EMPTY_GRANT, evaluate, grantAllows } from './policy'
-import type { Grant } from './policy'
+import type { KeyBearer } from './api-keys'
+import { EMPTY_GRANT, evaluate, grantAllows, intersect } from './policy'
+import type { Grant, PolicyInput } from './policy'
 
 /**
  * Who is asking, and what they may do.
@@ -116,7 +117,7 @@ async function resolvePrincipal(
     user = session.user as unknown as SessionUser
   }
 
-  return grantFor(db, user, Boolean(bearer))
+  return grantFor(db, user, bearer)
 }
 
 /**
@@ -141,13 +142,38 @@ export async function principalForUserId(
   const user = (found as SessionUser | null) ?? null
   // A token naming an account that has since been removed names nothing.
   if (!user) return null
-  return grantFor(db, user, false)
+  return grantFor(db, user, null)
 }
 
+/**
+ * Loads policies by key, in one query, in the order they were named.
+ */
+async function policiesFor(
+  db: NodeDb,
+  keys: Array<string>,
+): Promise<Array<PolicyInput>> {
+  if (!keys.length) return []
+  return db.select().from(policiesTable).where(inArray(policiesTable.key, keys))
+}
+
+/**
+ * Both gates, applied in order.
+ *
+ * The account's own role and policies decide what it may ever do. A key that
+ * account minted decides what *this* holder may do with it. The second can only
+ * ever take away — so the result is the intersection, and never a merge.
+ *
+ * This is the part worth being careful about. Checking only the account's grant
+ * would make the key's scope decoration: an agent handed a read-only key could
+ * write. Checking only the key's would make it an escalation: an agent handed a
+ * generous key could reach past the person who minted it. Both are the same
+ * mistake in opposite directions, and `intersect` is the only place either is
+ * prevented.
+ */
 async function grantFor(
   db: NodeDb,
   user: SessionUser,
-  bearer: boolean,
+  bearer: KeyBearer | null,
 ): Promise<Principal> {
   // Seeded by master, so this is the account the node was handed over to.
   const isOwner = Boolean(user.masterUserId)
@@ -159,6 +185,27 @@ async function grantFor(
   const ceiling = (keys: Array<string>) =>
     bearer ? keys.filter((key) => !KEY_FORBIDDEN.includes(key)) : keys
 
+  /**
+   * Narrows a grant by the key's own scope, when it has one.
+   *
+   * Evaluated against what the first gate already allows, so a scope written
+   * as `*` means "everything this account has" rather than "everything the
+   * node has" — the ceiling stays the account's, whatever the key says.
+   */
+  const scoped = async (grant: Grant): Promise<Grant> => {
+    const scope = bearer?.scope
+    if (!scope || scope.permissions === null) return grant
+    return intersect(
+      grant,
+      evaluate({
+        permissions: scope.permissions,
+        conditions: scope.conditions,
+        policies: await policiesFor(db, scope.policies),
+        available: grant.permissions,
+      }),
+    )
+  }
+
   const identity = {
     userId: user.id,
     email: user.email,
@@ -168,6 +215,14 @@ async function grantFor(
 
   if (isOwner) {
     const everything = ceiling(available)
+    const grant = await scoped(
+      evaluate({
+        permissions: everything,
+        conditions: {},
+        policies: [],
+        available: everything,
+      }),
+    )
     return {
       ...identity,
       // A key is never the root admin, even when it belongs to them. The
@@ -175,13 +230,11 @@ async function grantFor(
       // bundle has no such claim on it.
       isOwner: !bearer,
       roleKey: OWNER_ROLE,
-      permissions: everything,
-      grant: evaluate({
-        permissions: everything,
-        conditions: {},
-        policies: [],
-        available: everything,
-      }),
+      // Even the root admin's key is only what its scope allows. The implicit
+      // grant exists so a person cannot be locked out, not so a secret they
+      // minted inherits that.
+      permissions: grant.permissions,
+      grant,
     }
   }
 
@@ -204,20 +257,14 @@ async function grantFor(
 
   // Policies → roles → users: the role names them, and this is where the names
   // become rules. Read in one query; a role with none skips it entirely.
-  const attached = role?.policies ?? []
-  const rules = attached.length
-    ? await db
-        .select()
-        .from(policiesTable)
-        .where(inArray(policiesTable.key, attached))
-    : []
-
-  const grant = evaluate({
-    permissions: role?.permissions ?? [],
-    conditions: role?.conditions ?? {},
-    policies: rules,
-    available: ceiling(available),
-  })
+  const grant = await scoped(
+    evaluate({
+      permissions: role?.permissions ?? [],
+      conditions: role?.conditions ?? {},
+      policies: await policiesFor(db, role?.policies ?? []),
+      available: ceiling(available),
+    }),
+  )
 
   return {
     ...identity,
@@ -243,7 +290,7 @@ export function can(principal: Principal | null, permission: string): boolean {
 export function allowedWays(
   principal: Principal | null,
   permission: string,
-): Array<RoleCondition> {
+): Array<Array<RoleCondition>> {
   if (!principal || principal.isOwner) return []
   return principal.grant.allow[permission] ?? []
 }

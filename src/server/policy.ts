@@ -39,10 +39,20 @@ export interface Grant {
   /** every permission held, after denials */
   permissions: Array<string>
   /**
-   * permission -> the ways it is allowed, read as *any of*.
-   * An empty list means allowed with no narrowing.
+   * permission -> groups of conditions.
+   *
+   * Every group must be satisfied, and any one condition within a group will
+   * satisfy it: *all of these, each in any of these ways*. An empty list of
+   * groups means allowed with no narrowing at all.
+   *
+   * Groups exist because a grant can be narrowed twice by two different
+   * authorities. A role says which forms a person may read; a key that person
+   * minted says which of those the agent holding it may read. Both have to
+   * hold, and neither may widen the other — so each contributes a group, and
+   * the answer is their conjunction. Flattening them into one list would read
+   * as *either*, which is the whole footgun this shape exists to avoid.
    */
-  allow: Record<string, Array<RoleCondition>>
+  allow: Record<string, Array<Array<RoleCondition>>>
   /**
    * permission -> conditions that take it away, read as *none of*.
    * A permission denied outright is absent from `permissions` instead.
@@ -135,11 +145,51 @@ export function evaluate(input: {
     delete deny[permission]
   }
 
+  // One authority, so one group each. `intersect` is what puts two together.
+  const grouped: Record<string, Array<Array<RoleCondition>>> = {}
+  for (const [permission, ways] of Object.entries(allow)) {
+    grouped[permission] = ways.length ? [ways] : []
+  }
+
   return {
-    permissions: Object.keys(allow),
-    allow,
+    permissions: Object.keys(grouped),
+    allow: grouped,
     deny,
   }
+}
+
+/**
+ * Both gates, and only what passes both.
+ *
+ * A key belongs to an account and can never reach past it, however generously
+ * it is written — so this is an intersection and not a merge. A permission
+ * survives only if both sides hold it. A record is reachable only if it
+ * satisfies both sides' narrowing, which is why the groups are concatenated
+ * rather than combined: two groups mean two things that must both be true.
+ *
+ * Denials from either side are kept. A refusal is a refusal whoever wrote it.
+ */
+export function intersect(outer: Grant, inner: Grant): Grant {
+  const permissions = outer.permissions.filter((key) =>
+    inner.permissions.includes(key),
+  )
+
+  const allow: Record<string, Array<Array<RoleCondition>>> = {}
+  const deny: Record<string, Array<RoleCondition>> = {}
+
+  for (const permission of permissions) {
+    allow[permission] = [
+      ...(outer.allow[permission] ?? []),
+      ...(inner.allow[permission] ?? []),
+    ]
+    const refusals = [
+      ...(outer.deny[permission] ?? []),
+      ...(inner.deny[permission] ?? []),
+    ]
+    if (refusals.length) deny[permission] = refusals
+  }
+
+  return { permissions, allow, deny }
 }
 
 /**
@@ -158,9 +208,11 @@ export function grantAllows(
 ): boolean {
   if (!grant.permissions.includes(permission)) return false
 
-  const ways = grant.allow[permission] ?? []
-  const allowed =
-    ways.length === 0 || ways.some((way) => matches(way, record, userId))
+  // Every group, each satisfied by any one of its conditions.
+  const groups = grant.allow[permission] ?? []
+  const allowed = groups.every((group) =>
+    group.some((way) => matches(way, record, userId)),
+  )
   if (!allowed) return false
 
   const refusals = grant.deny[permission] ?? []

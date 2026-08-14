@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
-import { EMPTY_GRANT, evaluate, grantAllows } from '../policy'
+import { EMPTY_GRANT, evaluate, grantAllows, intersect } from '../policy'
+import type { RoleCondition } from '#/db/schema'
 import type { PolicyInput } from '../policy'
 
 /**
@@ -48,7 +49,7 @@ describe('allows', () => {
       permissions: ['submissions:read'],
       conditions: { 'submissions:read': { formId: { in: [3] } } },
     })
-    expect(grant.allow['submissions:read']).toEqual([{ formId: { in: [3] } }])
+    expect(grant.allow['submissions:read']).toEqual([[{ formId: { in: [3] } }]])
     expect(grantAllows(grant, 'submissions:read', { formId: 3 }, 'u1')).toBe(true)
     expect(grantAllows(grant, 'submissions:read', { formId: 4 }, 'u1')).toBe(false)
   })
@@ -207,5 +208,116 @@ describe('nothing at all', () => {
 
   test('a role with no grant and no policies holds nothing', () => {
     expect(evaluate(bare).permissions).toEqual([])
+  })
+})
+
+/**
+ * The second gate.
+ *
+ * A key belongs to an account, and the person who minted it may narrow it
+ * further before handing it to an agent. Both rules have to hold. The failure
+ * that matters here is not an error — it is a key that quietly does more than
+ * the person who minted it chose, or more than their own account may.
+ */
+describe('two gates', () => {
+  const role = (
+    permissions: Array<string>,
+    conditions: Record<string, RoleCondition> = {},
+  ) => evaluate({ ...bare, permissions, conditions })
+
+  const key = (
+    permissions: Array<string>,
+    conditions: Record<string, RoleCondition> = {},
+  ) => evaluate({ ...bare, permissions, conditions })
+
+  test('a key cannot hold what the account does not', () => {
+    const grant = intersect(role(['forms:read']), key(AVAILABLE))
+    expect(grant.permissions).toEqual(['forms:read'])
+  })
+
+  test('a key can hold less than the account does', () => {
+    const grant = intersect(role(AVAILABLE), key(['forms:read']))
+    expect(grant.permissions).toEqual(['forms:read'])
+  })
+
+  test('both narrowings apply, and neither widens the other', () => {
+    const grant = intersect(
+      role(['submissions:read'], {
+        'submissions:read': { formId: { in: [1, 2] } },
+      }),
+      key(['submissions:read'], {
+        'submissions:read': { formId: { in: [2, 3] } },
+      }),
+    )
+    // Only the form both sides allow.
+    expect(grantAllows(grant, 'submissions:read', { formId: 2 }, 'u1')).toBe(true)
+    // The account allows it; the key does not.
+    expect(grantAllows(grant, 'submissions:read', { formId: 1 }, 'u1')).toBe(false)
+    // The key allows it; the account does not. This is the escalation case.
+    expect(grantAllows(grant, 'submissions:read', { formId: 3 }, 'u1')).toBe(false)
+    expect(grantAllows(grant, 'submissions:read', { formId: 9 }, 'u1')).toBe(false)
+  })
+
+  test('an unnarrowed key does not widen a narrowed account', () => {
+    const grant = intersect(
+      role(['submissions:read'], {
+        'submissions:read': { formId: { in: [1] } },
+      }),
+      key(['submissions:read']),
+    )
+    expect(grantAllows(grant, 'submissions:read', { formId: 1 }, 'u1')).toBe(true)
+    expect(grantAllows(grant, 'submissions:read', { formId: 2 }, 'u1')).toBe(false)
+  })
+
+  test('an unnarrowed account does not widen a narrowed key', () => {
+    const grant = intersect(
+      role(['submissions:read']),
+      key(['submissions:read'], {
+        'submissions:read': { formId: { in: [1] } },
+      }),
+    )
+    expect(grantAllows(grant, 'submissions:read', { formId: 1 }, 'u1')).toBe(true)
+    expect(grantAllows(grant, 'submissions:read', { formId: 2 }, 'u1')).toBe(false)
+  })
+
+  test('two groups are kept as two, not flattened into alternatives', () => {
+    const grant = intersect(
+      role(['submissions:read'], {
+        'submissions:read': { formId: { in: [1] } },
+      }),
+      key(['submissions:read'], {
+        'submissions:read': { formId: { in: [2] } },
+      }),
+    )
+    // Flattened, this would read as "form 1 or form 2" and allow both.
+    expect(grant.allow['submissions:read']).toHaveLength(2)
+    expect(grantAllows(grant, 'submissions:read', { formId: 1 }, 'u1')).toBe(false)
+    expect(grantAllows(grant, 'submissions:read', { formId: 2 }, 'u1')).toBe(false)
+  })
+
+  test('a denial on either side is kept', () => {
+    const withDeny = evaluate({
+      ...bare,
+      permissions: ['submissions:read'],
+      policies: [
+        policy({
+          effect: 'deny',
+          permissions: ['submissions:read'],
+          condition: { formId: { in: [7] } },
+        }),
+      ],
+    })
+    const fromKey = intersect(role(['submissions:read']), withDeny)
+    expect(grantAllows(fromKey, 'submissions:read', { formId: 7 }, 'u1')).toBe(false)
+    expect(grantAllows(fromKey, 'submissions:read', { formId: 6 }, 'u1')).toBe(true)
+
+    const fromAccount = intersect(withDeny, role(['submissions:read']))
+    expect(grantAllows(fromAccount, 'submissions:read', { formId: 7 }, 'u1')).toBe(false)
+  })
+
+  test('a key scoped to nothing reaches nothing', () => {
+    const grant = intersect(role(AVAILABLE), key([]))
+    expect(grant.permissions).toEqual([])
+    expect(grantAllows(grant, 'forms:read', {}, 'u1')).toBe(false)
   })
 })

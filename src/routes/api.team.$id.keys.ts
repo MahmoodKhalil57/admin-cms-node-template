@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { getDb } from '#/db'
+import type { RoleCondition } from '#/db/schema'
 import { serverRoute } from '#/lib/server-route'
 import { getEnv } from '#/server/env'
 import { getEnabledFeatures } from '#/server/features'
@@ -59,6 +60,18 @@ export const Route = createFileRoute('/api/team/$id/keys')(
         expiresInDays?: number
         allowedOrigins?: Array<string>
         ratePerMinute?: number
+        /**
+         * The second gate, chosen by whoever is minting.
+         *
+         * Omitted, the key is narrowed only by the account it belongs to. Given,
+         * it is narrowed by both — and only what passes both is reachable, so
+         * this can take away and can never add.
+         */
+        scope?: {
+          permissions?: Array<string> | null
+          conditions?: Record<string, RoleCondition>
+          policies?: Array<string>
+        }
       }
       const expiresAt = body.expiresInDays
         ? new Date(Date.now() + body.expiresInDays * 86400 * 1000)
@@ -67,6 +80,7 @@ export const Route = createFileRoute('/api/team/$id/keys')(
       const minted = await mintKey(db, params.id, body.name ?? '', expiresAt, {
         allowedOrigins: body.allowedOrigins,
         ratePerMinute: body.ratePerMinute,
+        scope: body.scope,
       })
       // The only time the secret exists outside the caller's hands.
       return Response.json(minted, { status: 201 })

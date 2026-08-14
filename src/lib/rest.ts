@@ -136,16 +136,20 @@ function conditionWhere(
 ): SQL | undefined {
   const parts: Array<SQL> = []
 
-  const ways = allowedWays(principal, permission)
-    .map((way) => conditionSql(table, way, principal.userId))
-    .filter((part): part is SQL => part !== undefined)
+  // Each group is a separate narrowing that has to hold, so they are ANDed;
+  // the alternatives inside one are ORed. Two authorities, two groups, and no
+  // way for the second to widen the first.
+  for (const group of allowedWays(principal, permission)) {
+    const ways = group
+      .map((way) => conditionSql(table, way, principal.userId))
+      .filter((part): part is SQL => part !== undefined)
 
-  // Every way named something this table has not got. The grant is narrowed to
-  // records that cannot exist here, so nothing matches — refused, not opened.
-  if (allowedWays(principal, permission).length > 0 && ways.length === 0) {
-    return sql`1 = 0`
+    // Every alternative named something this table has not got. This narrowing
+    // is to records that cannot exist here, so nothing matches — refused,
+    // rather than quietly dropped, which would open the whole table.
+    if (ways.length === 0) return sql`1 = 0`
+    parts.push(ways.length === 1 ? ways[0]! : or(...ways)!)
   }
-  if (ways.length > 0) parts.push(ways.length === 1 ? ways[0]! : or(...ways)!)
 
   for (const way of deniedWays(principal, permission)) {
     const part = conditionSql(table, way, principal.userId)

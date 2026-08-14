@@ -6,6 +6,8 @@ import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { Badge } from '#/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
+import { Checkbox } from '#/components/ui/checkbox'
+import type { PermissionDefinition } from '#/lib/permission-catalog'
 import {
   Select,
   SelectContent,
@@ -59,6 +61,10 @@ const Keys = ({ member }: { member: Member }) => {
   const [name, setName] = useState('')
   const [origins, setOrigins] = useState('')
   const [minted, setMinted] = useState<string | null>(null)
+  // null means "no second gate": the account's own grant is the only limit.
+  const [scope, setScope] = useState<Array<string> | null>(null)
+  const [catalog, setCatalog] = useState<Array<PermissionDefinition>>([])
+  const [held, setHeld] = useState<Array<string>>([])
 
   const load = () =>
     fetch(`/api/team/${member.id}/keys`)
@@ -68,6 +74,22 @@ const Keys = ({ member }: { member: Member }) => {
 
   useEffect(() => {
     if (open) void load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  // What this node can grant, and what this account actually holds — the second
+  // gate can only narrow the first, so offering more than the first would be
+  // offering something that cannot happen.
+  useEffect(() => {
+    if (!open) return
+    void fetch('/api/permissions')
+      .then((response) => (response.ok ? response.json() : { catalog: [] }))
+      .then((body) => setCatalog(body.catalog ?? []))
+      .catch(() => setCatalog([]))
+    void fetch(`/api/team/${member.id}/permissions`)
+      .then((response) => (response.ok ? response.json() : { permissions: [] }))
+      .then((body) => setHeld(body.permissions ?? []))
+      .catch(() => setHeld([]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
@@ -81,6 +103,7 @@ const Keys = ({ member }: { member: Member }) => {
           .split(',')
           .map((entry) => entry.trim())
           .filter(Boolean),
+        scope: scope === null ? undefined : { permissions: scope },
       }),
     })
     const body = await response.json()
@@ -91,6 +114,7 @@ const Keys = ({ member }: { member: Member }) => {
     setMinted(body.secret)
     setName('')
     setOrigins('')
+    setScope(null)
     await load()
   }
 
@@ -154,6 +178,78 @@ const Keys = ({ member }: { member: Member }) => {
             readable by anyone who views source, and an origin is what makes a
             copy of it worthless elsewhere.
           </p>
+
+          {/*
+            The second gate.
+
+            The account's role already decides the most this key could ever do.
+            This is the holder deciding what *this* key does — narrower, for one
+            job, for one agent. A permission is reachable only if both allow it,
+            so nothing ticked here can add anything: unticking is the only thing
+            that has an effect.
+          */}
+          <div className="border-border/70 bg-muted/30 flex flex-col gap-3 rounded-lg border p-3">
+            <label className="flex cursor-pointer items-start gap-2.5">
+              <Checkbox
+                checked={scope !== null}
+                onCheckedChange={() =>
+                  setScope(scope === null ? [...held] : null)
+                }
+                className="mt-0.5"
+              />
+              <span className="min-w-0">
+                <span className="block text-xs font-medium">
+                  Limit what this key can do
+                </span>
+                <span className="text-muted-foreground block text-xs">
+                  For a key going to an agent: it discovers exactly what is
+                  ticked here and nothing else.
+                </span>
+              </span>
+            </label>
+
+            {scope !== null ? (
+              <div className="flex flex-col gap-2 pl-6">
+                {held.length === 0 ? (
+                  <p className="text-muted-foreground text-xs">
+                    This account holds nothing a key could carry.
+                  </p>
+                ) : null}
+                {catalog
+                  .filter((permission) => held.includes(permission.key))
+                  .map((permission) => (
+                    <label
+                      key={permission.key}
+                      className="flex cursor-pointer items-start gap-2.5"
+                    >
+                      <Checkbox
+                        checked={scope.includes(permission.key)}
+                        onCheckedChange={() =>
+                          setScope(
+                            scope.includes(permission.key)
+                              ? scope.filter((key) => key !== permission.key)
+                              : [...scope, permission.key],
+                          )
+                        }
+                        className="mt-0.5"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-xs font-medium">
+                          {permission.name}
+                        </span>
+                        <span className="text-muted-foreground block text-xs">
+                          {permission.description}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                <p className="text-muted-foreground text-xs">
+                  Whatever this account loses later, the key loses too — this
+                  can only ever take away.
+                </p>
+              </div>
+            ) : null}
+          </div>
 
           {minted ? (
             <div className="border-primary/40 bg-primary/5 flex flex-col gap-2 rounded-lg border p-3">

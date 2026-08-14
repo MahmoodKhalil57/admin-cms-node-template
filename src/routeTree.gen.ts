@@ -17,6 +17,7 @@ import { Route as AdminForgotRouteImport } from './routes/admin.forgot'
 import { Route as AdminJoinRouteImport } from './routes/admin.join'
 import { Route as AdminResetRouteImport } from './routes/admin.reset'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
+import { Route as ApiMcpRouteImport } from './routes/api.mcp'
 import { Route as ApiPermissionsRouteImport } from './routes/api.permissions'
 import { Route as ApiSettingsRouteImport } from './routes/api.settings'
 import { Route as ApiResourceIndexRouteImport } from './routes/api.$resource.index'
@@ -48,6 +49,7 @@ import { Route as ApiWebhooksGithubRouteImport } from './routes/api.webhooks.git
 import { Route as ApiStaticCollectionIndexRouteImport } from './routes/api.static.$collection.index'
 import { Route as ApiStaticCollectionIdRouteImport } from './routes/api.static.$collection.$id'
 import { Route as ApiTeamIdKeysRouteImport } from './routes/api.team.$id.keys'
+import { Route as ApiTeamIdPermissionsRouteImport } from './routes/api.team.$id.permissions'
 import { Route as ApiCmsApiV3SplatRouteImport } from './routes/api.cms.api.v3.$'
 import { Route as ApiPublicFormsSlugIndexRouteImport } from './routes/api.public.forms.$slug.index'
 import { Route as ApiPublicFormsSlugSubmissionsRouteImport } from './routes/api.public.forms.$slug.submissions'
@@ -90,6 +92,11 @@ const AdminResetRoute = AdminResetRouteImport.update({
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMcpRoute = ApiMcpRouteImport.update({
+  id: '/api/mcp',
+  path: '/api/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPermissionsRoute = ApiPermissionsRouteImport.update({
@@ -248,6 +255,11 @@ const ApiTeamIdKeysRoute = ApiTeamIdKeysRouteImport.update({
   path: '/keys',
   getParentRoute: () => ApiTeamIdRoute,
 } as any)
+const ApiTeamIdPermissionsRoute = ApiTeamIdPermissionsRouteImport.update({
+  id: '/permissions',
+  path: '/permissions',
+  getParentRoute: () => ApiTeamIdRoute,
+} as any)
 const ApiCmsApiV3SplatRoute = ApiCmsApiV3SplatRouteImport.update({
   id: '/api/cms/api/v3/$',
   path: '/api/cms/api/v3/$',
@@ -273,6 +285,7 @@ export interface FileRoutesByFullPath {
   '/admin/join': typeof AdminJoinRoute
   '/admin/reset': typeof AdminResetRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/api/permissions': typeof ApiPermissionsRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
   '/admin/': typeof AdminIndexRoute
@@ -304,6 +317,7 @@ export interface FileRoutesByFullPath {
   '/api/team/': typeof ApiTeamIndexRoute
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
   '/api/team/$id/keys': typeof ApiTeamIdKeysRoute
+  '/api/team/$id/permissions': typeof ApiTeamIdPermissionsRoute
   '/api/static/$collection/': typeof ApiStaticCollectionIndexRoute
   '/api/cms/api/v3/$': typeof ApiCmsApiV3SplatRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
@@ -317,6 +331,7 @@ export interface FileRoutesByTo {
   '/admin/join': typeof AdminJoinRoute
   '/admin/reset': typeof AdminResetRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/api/permissions': typeof ApiPermissionsRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
   '/admin': typeof AdminIndexRoute
@@ -348,6 +363,7 @@ export interface FileRoutesByTo {
   '/api/team': typeof ApiTeamIndexRoute
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
   '/api/team/$id/keys': typeof ApiTeamIdKeysRoute
+  '/api/team/$id/permissions': typeof ApiTeamIdPermissionsRoute
   '/api/static/$collection': typeof ApiStaticCollectionIndexRoute
   '/api/cms/api/v3/$': typeof ApiCmsApiV3SplatRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
@@ -362,6 +378,7 @@ export interface FileRoutesById {
   '/admin/join': typeof AdminJoinRoute
   '/admin/reset': typeof AdminResetRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/api/permissions': typeof ApiPermissionsRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
   '/admin/': typeof AdminIndexRoute
@@ -393,6 +410,7 @@ export interface FileRoutesById {
   '/api/team/': typeof ApiTeamIndexRoute
   '/api/static/$collection/$id': typeof ApiStaticCollectionIdRoute
   '/api/team/$id/keys': typeof ApiTeamIdKeysRoute
+  '/api/team/$id/permissions': typeof ApiTeamIdPermissionsRoute
   '/api/static/$collection/': typeof ApiStaticCollectionIndexRoute
   '/api/cms/api/v3/$': typeof ApiCmsApiV3SplatRoute
   '/api/public/forms/$slug/submissions': typeof ApiPublicFormsSlugSubmissionsRoute
@@ -408,6 +426,7 @@ export interface FileRouteTypes {
     | '/admin/join'
     | '/admin/reset'
     | '/api/health'
+    | '/api/mcp'
     | '/api/permissions'
     | '/api/settings'
     | '/admin/'
@@ -439,6 +458,7 @@ export interface FileRouteTypes {
     | '/api/team/'
     | '/api/static/$collection/$id'
     | '/api/team/$id/keys'
+    | '/api/team/$id/permissions'
     | '/api/static/$collection/'
     | '/api/cms/api/v3/$'
     | '/api/public/forms/$slug/submissions'
@@ -452,6 +472,7 @@ export interface FileRouteTypes {
     | '/admin/join'
     | '/admin/reset'
     | '/api/health'
+    | '/api/mcp'
     | '/api/permissions'
     | '/api/settings'
     | '/admin'
@@ -483,6 +504,7 @@ export interface FileRouteTypes {
     | '/api/team'
     | '/api/static/$collection/$id'
     | '/api/team/$id/keys'
+    | '/api/team/$id/permissions'
     | '/api/static/$collection'
     | '/api/cms/api/v3/$'
     | '/api/public/forms/$slug/submissions'
@@ -496,6 +518,7 @@ export interface FileRouteTypes {
     | '/admin/join'
     | '/admin/reset'
     | '/api/health'
+    | '/api/mcp'
     | '/api/permissions'
     | '/api/settings'
     | '/admin/'
@@ -527,6 +550,7 @@ export interface FileRouteTypes {
     | '/api/team/'
     | '/api/static/$collection/$id'
     | '/api/team/$id/keys'
+    | '/api/team/$id/permissions'
     | '/api/static/$collection/'
     | '/api/cms/api/v3/$'
     | '/api/public/forms/$slug/submissions'
@@ -541,6 +565,7 @@ export interface RootRouteChildren {
   AdminJoinRoute: typeof AdminJoinRoute
   AdminResetRoute: typeof AdminResetRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiMcpRoute: typeof ApiMcpRoute
   ApiPermissionsRoute: typeof ApiPermissionsRoute
   ApiSettingsRoute: typeof ApiSettingsRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
@@ -632,6 +657,13 @@ declare module '@tanstack/react-router' {
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mcp': {
+      id: '/api/mcp'
+      path: '/api/mcp'
+      fullPath: '/api/mcp'
+      preLoaderRoute: typeof ApiMcpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/permissions': {
@@ -851,6 +883,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTeamIdKeysRouteImport
       parentRoute: typeof ApiTeamIdRoute
     }
+    '/api/team/$id/permissions': {
+      id: '/api/team/$id/permissions'
+      path: '/permissions'
+      fullPath: '/api/team/$id/permissions'
+      preLoaderRoute: typeof ApiTeamIdPermissionsRouteImport
+      parentRoute: typeof ApiTeamIdRoute
+    }
     '/api/cms/api/v3/$': {
       id: '/api/cms/api/v3/$'
       path: '/api/cms/api/v3/$'
@@ -889,10 +928,12 @@ const ApiSettingsRouteWithChildren = ApiSettingsRoute._addFileChildren(
 
 interface ApiTeamIdRouteChildren {
   ApiTeamIdKeysRoute: typeof ApiTeamIdKeysRoute
+  ApiTeamIdPermissionsRoute: typeof ApiTeamIdPermissionsRoute
 }
 
 const ApiTeamIdRouteChildren: ApiTeamIdRouteChildren = {
   ApiTeamIdKeysRoute: ApiTeamIdKeysRoute,
+  ApiTeamIdPermissionsRoute: ApiTeamIdPermissionsRoute,
 }
 
 const ApiTeamIdRouteWithChildren = ApiTeamIdRoute._addFileChildren(
@@ -907,6 +948,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminJoinRoute: AdminJoinRoute,
   AdminResetRoute: AdminResetRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiMcpRoute: ApiMcpRoute,
   ApiPermissionsRoute: ApiPermissionsRoute,
   ApiSettingsRoute: ApiSettingsRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,

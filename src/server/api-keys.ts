@@ -2,6 +2,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 
 import type { NodeDb } from '#/db'
 import { apiKeys } from '#/db/schema'
+import type { RoleCondition } from '#/db/schema'
 
 /**
  * Keys that act as one of this node's users.
@@ -60,7 +61,16 @@ export async function mintKey(
   userId: string,
   name: string,
   expiresAt?: Date | null,
-  options: { allowedOrigins?: Array<string>; ratePerMinute?: number } = {},
+  options: {
+    allowedOrigins?: Array<string>
+    ratePerMinute?: number
+    /** the second gate; omit for a key the account's own grant alone narrows */
+    scope?: {
+      permissions?: Array<string> | null
+      conditions?: Record<string, RoleCondition>
+      policies?: Array<string>
+    }
+  } = {},
 ): Promise<MintedKey> {
   const prefix = hex(crypto.getRandomValues(new Uint8Array(PREFIX_BYTES)))
   const secret = hex(crypto.getRandomValues(new Uint8Array(SECRET_BYTES)))
@@ -80,6 +90,9 @@ export async function mintKey(
         .map((origin) => origin.trim().toLowerCase())
         .filter(Boolean),
       ratePerMinute: options.ratePerMinute ?? 0,
+      scopePermissions: options.scope?.permissions ?? null,
+      scopeConditions: options.scope?.conditions ?? {},
+      scopePolicies: options.scope?.policies ?? [],
     })
     .returning()
 
@@ -89,6 +102,17 @@ export async function mintKey(
 export interface KeyBearer {
   userId: string
   keyId: number
+  /**
+   * The second gate, as the holder wrote it.
+   *
+   * `null` permissions means the key was minted without one, and the account's
+   * own grant is the only thing narrowing it.
+   */
+  scope: {
+    permissions: Array<string> | null
+    conditions: Record<string, RoleCondition>
+    policies: Array<string>
+  }
 }
 
 /** The origin a browser request came from, however it announced it. */
@@ -147,7 +171,15 @@ export async function bearerFor(
     /* ignore */
   }
 
-  return { userId: row.userId, keyId: row.id }
+  return {
+    userId: row.userId,
+    keyId: row.id,
+    scope: {
+      permissions: row.scopePermissions ?? null,
+      conditions: row.scopeConditions ?? {},
+      policies: row.scopePolicies ?? [],
+    },
+  }
 }
 
 export async function listKeys(db: NodeDb, userId: string) {

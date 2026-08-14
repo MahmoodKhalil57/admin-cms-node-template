@@ -158,6 +158,27 @@ const BUILTIN_ROLES = [
     permissions: ['forms:read'],
   },
   {
+    key: 'aiAgent',
+    name: 'AI agent',
+    description:
+      'A program, not a person. Reads the enquiries and the forms through the agent endpoint, and changes neither. Give it a key and narrow that key to the job.',
+    builtin: false,
+    /**
+     * Deliberately read-only, and deliberately narrow.
+     *
+     * The footgun in setting up a role for an agent is granting something whose
+     * consequences you did not picture — and an agent acts faster and more
+     * literally than the person who granted it. So this starts where nothing it
+     * does is hard to undo, and anything more is a decision somebody makes on
+     * purpose rather than one they inherit from a template.
+     *
+     * The key is where it gets narrowed further: whoever mints one chooses
+     * which of these it may use, and the agent discovers exactly that and
+     * nothing else.
+     */
+    permissions: ['forms:read', 'submissions:read'],
+  },
+  {
     key: 'default',
     name: 'Default user',
     description:

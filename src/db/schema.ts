@@ -134,6 +134,30 @@ export const apiKeys = sqliteTable(
       .default([]),
     /** most requests per minute; 0 leaves it uncapped */
     ratePerMinute: integer('rate_per_minute').notNull().default(0),
+    /**
+     * What the person who minted it chose to let it do — the second gate.
+     *
+     * The first gate is the account's own role and policies, and a key can
+     * never reach past it. This is the holder narrowing their own reach before
+     * handing it to something else: an agent given a key for one job should be
+     * able to do that job and discover nothing else.
+     *
+     * `null` means unrestricted, which is not the same as `[]`. An empty list
+     * is a key that may do nothing, and both are things somebody might mean.
+     */
+    scopePermissions: text('scope_permissions', { mode: 'json' })
+      .$type<Array<string> | null>()
+      .default(null),
+    /** the same shape a role uses: permission -> field -> rule */
+    scopeConditions: text('scope_conditions', { mode: 'json' })
+      .$type<Record<string, RoleCondition>>()
+      .notNull()
+      .default({}),
+    /** policies applied to this key alone, on top of the account's */
+    scopePolicies: text('scope_policies', { mode: 'json' })
+      .$type<Array<string>>()
+      .notNull()
+      .default([]),
     lastUsedAt: integer('last_used_at', { mode: 'timestamp' }),
     expiresAt: integer('expires_at', { mode: 'timestamp' }),
     revokedAt: integer('revoked_at', { mode: 'timestamp' }),
