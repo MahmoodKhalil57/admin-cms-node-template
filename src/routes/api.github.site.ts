@@ -16,6 +16,7 @@ import {
 import { currentConnection, redactConnection } from '#/server/github-store'
 import { applyPagesDomain } from '#/server/domains'
 import { getSettings, publicApiBase } from '#/server/settings'
+import { ensureRepoHook } from '#/server/repo-hook'
 
 const DEFAULT_TEMPLATE = 'MahmoodKhalil57/pure-frontend'
 
@@ -116,10 +117,43 @@ export const Route = createFileRoute('/api/github/site')(
           )
         }
 
+        /*
+          Register the push webhook as part of setting the site up.
+
+          It was a second button, and a second button that everybody had to
+          press: without the hook, an edit made on github.com leaves the node
+          behind, which is a silent kind of wrong. Nobody was choosing not to
+          have it — they were choosing between two clicks and one.
+
+          Never allowed to fail the site. A repository that exists without a
+          hook is a working site with a gap somebody can close from this screen;
+          a repository that failed to be created is nothing at all. So the
+          outcome is reported alongside the result rather than thrown.
+        */
+        let syncHook: { id: number; created: boolean } | null = null
+        let syncHookError: string | null = null
+        try {
+          const registered = await ensureRepoHook(
+            db,
+            {
+              token: connection.accessToken,
+              owner: result.owner,
+              repo: result.repo,
+            },
+            `${publicApiBase(env, settings)}/api/webhooks/github`,
+          )
+          syncHook = { id: registered.hookId, created: registered.created }
+        } catch (error) {
+          syncHookError =
+            error instanceof Error ? error.message : 'Could not register it.'
+        }
+
         return Response.json({
           ok: true,
           ...result,
           formSlug,
+          syncHook,
+          syncHookError,
           connection: redactConnection(await currentConnection(db)),
         })
       } catch (error) {

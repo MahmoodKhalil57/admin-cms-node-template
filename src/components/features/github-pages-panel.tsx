@@ -15,6 +15,8 @@ interface Status {
   configured?: boolean
   templateRepo?: string | null
   syncHook?: { id: number; url: string } | null
+  /** this node's own name, used as the suggested repository name */
+  nodeName?: string | null
 }
 
 const CALLBACK_MESSAGES: Record<string, string> = {
@@ -37,6 +39,16 @@ export const GithubPagesPanel = ({ featureId }: { featureId: number }) => {
   const [status, setStatus] = useState<Status | null>(null)
   const [busy, setBusy] = useState(false)
   const [repoName, setRepoName] = useState('')
+  /**
+   * What "Create site" would actually use.
+   *
+   * The node's own name unless somebody types something else. Derived rather
+   * than seeded into the field, because the status arrives after the first
+   * render and writing it in then would fight anybody who had already started
+   * typing — and because a placeholder that is also the default is honest about
+   * what the button will do.
+   */
+  const suggestedName = repoName.trim() || (status?.nodeName ?? '')
   const [existingRepo, setExistingRepo] = useState('')
 
   const refresh = () =>
@@ -225,13 +237,15 @@ export const GithubPagesPanel = ({ featureId }: { featureId: number }) => {
               <p className="text-muted-foreground">
                 {status.syncHook
                   ? 'GitHub tells this node whenever admin-cms.json changes, so an edit made anywhere — here, the builder, or github.com — reaches the forms.'
-                  : 'Not set up yet. Without it, an edit made outside this panel leaves the node behind.'}
+                  : status.repoName
+                    ? 'Not set up yet. Without it, an edit made outside this panel leaves the node behind.'
+                    : 'Set up with the site. Creating or connecting one registers this too, so there is nothing to press here first.'}
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant={status.syncHook ? 'outline' : 'default'}
                   size="sm"
-                  disabled={busy}
+                  disabled={busy || !status.repoName}
                   onClick={registerHook}
                 >
                   {status.syncHook ? 'Re-register' : 'Set it up'}
@@ -253,15 +267,15 @@ export const GithubPagesPanel = ({ featureId }: { featureId: number }) => {
               </p>
               <div className="flex flex-wrap gap-2">
                 <Input
-                  placeholder="my-website"
+                  placeholder={status.nodeName ?? 'my-website'}
                   value={repoName}
                   onChange={(event) => setRepoName(event.target.value)}
                   className="max-w-xs"
                 />
                 <Button
                   type="button"
-                  disabled={busy || repoName.trim() === ''}
-                  onClick={() => setUpSite({ mode: 'create', name: repoName.trim() })}
+                  disabled={busy || suggestedName === ''}
+                  onClick={() => setUpSite({ mode: 'create', name: suggestedName })}
                 >
                   {busy ? 'Working…' : 'Create site'}
                 </Button>

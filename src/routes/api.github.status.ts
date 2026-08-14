@@ -36,6 +36,10 @@ export const Route = createFileRoute('/api/github/status')(
         ...redactConnection(await currentConnection(db)),
         configured: Boolean(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET),
         templateRepo: env.GITHUB_TEMPLATE_REPO ?? null,
+        // What this node is called, so the screen can suggest a repository
+        // name rather than asking somebody to invent one that will almost
+        // always be the same word they already chose.
+        nodeName: env.NODE_NAME ?? null,
         // Reported rather than assumed: a connection made before this node
         // asked for hook access still works, it just cannot sync back.
         syncHook: hook ? { id: hook.hookId, url: hook.url } : null,
