@@ -34,8 +34,28 @@ export const Route = createFileRoute('/api/cloudflare/callback')(
       if (!env.CLOUDFLARE_CLIENT_ID || !env.CLOUDFLARE_CLIENT_SECRET) {
         return await back(env, 'cloudflare=unconfigured')
       }
-      if (url.searchParams.get('error'))
-        return await back(env, 'cloudflare=declined')
+      /*
+        Cloudflare's own answer, passed through.
+
+        Every error used to become `declined`, so somebody who had declined
+        nothing was told they had — and the real reason, which was a scope this
+        OAuth client is not allowed to request, never reached anybody. A refusal
+        that names the wrong cause is worse than one that says only that it
+        failed.
+      */
+      const failure = url.searchParams.get('error')
+      if (failure) {
+        if (failure === 'access_denied') {
+          return await back(env, 'cloudflare=declined')
+        }
+        const detail = url.searchParams.get('error_description') ?? ''
+        return await back(
+          env,
+          `cloudflare=error&detail=${encodeURIComponent(
+            `${failure}: ${detail}`.slice(0, 300),
+          )}`,
+        )
+      }
       if (!code || !state) return await back(env, 'cloudflare=missing_code')
       const verified = await verifyState(state, env.CLOUDFLARE_CLIENT_SECRET)
       // The state names a node; if it is not this one the flow was routed

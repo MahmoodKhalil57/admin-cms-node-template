@@ -101,10 +101,19 @@ export const SettingsPage = () => {
 
   useEffect(() => {
     // The Cloudflare callback redirects back here with its outcome in the query.
-    const outcome = new URLSearchParams(window.location.search).get('cloudflare')
+    const query = new URLSearchParams(window.location.search)
+    const outcome = query.get('cloudflare')
     if (outcome) {
-      notify(CALLBACK_MESSAGES[outcome] ?? outcome, {
+      // `detail` carries Cloudflare's own words for anything that is not one of
+      // the outcomes worth phrasing ourselves. Saying "you declined" to
+      // somebody who declined nothing sent everybody looking in the wrong
+      // place, and the actual reason never reached anyone.
+      const said =
+        CALLBACK_MESSAGES[outcome] ?? query.get('detail') ?? outcome
+      notify(said, {
         type: outcome === 'connected' ? 'success' : 'error',
+        // Long enough to read a sentence from Cloudflare rather than glimpse it.
+        autoHideDuration: outcome === 'connected' ? 4000 : 12000,
       })
       window.history.replaceState({}, '', '/admin/settings')
     }

@@ -235,6 +235,25 @@ export async function bindHostnameToWorker(
     token,
     `/zones/${zone.id}/workers/routes`,
   )
+  /*
+    The connection may not be allowed to touch routes.
+
+    Cloudflare validates requested scopes against the OAuth app's registration
+    and refuses the whole authorization if one is missing, so this node asks
+    only for DNS — which means the route that puts the API on the operator's own
+    hostname is theirs to add. Said as an instruction rather than an error,
+    because everything else about the connection worked and the DNS records,
+    which are the larger and more error-prone half, are already done.
+  */
+  if (routes.status === 403 || routes.status === 401) {
+    return {
+      ok: false,
+      note:
+        `This Cloudflare connection can manage DNS but not Worker routes. ` +
+        `Add one by hand in Cloudflare under Workers Routes: pattern ` +
+        `${hostname}/*, worker ${script}. Everything else is set up.`,
+    }
+  }
   if (!routes.ok) return { ok: false, note: describe(routes) }
 
   const pattern = `${hostname}/*`

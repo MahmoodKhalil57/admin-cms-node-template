@@ -38,24 +38,40 @@ const TOKEN_URL = 'https://dash.cloudflare.com/oauth2/token'
  * The refresh path below stays because Cloudflare may still return a refresh
  * token, and using one if offered costs nothing.
  */
-export const CLOUDFLARE_SCOPES = [
-  'dns.write',
-  'zone.read',
-  // The API hostname is served by a Worker, which needs a route as well as a
-  // record — a DNS record alone reaches Cloudflare and gets nothing back.
-  'workers-routes.write',
-]
+/**
+ * What this OAuth client is allowed to ask for.
+ *
+ * Cloudflare validates the requested scopes against the app's own registration
+ * and refuses the whole authorization if any is not on it — so one scope too
+ * many does not degrade the connection, it prevents it entirely.
+ *
+ * `workers-routes.write` was in this list and is not on the registration, which
+ * is why connecting failed outright. Its absence costs one thing: the Worker
+ * route that puts the node's API on the operator's own hostname cannot be
+ * created for them, and has to be added by hand. The DNS records — which are
+ * the larger and more error-prone half — are still done for them.
+ *
+ * Overridable, because the registration is ours to change: adding the scope
+ * there and setting `CLOUDFLARE_SCOPES` here is all it takes to get the route
+ * back, with no code change.
+ */
+export const CLOUDFLARE_SCOPES = ['dns.write', 'zone.read']
 
 export function buildAuthorizeUrl(options: {
   clientId: string
   redirectUri: string
   state: string
+  /** overrides the default set when the registration allows more */
+  scopes?: Array<string>
 }): string {
   const url = new URL(AUTHORIZE_URL)
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('client_id', options.clientId)
   url.searchParams.set('redirect_uri', options.redirectUri)
-  url.searchParams.set('scope', CLOUDFLARE_SCOPES.join(' '))
+  url.searchParams.set(
+    'scope',
+    (options.scopes ?? CLOUDFLARE_SCOPES).join(' '),
+  )
   url.searchParams.set('state', options.state)
   return url.href
 }
