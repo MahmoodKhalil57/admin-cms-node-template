@@ -3,6 +3,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import type { NodeDb } from '#/db'
 import { apiKeys } from '#/db/schema'
 import type { RoleCondition } from '#/db/schema'
+import type { Principal } from './authz'
 
 /**
  * Keys that act as one of this node's users.
@@ -41,6 +42,19 @@ export interface MintedKey {
 }
 
 /**
+ * Raised when something holding a key tries to make another one.
+ *
+ * A separate type rather than a returned message because there is no sensible
+ * way to carry on from it, and a caller that forgets to check gets an exception
+ * rather than a key.
+ */
+export class KeyMintRefused extends Error {
+  constructor() {
+    super('A key cannot mint another key.')
+  }
+}
+
+/**
  * Permissions no key may carry, whoever holds them.
  *
  * A key is a long-lived secret that ends up in build output, CI logs and
@@ -56,8 +70,26 @@ export const KEY_FORBIDDEN = [
   'forms:delete',
 ]
 
+/**
+ * Mints a key, and refuses to do it for something that is already one.
+ *
+ * A key may narrow itself when it is made, and that scope is the second of two
+ * gates. Two is a number worth keeping. If a key could mint another, the chain
+ * would be unbounded: every check would have to walk back through however many
+ * parents a key happened to have, every key row would need to remember which
+ * one made it, and revoking one would mean finding everything descended from
+ * it. None of that is hard so much as it is a permanent tax on being right.
+ *
+ * So the depth is fixed at the only place a key can be created. A person mints
+ * keys; a key does not. An agent that needs different access asks the person
+ * who gave it one, which is the conversation that should be happening anyway.
+ *
+ * Taking the minter rather than a flag means a caller cannot forget to decide —
+ * there is no way to reach this function without saying who is asking.
+ */
 export async function mintKey(
   db: NodeDb,
+  mintedBy: Principal,
   userId: string,
   name: string,
   expiresAt?: Date | null,
@@ -72,6 +104,10 @@ export async function mintKey(
     }
   } = {},
 ): Promise<MintedKey> {
+  // The one place a key comes into existence, so the one place this has to be
+  // said. Checked before anything is generated: a refused mint leaves no trace.
+  if (mintedBy.viaKey) throw new KeyMintRefused()
+
   const prefix = hex(crypto.getRandomValues(new Uint8Array(PREFIX_BYTES)))
   const secret = hex(crypto.getRandomValues(new Uint8Array(SECRET_BYTES)))
   // The prefix travels in the key so a lookup does not have to hash every row,

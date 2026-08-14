@@ -16,7 +16,28 @@ import { listKeys, mintKey, revokeKey } from '#/server/api-keys'
  * thing in its own right — it is a way for something to be that account. Asking
  * "what can this key do" should send you to the same page as "what can this
  * user do", and it does.
+ *
+ * Nothing here answers a key. Managing keys is a thing a person does at a
+ * browser: minting one because a key could would make the chain unbounded, and
+ * revoking or listing them would let an agent reach past its own job into every
+ * other key its account holds. One rule across the whole route is easier to
+ * hold in mind — and to keep true — than three exceptions.
  */
+
+/**
+ * Refuses a caller that is itself a key.
+ *
+ * A 403 rather than a 404: this is not a route that does not exist, it is one
+ * that exists and is not for you, and an agent that can tell the difference
+ * stops asking.
+ */
+function notForKeys(principal: { viaKey: boolean } | null): Response | null {
+  if (!principal?.viaKey) return null
+  return Response.json(
+    { error: 'A key cannot manage keys. Ask whoever issued it.' },
+    { status: 403 },
+  )
+}
 export const Route = createFileRoute('/api/team/$id/keys')(
   serverRoute({
     GET: async ({ request, params }) => {
@@ -26,6 +47,8 @@ export const Route = createFileRoute('/api/team/$id/keys')(
         return Response.json({ error: 'Not found' }, { status: 404 })
       }
       const principal = await principalFrom(env, db, request)
+      const refused = notForKeys(principal)
+      if (refused) return refused
       if (!can(principal, 'team:read')) return forbidden('team:read')
 
       const rows = await listKeys(db, params.id)
@@ -50,6 +73,8 @@ export const Route = createFileRoute('/api/team/$id/keys')(
         return Response.json({ error: 'Not found' }, { status: 404 })
       }
       const principal = await principalFrom(env, db, request)
+      const refused = notForKeys(principal)
+      if (refused) return refused
       if (!can(principal, 'team:manage')) return forbidden('team:manage')
 
       const member = await findMember(env, params.id)
@@ -77,7 +102,7 @@ export const Route = createFileRoute('/api/team/$id/keys')(
         ? new Date(Date.now() + body.expiresInDays * 86400 * 1000)
         : null
 
-      const minted = await mintKey(db, params.id, body.name ?? '', expiresAt, {
+      const minted = await mintKey(db, principal!, params.id, body.name ?? '', expiresAt, {
         allowedOrigins: body.allowedOrigins,
         ratePerMinute: body.ratePerMinute,
         scope: body.scope,
@@ -90,6 +115,8 @@ export const Route = createFileRoute('/api/team/$id/keys')(
       const env = getEnv(request)
       const db = getDb(env)
       const principal = await principalFrom(env, db, request)
+      const refused = notForKeys(principal)
+      if (refused) return refused
       if (!can(principal, 'team:manage')) return forbidden('team:manage')
 
       const id = Number(new URL(request.url).searchParams.get('key'))
