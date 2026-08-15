@@ -13,8 +13,10 @@ import {
   getSettings,
   publicApiBase,
   rememberZone,
+  saveCommission,
   saveCustomDomain,
 } from '#/server/settings'
+import { MAX_COMMISSION_BPS } from '#/server/store/commission'
 
 export const Route = createFileRoute('/api/settings')(
   serverRoute({
@@ -66,6 +68,7 @@ export const Route = createFileRoute('/api/settings')(
         cloudflareConfigured: Boolean(
           env.CLOUDFLARE_CLIENT_ID && env.CLOUDFLARE_CLIENT_SECRET,
         ),
+        commissionBps: current.commissionBps,
         purposes: purposes.map((purpose) => ({
           ...purpose,
           verified: verified[purpose.key] ?? false,
@@ -85,6 +88,32 @@ export const Route = createFileRoute('/api/settings')(
 
       const body = (await request.json().catch(() => ({}))) as {
         customDomain?: string | null
+        commissionBps?: number | string | null
+      }
+
+      /*
+        The node's default cut, when that is what is being changed.
+
+        Handled before the domain so a request that only carries a rate is not
+        read as a request to clear the domain — `cleanDomain(undefined)` is
+        null, and null is how the domain is removed.
+      */
+      if (body.commissionBps !== undefined) {
+        const bps = Number(body.commissionBps)
+        if (!Number.isInteger(bps) || bps < 0 || bps > MAX_COMMISSION_BPS) {
+          return Response.json(
+            {
+              error: 'A commission is a whole number of basis points, from 0 to 10000.',
+              message:
+                'A commission is a whole number of basis points, from 0 to 10000.',
+            },
+            { status: 422 },
+          )
+        }
+        await saveCommission(getDb(env), bps)
+        if (body.customDomain === undefined) {
+          return Response.json({ ok: true, commissionBps: bps })
+        }
       }
 
       const cleaned = cleanDomain(body.customDomain)

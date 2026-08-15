@@ -2,6 +2,9 @@ import { Resource } from 'ra-core'
 import { tanStackRouterProvider } from 'ra-router-tanstack'
 import {
   BellRing,
+  CalendarClock,
+  CalendarDays,
+  Clock,
   FileText,
   Package,
   Receipt,
@@ -46,6 +49,18 @@ import {
   VendorEdit,
   VendorList,
 } from '#/components/resources/vendors'
+import {
+  ServiceCreate,
+  ServiceEdit,
+  ServiceList,
+} from '#/components/resources/services'
+import {
+  AvailabilityCreate,
+  AvailabilityEdit,
+  AvailabilityList,
+} from '#/components/resources/availability'
+import { BookingList } from '#/components/resources/bookings'
+import { SaleList } from '#/components/resources/sales'
 import {
   AutomationCreate,
   AutomationEdit,
@@ -113,6 +128,7 @@ export function AdminApp() {
   const team = enabled.includes('user-management')
   const vendors = enabled.includes('vendors')
   const payments = enabled.includes('payments')
+  const appointments = enabled.includes('appointments')
 
   return (
     <>
@@ -239,6 +255,48 @@ export function AdminApp() {
             list={OrderList}
             show={OrderShow}
             icon={Receipt}
+          />
+        )}
+
+        {payments && holds(mine, 'sales:read') && (
+          <Resource
+            name="sales"
+            options={{ label: 'Sales', group: 'Shop' }}
+            list={SaleList}
+            icon={Receipt}
+          />
+        )}
+
+        {/* Selling time rather than things. Grouped apart from the shop
+          because somebody who runs a diary rarely runs a catalogue too, and
+          a sidebar that mixed them would read as one confusing feature. */}
+        {appointments && holds(mine, 'services:read') && (
+          <Resource
+            name="services"
+            options={{ label: 'Services', group: 'Appointments' }}
+            list={ServiceList}
+            edit={ServiceEdit}
+            create={ServiceCreate}
+            icon={CalendarClock}
+            recordRepresentation="name"
+          />
+        )}
+        {appointments && holds(mine, 'services:read') && (
+          <Resource
+            name="availability"
+            options={{ label: 'Opening hours', group: 'Appointments' }}
+            list={AvailabilityList}
+            edit={AvailabilityEdit}
+            create={AvailabilityCreate}
+            icon={Clock}
+          />
+        )}
+        {appointments && holds(mine, 'bookings:read') && (
+          <Resource
+            name="bookings"
+            options={{ label: 'Diary', group: 'Appointments' }}
+            list={BookingList}
+            icon={CalendarDays}
           />
         )}
 

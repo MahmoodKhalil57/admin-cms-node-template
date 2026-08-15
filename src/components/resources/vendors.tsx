@@ -185,6 +185,14 @@ const VendorForm = () => (
       />
       <SelectInput source="status" choices={STATUSES} />
     </div>
+    {/* Left empty on purpose for almost everybody: empty means this vendor is
+        charged whatever the node charges, so changing the node's rate moves
+        them with it. A number here pins them to their own deal. */}
+    <TextInput
+      source="commissionBps"
+      label="Commission, in basis points"
+      helperText="What this node keeps from their sales. 250 is 2.5%. Leave it empty to use the node's rate, and set 0 to take nothing."
+    />
     <Members />
   </div>
 )

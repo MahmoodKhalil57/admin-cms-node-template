@@ -61,6 +61,19 @@ export const settings = sqliteTable('settings', {
     .notNull()
     .default(false),
   apiVerified: integer('api_verified', { mode: 'boolean' }).notNull().default(false),
+  /**
+   * What the platform keeps from a vendor's sale, in basis points.
+   *
+   * The node-wide default; a vendor may be given their own rate, and a null one
+   * falls back here. Basis points rather than a percent because a percent
+   * stored as a float is the same mistake as a price stored as a float — 2.9%
+   * of 1999 has to be an exact integer at the end, and 0.029 does not survive
+   * the trip.
+   *
+   * Zero by default, which is what a single-vendor node means: the operator is
+   * the vendor, so there is nobody to take a cut from.
+   */
+  commissionBps: integer('commission_bps').notNull().default(0),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(
     sql`(unixepoch())`,
   ),
@@ -360,6 +373,15 @@ export const vendors = sqliteTable('vendors', {
   payoutsEnabled: integer('payouts_enabled', { mode: 'boolean' })
     .notNull()
     .default(false),
+  /**
+   * This vendor's own commission rate, when it differs from the node's.
+   *
+   * Null means "whatever the node charges", which is the case for almost every
+   * vendor and is deliberately not the same as zero. A marketplace that gives
+   * one vendor a better rate should be able to say so without that becoming a
+   * number somebody has to keep in step with the default.
+   */
+  commissionBps: integer('commission_bps'),
   createdAt: integer('created_at', { mode: 'timestamp' }).default(
     sql`(unixepoch())`,
   ),
@@ -1016,4 +1038,191 @@ export const formSubmissions = sqliteTable(
     ),
   },
   (table) => [index('submissions_form_created').on(table.formId, table.createdAt)],
+)
+
+/**
+ * Something bookable: a consultation, a fitting, an hour of somebody's time.
+ *
+ * Deliberately not a `products` row with a duration bolted on. A product is a
+ * thing that exists before it is sold and after; a service is an agreement to
+ * be somewhere at a time, and almost every column below is about that. Sharing
+ * a table would have meant half the fields being null on each half of the rows.
+ *
+ * `vendorId` is null on a single-vendor node and set on a marketplace, exactly
+ * as it is on `products` — which is the whole of the difference between
+ * features 3 and 4.
+ */
+export const services = sqliteTable(
+  'services',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    slug: text().notNull().unique(),
+    name: text().notNull(),
+    blurb: text(),
+    /** smallest unit; zero is a free appointment, which confirms on the spot */
+    price: integer().notNull().default(0),
+    /** `draft` is invisible; `published` takes bookings; `retired` keeps its own */
+    status: text().notNull().default('draft'),
+    vendorId: integer('vendor_id'),
+    /** must be a multiple of the slot grid — see `booking_slots` */
+    durationMinutes: integer('duration_minutes').notNull().default(30),
+    /**
+     * Time held after an appointment that cannot be booked over.
+     *
+     * Travel, notes, cleaning down. Part of what the slot occupies rather than
+     * a separate row, because a gap somebody can book into is not a gap.
+     */
+    bufferMinutes: integer('buffer_minutes').notNull().default(0),
+    /** how far ahead the diary is open */
+    horizonDays: integer('horizon_days').notNull().default(60),
+    /** how soon from now something may be booked — no appointments in ten minutes */
+    leadMinutes: integer('lead_minutes').notNull().default(120),
+    /** how long a slot is held while somebody pays for it */
+    holdMinutes: integer('hold_minutes').notNull().default(15),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [index('services_vendor').on(table.vendorId)],
+)
+
+/**
+ * When somebody is normally available, as a weekly pattern.
+ *
+ * **The timezone is stored, not an offset.** A rule that says "Tuesdays, 09:00
+ * to 17:00, Europe/London" means a different instant in January than it does in
+ * July, and an offset cannot express which of the two was meant. Storing +00:00
+ * would silently move every winter appointment by an hour in summer.
+ *
+ * Minutes from local midnight rather than a time string, because arithmetic on
+ * "09:30" is how a scheduler ends up with 09:75.
+ */
+export const availabilityRules = sqliteTable(
+  'availability_rules',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    vendorId: integer('vendor_id'),
+    /** 0 is Sunday, matching `Date.getUTCDay` */
+    weekday: integer().notNull(),
+    startMinute: integer('start_minute').notNull(),
+    endMinute: integer('end_minute').notNull(),
+    /** an IANA name, never an offset */
+    timezone: text().notNull().default('UTC'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [index('availability_rules_vendor').on(table.vendorId)],
+)
+
+/**
+ * A day that does not follow the weekly pattern.
+ *
+ * Two kinds in one table: with no window it closes the day, and with one it
+ * replaces the day's hours. Closures are the common case — a holiday, a day
+ * off — and the replacement is what covers "open late on the 14th".
+ */
+export const availabilityExceptions = sqliteTable(
+  'availability_exceptions',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    vendorId: integer('vendor_id'),
+    /** the local date in `timezone`, as `YYYY-MM-DD` */
+    date: text().notNull(),
+    /** both null closes the day */
+    startMinute: integer('start_minute'),
+    endMinute: integer('end_minute'),
+    timezone: text().notNull().default('UTC'),
+    note: text(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [index('availability_exceptions_vendor').on(table.vendorId, table.date)],
+)
+
+/**
+ * Somebody's appointment.
+ *
+ * `startsAt` is an instant, stored in UTC like every other timestamp here. The
+ * local time it corresponds to is derived from the rule's timezone when it is
+ * shown, never stored alongside — two representations of one fact is two
+ * chances to disagree.
+ *
+ * `held` is a slot somebody is paying for right now and `holdExpiresAt` is when
+ * it stops being theirs. A free service goes straight to `confirmed`.
+ */
+export const bookings = sqliteTable(
+  'bookings',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    /** public, unguessable, what the buyer is shown */
+    reference: text().notNull().unique(),
+    serviceId: integer('service_id')
+      .notNull()
+      .references(() => services.id, { onDelete: 'cascade' }),
+    vendorId: integer('vendor_id'),
+    buyerUserId: text('buyer_user_id'),
+    buyerEmail: text('buyer_email'),
+    buyerName: text('buyer_name'),
+    /** what the buyer wrote in the box, if the service asks for anything */
+    note: text(),
+    startsAt: integer('starts_at', { mode: 'timestamp' }).notNull(),
+    endsAt: integer('ends_at', { mode: 'timestamp' }).notNull(),
+    /** `held`, `confirmed`, `cancelled`, `expired` */
+    status: text().notNull().default('held'),
+    holdExpiresAt: integer('hold_expires_at', { mode: 'timestamp' }),
+    orderId: integer('order_id'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [
+    index('bookings_service_start').on(table.serviceId, table.startsAt),
+    index('bookings_vendor_start').on(table.vendorId, table.startsAt),
+    index('bookings_buyer').on(table.buyerUserId),
+    index('bookings_order').on(table.orderId),
+  ],
+)
+
+/**
+ * The minutes an appointment occupies, one row per grid cell.
+ *
+ * **This table is how double-booking is prevented, and it is a constraint
+ * rather than a check.** Reading the diary and then inserting leaves a window
+ * between the two that a second buyer fits into exactly, and the symptom is two
+ * people told they have the same Thursday.
+ *
+ * Two details make this the shape it is rather than a unique index on
+ * `(vendor, startsAt)`, which is the version that looks sufficient:
+ *
+ * 1. **Appointments have length.** 10:00–11:00 and 10:30–11:30 do not share a
+ *    start, so an index on the start would admit both. Recording every cell an
+ *    appointment covers turns overlap into a collision the database can see.
+ * 2. **SQLite treats NULLs as distinct in a unique index.** On a single-vendor
+ *    node `vendorId` is null, so `(NULL, t)` never conflicts with `(NULL, t)`
+ *    and the whole guarantee quietly evaporates on exactly the nodes least
+ *    likely to notice. Hence `resourceKey`: a non-null string, `v<id>` for a
+ *    vendor and `house` for the node itself.
+ *
+ * Rows are deleted when a hold expires or a booking is cancelled, which is what
+ * releases the time. The booking itself is kept and marked, because what
+ * happened is worth more than the row it occupied.
+ */
+export const bookingSlots = sqliteTable(
+  'booking_slots',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    bookingId: integer('booking_id')
+      .notNull()
+      .references(() => bookings.id, { onDelete: 'cascade' }),
+    /** never null — see above */
+    resourceKey: text('resource_key').notNull(),
+    /** unix seconds at the start of the cell */
+    slotStart: integer('slot_start').notNull(),
+  },
+  (table) => [
+    uniqueIndex('booking_slots_unique').on(table.resourceKey, table.slotStart),
+    index('booking_slots_booking').on(table.bookingId),
+  ],
 )

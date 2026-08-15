@@ -24,6 +24,10 @@ import { Route as ApiSettingsRouteImport } from './routes/api.settings'
 import { Route as ApiResourceIndexRouteImport } from './routes/api.$resource.index'
 import { Route as ApiResourceIdRouteImport } from './routes/api.$resource.$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
+import { Route as ApiBookHoldRouteImport } from './routes/api.book.hold'
+import { Route as ApiBookServicesRouteImport } from './routes/api.book.services'
+import { Route as ApiBookSlotsRouteImport } from './routes/api.book.slots'
+import { Route as ApiBookingsReferenceRouteImport } from './routes/api.bookings.$reference'
 import { Route as ApiBuilderCommitRouteImport } from './routes/api.builder.commit'
 import { Route as ApiBuilderFileRouteImport } from './routes/api.builder.file'
 import { Route as ApiCloudflareApplyRouteImport } from './routes/api.cloudflare.apply'
@@ -138,6 +142,26 @@ const ApiResourceIdRoute = ApiResourceIdRouteImport.update({
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBookHoldRoute = ApiBookHoldRouteImport.update({
+  id: '/api/book/hold',
+  path: '/api/book/hold',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBookServicesRoute = ApiBookServicesRouteImport.update({
+  id: '/api/book/services',
+  path: '/api/book/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBookSlotsRoute = ApiBookSlotsRouteImport.update({
+  id: '/api/book/slots',
+  path: '/api/book/slots',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBookingsReferenceRoute = ApiBookingsReferenceRouteImport.update({
+  id: '/api/bookings/$reference',
+  path: '/api/bookings/$reference',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiBuilderCommitRoute = ApiBuilderCommitRouteImport.update({
@@ -358,6 +382,10 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/book/hold': typeof ApiBookHoldRoute
+  '/api/book/services': typeof ApiBookServicesRoute
+  '/api/book/slots': typeof ApiBookSlotsRoute
+  '/api/bookings/$reference': typeof ApiBookingsReferenceRoute
   '/api/builder/commit': typeof ApiBuilderCommitRoute
   '/api/builder/file': typeof ApiBuilderFileRoute
   '/api/cloudflare/apply': typeof ApiCloudflareApplyRoute
@@ -415,6 +443,10 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/book/hold': typeof ApiBookHoldRoute
+  '/api/book/services': typeof ApiBookServicesRoute
+  '/api/book/slots': typeof ApiBookSlotsRoute
+  '/api/bookings/$reference': typeof ApiBookingsReferenceRoute
   '/api/builder/commit': typeof ApiBuilderCommitRoute
   '/api/builder/file': typeof ApiBuilderFileRoute
   '/api/cloudflare/apply': typeof ApiCloudflareApplyRoute
@@ -473,6 +505,10 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/book/hold': typeof ApiBookHoldRoute
+  '/api/book/services': typeof ApiBookServicesRoute
+  '/api/book/slots': typeof ApiBookSlotsRoute
+  '/api/bookings/$reference': typeof ApiBookingsReferenceRoute
   '/api/builder/commit': typeof ApiBuilderCommitRoute
   '/api/builder/file': typeof ApiBuilderFileRoute
   '/api/cloudflare/apply': typeof ApiCloudflareApplyRoute
@@ -532,6 +568,10 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/api/$resource/$id'
     | '/api/auth/$'
+    | '/api/book/hold'
+    | '/api/book/services'
+    | '/api/book/slots'
+    | '/api/bookings/$reference'
     | '/api/builder/commit'
     | '/api/builder/file'
     | '/api/cloudflare/apply'
@@ -589,6 +629,10 @@ export interface FileRouteTypes {
     | '/admin'
     | '/api/$resource/$id'
     | '/api/auth/$'
+    | '/api/book/hold'
+    | '/api/book/services'
+    | '/api/book/slots'
+    | '/api/bookings/$reference'
     | '/api/builder/commit'
     | '/api/builder/file'
     | '/api/cloudflare/apply'
@@ -646,6 +690,10 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/api/$resource/$id'
     | '/api/auth/$'
+    | '/api/book/hold'
+    | '/api/book/services'
+    | '/api/book/slots'
+    | '/api/bookings/$reference'
     | '/api/builder/commit'
     | '/api/builder/file'
     | '/api/cloudflare/apply'
@@ -704,6 +752,10 @@ export interface RootRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   ApiResourceIdRoute: typeof ApiResourceIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiBookHoldRoute: typeof ApiBookHoldRoute
+  ApiBookServicesRoute: typeof ApiBookServicesRoute
+  ApiBookSlotsRoute: typeof ApiBookSlotsRoute
+  ApiBookingsReferenceRoute: typeof ApiBookingsReferenceRoute
   ApiBuilderCommitRoute: typeof ApiBuilderCommitRoute
   ApiBuilderFileRoute: typeof ApiBuilderFileRoute
   ApiCloudflareApplyRoute: typeof ApiCloudflareApplyRoute
@@ -849,6 +901,34 @@ declare module '@tanstack/react-router' {
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/book/hold': {
+      id: '/api/book/hold'
+      path: '/api/book/hold'
+      fullPath: '/api/book/hold'
+      preLoaderRoute: typeof ApiBookHoldRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/book/services': {
+      id: '/api/book/services'
+      path: '/api/book/services'
+      fullPath: '/api/book/services'
+      preLoaderRoute: typeof ApiBookServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/book/slots': {
+      id: '/api/book/slots'
+      path: '/api/book/slots'
+      fullPath: '/api/book/slots'
+      preLoaderRoute: typeof ApiBookSlotsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/bookings/$reference': {
+      id: '/api/bookings/$reference'
+      path: '/api/bookings/$reference'
+      fullPath: '/api/bookings/$reference'
+      preLoaderRoute: typeof ApiBookingsReferenceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/builder/commit': {
@@ -1175,6 +1255,10 @@ const rootRouteChildren: RootRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   ApiResourceIdRoute: ApiResourceIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiBookHoldRoute: ApiBookHoldRoute,
+  ApiBookServicesRoute: ApiBookServicesRoute,
+  ApiBookSlotsRoute: ApiBookSlotsRoute,
+  ApiBookingsReferenceRoute: ApiBookingsReferenceRoute,
   ApiBuilderCommitRoute: ApiBuilderCommitRoute,
   ApiBuilderFileRoute: ApiBuilderFileRoute,
   ApiCloudflareApplyRoute: ApiCloudflareApplyRoute,

@@ -109,3 +109,23 @@ export function panelOrigin(env: NodeEnv, current: NodeSettings): string {
 export function originHost(env: NodeEnv): string {
   return env.ORIGIN_HOST ?? ''
 }
+
+/**
+ * The node's default commission, in basis points.
+ *
+ * Its own function rather than a field on `saveCustomDomain`, because the two
+ * are changed from different screens by different people — and because that
+ * function treats a missing domain as an instruction to clear one, which is
+ * exactly the wrong reading of a request that was only ever about a rate.
+ */
+export async function saveCommission(
+  db: NodeDb,
+  bps: number,
+): Promise<NodeSettings> {
+  const current = await getSettings(db)
+  await db
+    .update(settings)
+    .set({ commissionBps: bps, updatedAt: new Date() })
+    .where(eq(settings.id, current.id))
+  return { ...current, commissionBps: bps }
+}

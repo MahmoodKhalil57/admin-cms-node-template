@@ -81,6 +81,14 @@ export const FEATURE_CATALOG: Array<FeatureDefinition> = [
     defaultEnabled: false,
   },
   {
+    key: 'appointments',
+    name: 'Appointments',
+    description:
+      'Sell time rather than things. Set when you are available, and people book and pay for a slot. With multiple vendors on, each keeps their own diary.',
+    defaultEnabled: false,
+    resources: ['services', 'availability', 'bookings'],
+  },
+  {
     key: 'instrumentation',
     name: 'Logs and analytics',
     description:

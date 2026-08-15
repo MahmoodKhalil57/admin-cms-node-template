@@ -12,6 +12,9 @@ import {
   settings,
   products,
   orders,
+  orderItems,
+  services,
+  bookings,
   vendors,
 } from '#/db/schema'
 import type { FormFieldDef } from '#/lib/form-shape'
@@ -913,6 +916,8 @@ export const RESOURCES: Array<Resource> = [
             description: row.description ?? '',
             email: row.email ?? '',
             status: row.status,
+            commission_bps:
+              row.commissionBps === null ? '' : String(row.commissionBps),
           },
         })),
     save: async (db, _env, principal, slug, doc) => {
@@ -933,6 +938,15 @@ export const RESOURCES: Array<Resource> = [
             doc.description === undefined ? row.description : String(doc.description),
           email: doc.email === undefined ? row.email : String(doc.email),
           status: String(doc.status ?? row.status),
+          // Blank is not zero. Empty means "whatever the node charges", which
+          // is what almost every vendor should be; 0 means this one sells here
+          // for nothing, which is a real and different thing to mean.
+          commissionBps:
+            doc.commission_bps === undefined
+              ? row.commissionBps
+              : String(doc.commission_bps).trim() === ''
+                ? null
+                : Number(doc.commission_bps),
         })
         .where(eq(vendors.id, row.id))
       return null
@@ -948,6 +962,178 @@ export const RESOURCES: Array<Resource> = [
         widget: 'select',
         options: ['active', 'suspended'],
       },
+      {
+        name: 'commission_bps',
+        label: 'Commission, in basis points (blank uses the node’s rate)',
+        widget: 'string',
+        required: false,
+      },
+    ],
+  },
+
+  {
+    name: 'node_services',
+    label: 'Services',
+    labelSingular: 'Service',
+    icon: 'event_available',
+    description:
+      'What can be booked, and for how long. A vendor sees their own and nobody else’s.',
+    read: 'services:read',
+    write: 'services:write',
+    feature: 'appointments',
+    summary: '{{fields.name}} — {{fields.status}}',
+    list: async (db, _env, principal) =>
+      (await db.select().from(services).orderBy(desc(services.id)).limit(PAGE))
+        .filter((row) =>
+          allows(principal, 'services:read', {
+            id: row.id,
+            vendorId: row.vendorId,
+          }),
+        )
+        .map((row) => ({
+          slug: row.slug,
+          updatedAt: row.createdAt ?? null,
+          record: { id: row.id, vendorId: row.vendorId },
+          doc: {
+            name: row.name,
+            slug: row.slug,
+            blurb: row.blurb ?? '',
+            price: String(row.price),
+            duration_minutes: String(row.durationMinutes),
+            buffer_minutes: String(row.bufferMinutes),
+            status: row.status,
+          },
+        })),
+    save: async (db, _env, principal, slug, doc) => {
+      const [row] = await db
+        .select()
+        .from(services)
+        .where(eq(services.slug, slug))
+        .limit(1)
+      if (!row) return `There is no service called ${slug}.`
+      if (
+        !allows(principal, 'services:write', {
+          id: row.id,
+          vendorId: row.vendorId,
+        })
+      ) {
+        return `Your account cannot change ${slug}.`
+      }
+      // A duration off the grid would generate no slots at all, which reads
+      // as "nobody is ever available" rather than as the mistake it is.
+      const duration = Number(doc.duration_minutes ?? row.durationMinutes)
+      if (!Number.isInteger(duration) || duration <= 0 || duration % 5 !== 0) {
+        return 'A duration has to be a whole number of minutes, in steps of five.'
+      }
+      await db
+        .update(services)
+        .set({
+          name: String(doc.name ?? row.name),
+          blurb: doc.blurb === undefined ? row.blurb : String(doc.blurb),
+          price: Number(doc.price ?? row.price),
+          durationMinutes: duration,
+          bufferMinutes: Number(doc.buffer_minutes ?? row.bufferMinutes),
+          status: String(doc.status ?? row.status),
+        })
+        .where(eq(services.id, row.id))
+      return null
+    },
+    fields: [
+      { name: 'name', label: 'Name', widget: 'string' },
+      { name: 'slug', label: 'Slug', widget: 'string', required: true },
+      { name: 'blurb', label: 'Description', widget: 'text', required: false },
+      { name: 'price', label: 'Price (smallest unit; 0 is free)', widget: 'string' },
+      { name: 'duration_minutes', label: 'Duration (minutes)', widget: 'string' },
+      { name: 'buffer_minutes', label: 'Gap afterwards (minutes)', widget: 'string' },
+      {
+        name: 'status',
+        label: 'Status',
+        widget: 'select',
+        options: ['draft', 'published', 'retired'],
+      },
+    ],
+  },
+
+  {
+    name: 'node_bookings',
+    label: 'Diary',
+    labelSingular: 'Appointment',
+    icon: 'calendar_month',
+    description:
+      'Appointments, as they stand. Read-only here: a time is taken by booking it, so that a second person cannot be given the same one.',
+    read: 'bookings:read',
+    feature: 'appointments',
+    create: false,
+    summary: '{{fields.starts_at}} — {{fields.status}}',
+    list: async (db, _env, principal) =>
+      (await db.select().from(bookings).orderBy(desc(bookings.startsAt)).limit(PAGE))
+        .filter((row) =>
+          allows(principal, 'bookings:read', {
+            id: row.id,
+            vendorId: row.vendorId,
+            buyerUserId: row.buyerUserId,
+          }),
+        )
+        .map((row) => ({
+          slug: row.reference,
+          updatedAt: row.createdAt ?? null,
+          doc: {
+            reference: row.reference,
+            starts_at: row.startsAt?.toISOString() ?? '',
+            ends_at: row.endsAt?.toISOString() ?? '',
+            status: row.status,
+            buyer: row.buyerEmail ?? '',
+            name: row.buyerName ?? '',
+            note: row.note ?? '',
+          },
+        })),
+    fields: [
+      READ_ONLY('reference', 'Reference'),
+      READ_ONLY('starts_at', 'Starts (UTC)'),
+      READ_ONLY('ends_at', 'Ends (UTC)'),
+      READ_ONLY('status', 'Status'),
+      READ_ONLY('buyer', 'Buyer'),
+      READ_ONLY('name', 'Name'),
+      READ_ONLY('note', 'Note'),
+    ],
+  },
+
+  {
+    name: 'node_sales',
+    label: 'Sales',
+    labelSingular: 'Sale',
+    icon: 'point_of_sale',
+    description:
+      'Every line of every order — what sold, for how much, and what the vendor was owed. This is the table a vendor’s own takings come from.',
+    read: 'sales:read',
+    feature: 'payments',
+    create: false,
+    summary: '{{fields.name}} — {{fields.amount}}',
+    list: async (db, _env, principal) =>
+      (await db.select().from(orderItems).orderBy(desc(orderItems.id)).limit(PAGE))
+        .filter((row) =>
+          allows(principal, 'sales:read', {
+            id: row.id,
+            vendorId: row.vendorId,
+          }),
+        )
+        .map((row) => ({
+          slug: String(row.id),
+          updatedAt: null,
+          doc: {
+            name: row.name,
+            quantity: String(row.quantity),
+            amount: String(row.amount),
+            vendor_share: String(row.vendorShare),
+            platform_fee: String(row.platformFee),
+          },
+        })),
+    fields: [
+      READ_ONLY('name', 'What sold'),
+      READ_ONLY('quantity', 'Quantity'),
+      READ_ONLY('amount', 'Line total'),
+      READ_ONLY('vendor_share', 'Vendor’s share'),
+      READ_ONLY('platform_fee', 'Platform’s cut'),
     ],
   },
 

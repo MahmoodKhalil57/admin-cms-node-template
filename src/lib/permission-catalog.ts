@@ -272,6 +272,61 @@ export const PERMISSION_CATALOG: Array<PermissionDefinition> = [
     feature: 'vendors',
   },
   {
+    key: 'services:read',
+    area: 'Appointments',
+    name: 'See what can be booked',
+    description: 'View the bookable services, including drafts.',
+    feature: 'appointments',
+    scopes: [{ field: 'vendorId', label: 'Only these vendors' }],
+  },
+  {
+    key: 'services:write',
+    area: 'Appointments',
+    name: 'Set up services and hours',
+    description:
+      'Create bookable services, set prices and durations, and say when you are available.',
+    feature: 'appointments',
+    scopes: [{ field: 'vendorId', label: 'Only these vendors' }],
+  },
+  {
+    key: 'services:delete',
+    area: 'Appointments',
+    name: 'Delete a service',
+    description:
+      'Remove a service. Appointments already booked against it go with it, so this is the one to be careful with.',
+    feature: 'appointments',
+    scopes: [{ field: 'vendorId', label: 'Only these vendors' }],
+  },
+  {
+    key: 'bookings:read',
+    area: 'Appointments',
+    name: 'See the diary',
+    description: 'View appointments, who booked them and when they are.',
+    feature: 'appointments',
+    scopes: [
+      { field: 'vendorId', label: 'Only these vendors' },
+      { field: 'buyerUserId', label: 'Only their own' },
+    ],
+  },
+  {
+    key: 'bookings:manage',
+    area: 'Appointments',
+    name: 'Cancel appointments',
+    description:
+      'Call off an appointment and give the time back. Separate from reading the diary because looking at it is a daily job and cancelling somebody is not.',
+    feature: 'appointments',
+    scopes: [{ field: 'vendorId', label: 'Only these vendors' }],
+  },
+  {
+    key: 'sales:read',
+    area: 'Money',
+    name: 'See sales lines',
+    description:
+      'View the individual lines of every order — what sold, for how much, and what the vendor was owed. Narrowed to their own, this is how a vendor sees their takings without seeing the marketplace’s.',
+    feature: 'payments',
+    scopes: [{ field: 'vendorId', label: 'Only these vendors' }],
+  },
+  {
     key: 'events:read',
     area: 'Instrumentation',
     name: 'Read the event log',
@@ -372,4 +427,23 @@ export const RESOURCE_PERMISSIONS: Record<
     write: 'vendors:write',
     delete: 'vendors:manage',
   },
+  services: {
+    read: 'services:read',
+    write: 'services:write',
+    delete: 'services:delete',
+  },
+  // The hours behind a service, not a thing of its own — whoever sets up what
+  // can be booked sets up when.
+  availability: {
+    read: 'services:read',
+    write: 'services:write',
+    delete: 'services:write',
+  },
+  // Read-only over REST. An appointment written here would skip the slot
+  // check and the constraint that stops two people sharing a Thursday, so the
+  // only ways in are `/api/book/hold` and the cancel route.
+  bookings: { read: 'bookings:read', write: 'bookings:manage' },
+  // Order lines, which is where `vendorId` lives — an order can have several
+  // vendors on it, so "a vendor's sales" is a question about lines.
+  sales: { read: 'sales:read', write: 'orders:manage' },
 }

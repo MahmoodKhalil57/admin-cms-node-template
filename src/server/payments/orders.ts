@@ -12,6 +12,7 @@ import {
   revokeForOrder,
 } from '../store/fulfil'
 import { creditSale, debitRefund } from '../payouts/ledger'
+import { cancelForOrder, confirmForOrder } from '../booking/hold'
 import type { OrderOutcome, ProviderConfig, VerifiedEvent } from './provider'
 
 /**
@@ -268,6 +269,16 @@ async function transition(
     // matters most and the one hardest to reconstruct.
     await creditSale(db, order.id, order.currency ?? 'USD')
 
+    /*
+      The appointment stops being a hold and becomes an appointment.
+
+      Awaited, and next to the ledger for the same reason: a buyer who has paid
+      must not be able to lose their slot to an expiring hold because the thing
+      that would have confirmed it was still in flight when the response went
+      out. A no-op on every order that bought no time.
+    */
+    await confirmForOrder(db, order.id)
+
     if (deliver) {
       const granted = await fulfilOrder(
         deliver.env,
@@ -332,7 +343,13 @@ async function transition(
       refunded,
       order.total,
     )
-    if (refunded >= order.total) await revokeForOrder(db, order.id)
+    if (refunded >= order.total) {
+      await revokeForOrder(db, order.id)
+      // A refunded appointment is a cancelled one, and the time goes back on
+      // the diary. Only on a full refund: a partial one is a price adjustment,
+      // not somebody deciding not to come.
+      await cancelForOrder(db, order.id)
+    }
     return true
   }
 

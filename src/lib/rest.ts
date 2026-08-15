@@ -22,8 +22,12 @@ import {
   invitations,
   events,
   notifications,
+  availabilityRules,
+  bookings as bookingsTable,
+  orderItems,
   orders as ordersTable,
   products as productsTable,
+  services as servicesTable,
   projects as projectsTable,
   vendors as vendorsTable,
   policies,
@@ -69,6 +73,18 @@ const RESOURCES = {
   // Created by the provisioning route, never by a POST — a row here without
   // infrastructure behind it is a project that does not exist.
   projects: { table: projectsTable, feature: 'projects', readOnly: true },
+  services: { table: servicesTable, feature: 'appointments' },
+  availability: { table: availabilityRules, feature: 'appointments' },
+  // Read-only, and this is load-bearing rather than tidy. An appointment
+  // inserted here would carry no `booking_slots` rows, so it would occupy no
+  // time and the unique index that stops two people sharing a Thursday would
+  // never see it. Bookings are made at `/api/book/hold` and cancelled at
+  // `/api/bookings/:reference`, both of which go through the constraint.
+  bookings: { table: bookingsTable, feature: 'appointments', readOnly: true },
+  // A vendor's takings, line by line. `vendorId` lives here rather than on the
+  // order — one order can carry several vendors — so this is the table a
+  // `{ vendorId: { mine: true } }` rule can actually narrow.
+  sales: { table: orderItems, feature: 'payments', readOnly: true },
 }
 
 // Drizzle's table types are heavily generic; the generic handlers below work
