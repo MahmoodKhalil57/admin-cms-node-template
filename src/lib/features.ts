@@ -15,6 +15,14 @@ export interface FeatureRow {
  * be fetched — it cannot be a build-time constant, or a toggle would need a
  * redeploy.
  *
+ * **From `/api/permissions`, not from `/api/features`.** The features table is
+ * behind `settings:read`, which most roles have no business holding, and asking
+ * there meant anybody without it got a 403 and an empty list. Every
+ * feature-gated screen then evaluated false, `<Admin>` was left with no
+ * children, and react-admin showed its "add a Resource" splash — so a
+ * collaborator signed in successfully and arrived at a welcome page with
+ * nothing on it.
+ *
  * Cached as a single in-flight promise so mounting `<Admin>` twice (the `/` and
  * `/$` routes both render it) does not fetch twice.
  */
@@ -22,11 +30,9 @@ let pending: Promise<Array<string>> | null = null
 
 export function loadEnabledFeatures(): Promise<Array<string>> {
   if (!pending) {
-    pending = fetch('/api/features?range=%5B0%2C99%5D')
-      .then((response) => (response.ok ? response.json() : []))
-      .then((rows: Array<FeatureRow>) =>
-        rows.filter((row) => row.enabled).map((row) => row.key),
-      )
+    pending = fetch('/api/permissions')
+      .then((response) => (response.ok ? response.json() : {}))
+      .then((body: { features?: Array<string> }) => body.features ?? [])
       .catch(() => [])
   }
   return pending

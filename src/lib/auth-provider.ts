@@ -2,9 +2,18 @@ import type { AuthProvider } from 'ra-core'
 
 import { authClient } from '#/lib/auth-client'
 
+/**
+ * The two ways in.
+ *
+ * A password, which only the seeded owner has, or a code sent to an address.
+ * One `login` rather than two, because ra-core has exactly one and the screen
+ * should not need a second contract to offer the ordinary path.
+ */
 interface Credentials {
   email: string
-  password: string
+  password?: string
+  /** the six digits emailed to them */
+  otp?: string
 }
 
 /**
@@ -31,8 +40,12 @@ async function currentSession(force = false) {
 
 export const authProvider: AuthProvider = {
   async login(params) {
-    const { email, password } = params as Credentials
-    const { error } = await authClient.signIn.email({ email, password })
+    const { email, password, otp } = params as Credentials
+
+    const { error } = otp
+      ? await authClient.signIn.emailOtp({ email, otp })
+      : await authClient.signIn.email({ email, password: password ?? '' })
+
     if (error) {
       throw new Error(error.message ?? 'Could not sign in.')
     }

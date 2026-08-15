@@ -46,6 +46,20 @@ export const Route = createFileRoute('/api/permissions')(
         mine: principal.permissions,
         isOwner: principal.isOwner,
         roleKey: principal.roleKey,
+        /*
+          Which features are on, for anybody signed in.
+
+          The panel reads this to decide which screens exist at all, and it used
+          to get it from `/api/features` — which needs `settings:read`. Anyone
+          without that got a 403, an empty list, and therefore a panel with no
+          screens in it: react-admin renders its "add a Resource" splash when
+          none of its children survive. A collaborator saw the kit's welcome
+          page and no way to do the one job they were invited for.
+
+          Which features a node runs is not a secret worth keeping — what you
+          may *do* with each is gated separately, and that gate has not moved.
+        */
+        features: enabled,
       })
     },
   }),

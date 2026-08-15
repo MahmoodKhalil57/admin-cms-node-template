@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useCreatePath, useGetResourceLabel, useResourceDefinitions } from 'ra-core'
 
 import { holds, useMyPermissions } from '#/lib/my-permissions'
 import { useEnabledFeatures } from '#/lib/features'
@@ -106,6 +107,39 @@ const Bars = ({ series }: { series: Insights['series'] }) => {
   )
 }
 
+/**
+ * The screens this person can actually open.
+ *
+ * Read from the resources react-admin has registered, which are already
+ * filtered by what the viewer holds — so this cannot offer a door that is
+ * locked, and needs no permission list of its own.
+ */
+const Elsewhere = () => {
+  const definitions = useResourceDefinitions()
+  const createPath = useCreatePath()
+  const label = useGetResourceLabel()
+  const reachable = Object.values(definitions).filter((one) => one.hasList)
+  if (reachable.length === 0) return null
+
+  return (
+    <p className="text-muted-foreground max-w-prose text-sm">
+      In the meantime:{' '}
+      {reachable.map((one, index) => (
+        <span key={one.name}>
+          {index > 0 ? ', ' : ''}
+          <a
+            className="text-foreground underline"
+            href={createPath({ resource: one.name, type: 'list' })}
+          >
+            {label(one.name, 2)}
+          </a>
+        </span>
+      ))}
+      .
+    </p>
+  )
+}
+
 export function Dashboard() {
   const enabled = useEnabledFeatures()
   const mine = useMyPermissions()
@@ -140,6 +174,11 @@ export function Dashboard() {
             ? 'Your account cannot read this node’s activity.'
             : 'Logs and analytics is switched off. The log is written either way — switching it on shows what has already happened, not a blank page.'}
         </p>
+        {/* Somebody invited to do one job lands here first, and a dead end is a
+            poor way to be greeted. What they can reach is already known — the
+            sidebar is built from it — so say it rather than leaving them to
+            find it. */}
+        <Elsewhere />
       </div>
     )
   }
