@@ -2,6 +2,7 @@ import { and, eq, sql } from 'drizzle-orm'
 
 import type { NodeDb } from '#/db'
 import { orderItems, vendorLedger } from '#/db/schema'
+import { record } from '../events'
 
 /**
  * A vendor's money, as a history rather than a number.
@@ -105,6 +106,22 @@ export async function creditSale(
       orderItemId: line.id,
       dedupeKey: `sale:${line.id}`,
       note: line.name,
+    })
+
+    /*
+      And a sale, in the log, attributed to the vendor who made it.
+
+      Its own event rather than reading `order.paid` per vendor, because an
+      order can carry several and that event can only ever say one thing about
+      the whole of it. One order, several sales — which is also how the money
+      above is posted, so the two agree by construction.
+    */
+    await record(db, {
+      name: 'vendor.sale',
+      vendorId: line.vendorId,
+      subjectType: 'order_items',
+      subjectId: line.id,
+      detail: { amount: line.amount, share: line.vendorShare, name: line.name },
     })
   }
 }

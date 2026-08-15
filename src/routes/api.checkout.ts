@@ -12,6 +12,7 @@ import { eq, inArray } from 'drizzle-orm'
 import { bookings, orders, products, services, vendors } from '#/db/schema'
 import { commissionRates, splitLine } from '#/server/store/commission'
 import { expireHolds } from '#/server/booking/hold'
+import { vendorPackageByKey } from '#/server/vendor-billing'
 
 /** A cart, not a wholesale order. Both are bounds on an unauthenticated POST. */
 const MAX_LINES = 20
@@ -62,6 +63,8 @@ export const Route = createFileRoute('/api/checkout')(
             quantity?: number
             /** a held booking's reference, from `/api/book/hold` */
             booking?: string
+            /** a credit package a vendor is buying from the operator */
+            credits?: string
           }>
           email?: string
           successUrl?: string
@@ -136,6 +139,52 @@ export const Route = createFileRoute('/api/checkout')(
               vendorId: service.vendorId,
               subjectType: 'booking',
               subjectId: String(booking.id),
+            })
+            continue
+          }
+
+          /*
+            A vendor buying credits from the operator.
+
+            Deliberately an ordinary order line rather than a payment flow of
+            its own. It then rides the webhook that already exists — the one
+            proven not to double-fulfil a retried delivery — and the credits are
+            granted where the download rights are, by the same transition.
+
+            The vendor is taken from the buyer's own account, never from the
+            request: a caller who could name the vendor could buy credits into
+            somebody else's balance.
+          */
+          if (item.credits) {
+            const pack = await vendorPackageByKey(db, String(item.credits))
+            if (!pack) {
+              return Response.json(
+                { error: 'That is not on sale.' },
+                { status: 404 },
+              )
+            }
+            const buying = principal?.vendorIds ?? []
+            if (buying.length !== 1) {
+              return Response.json(
+                {
+                  error:
+                    buying.length === 0
+                      ? 'Only a vendor can buy credits here.'
+                      : 'Choose which vendor these are for.',
+                },
+                { status: 403 },
+              )
+            }
+            lines.push({
+              name: pack.name,
+              unitAmount: pack.price,
+              quantity: 1,
+              // No vendor on the line, and that is not an oversight: this is
+              // the operator selling *to* a vendor, so none of it is owed back
+              // to them. A vendorId here would credit them their own payment.
+              vendorId: null,
+              subjectType: 'credits',
+              subjectId: `${buying[0]}:${pack.key}:${pack.credits}`,
             })
             continue
           }

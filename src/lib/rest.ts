@@ -28,6 +28,7 @@ import {
   orders as ordersTable,
   products as productsTable,
   services as servicesTable,
+  vendorPackages,
   projects as projectsTable,
   vendors as vendorsTable,
   policies,
@@ -85,6 +86,9 @@ const RESOURCES = {
   // order — one order can carry several vendors — so this is the table a
   // `{ vendorId: { mine: true } }` rule can actually narrow.
   sales: { table: orderItems, feature: 'payments', readOnly: true },
+  // What the operator sells credits in, one level down. Their commercial
+  // decision, so rows rather than code — see `ensureVendorPackages`.
+  'vendor-packages': { table: vendorPackages, feature: 'vendors' },
 }
 
 // Drizzle's table types are heavily generic; the generic handlers below work

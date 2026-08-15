@@ -16,6 +16,7 @@ import { Route as AdminBuilderRouteImport } from './routes/admin.builder'
 import { Route as AdminForgotRouteImport } from './routes/admin.forgot'
 import { Route as AdminJoinRouteImport } from './routes/admin.join'
 import { Route as AdminResetRouteImport } from './routes/admin.reset'
+import { Route as ApiBillingRouteImport } from './routes/api.billing'
 import { Route as ApiCheckoutRouteImport } from './routes/api.checkout'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiInsightsRouteImport } from './routes/api.insights'
@@ -23,6 +24,7 @@ import { Route as ApiMcpRouteImport } from './routes/api.mcp'
 import { Route as ApiPermissionsRouteImport } from './routes/api.permissions'
 import { Route as ApiSettingsRouteImport } from './routes/api.settings'
 import { Route as ApiUsageRouteImport } from './routes/api.usage'
+import { Route as ApiVendorBillingRouteImport } from './routes/api.vendor-billing'
 import { Route as ApiResourceIndexRouteImport } from './routes/api.$resource.index'
 import { Route as ApiResourceIdRouteImport } from './routes/api.$resource.$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
@@ -106,6 +108,11 @@ const AdminResetRoute = AdminResetRouteImport.update({
   path: '/admin/reset',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBillingRoute = ApiBillingRouteImport.update({
+  id: '/api/billing',
+  path: '/api/billing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCheckoutRoute = ApiCheckoutRouteImport.update({
   id: '/api/checkout',
   path: '/api/checkout',
@@ -139,6 +146,11 @@ const ApiSettingsRoute = ApiSettingsRouteImport.update({
 const ApiUsageRoute = ApiUsageRouteImport.update({
   id: '/api/usage',
   path: '/api/usage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVendorBillingRoute = ApiVendorBillingRouteImport.update({
+  id: '/api/vendor-billing',
+  path: '/api/vendor-billing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiResourceIndexRoute = ApiResourceIndexRouteImport.update({
@@ -386,6 +398,7 @@ export interface FileRoutesByFullPath {
   '/admin/forgot': typeof AdminForgotRoute
   '/admin/join': typeof AdminJoinRoute
   '/admin/reset': typeof AdminResetRoute
+  '/api/billing': typeof ApiBillingRoute
   '/api/checkout': typeof ApiCheckoutRoute
   '/api/health': typeof ApiHealthRoute
   '/api/insights': typeof ApiInsightsRoute
@@ -393,6 +406,7 @@ export interface FileRoutesByFullPath {
   '/api/permissions': typeof ApiPermissionsRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
   '/api/usage': typeof ApiUsageRoute
+  '/api/vendor-billing': typeof ApiVendorBillingRoute
   '/admin/': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -449,6 +463,7 @@ export interface FileRoutesByTo {
   '/admin/forgot': typeof AdminForgotRoute
   '/admin/join': typeof AdminJoinRoute
   '/admin/reset': typeof AdminResetRoute
+  '/api/billing': typeof ApiBillingRoute
   '/api/checkout': typeof ApiCheckoutRoute
   '/api/health': typeof ApiHealthRoute
   '/api/insights': typeof ApiInsightsRoute
@@ -456,6 +471,7 @@ export interface FileRoutesByTo {
   '/api/permissions': typeof ApiPermissionsRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
   '/api/usage': typeof ApiUsageRoute
+  '/api/vendor-billing': typeof ApiVendorBillingRoute
   '/admin': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -513,6 +529,7 @@ export interface FileRoutesById {
   '/admin/forgot': typeof AdminForgotRoute
   '/admin/join': typeof AdminJoinRoute
   '/admin/reset': typeof AdminResetRoute
+  '/api/billing': typeof ApiBillingRoute
   '/api/checkout': typeof ApiCheckoutRoute
   '/api/health': typeof ApiHealthRoute
   '/api/insights': typeof ApiInsightsRoute
@@ -520,6 +537,7 @@ export interface FileRoutesById {
   '/api/permissions': typeof ApiPermissionsRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
   '/api/usage': typeof ApiUsageRoute
+  '/api/vendor-billing': typeof ApiVendorBillingRoute
   '/admin/': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -578,6 +596,7 @@ export interface FileRouteTypes {
     | '/admin/forgot'
     | '/admin/join'
     | '/admin/reset'
+    | '/api/billing'
     | '/api/checkout'
     | '/api/health'
     | '/api/insights'
@@ -585,6 +604,7 @@ export interface FileRouteTypes {
     | '/api/permissions'
     | '/api/settings'
     | '/api/usage'
+    | '/api/vendor-billing'
     | '/admin/'
     | '/api/$resource/$id'
     | '/api/auth/$'
@@ -641,6 +661,7 @@ export interface FileRouteTypes {
     | '/admin/forgot'
     | '/admin/join'
     | '/admin/reset'
+    | '/api/billing'
     | '/api/checkout'
     | '/api/health'
     | '/api/insights'
@@ -648,6 +669,7 @@ export interface FileRouteTypes {
     | '/api/permissions'
     | '/api/settings'
     | '/api/usage'
+    | '/api/vendor-billing'
     | '/admin'
     | '/api/$resource/$id'
     | '/api/auth/$'
@@ -704,6 +726,7 @@ export interface FileRouteTypes {
     | '/admin/forgot'
     | '/admin/join'
     | '/admin/reset'
+    | '/api/billing'
     | '/api/checkout'
     | '/api/health'
     | '/api/insights'
@@ -711,6 +734,7 @@ export interface FileRouteTypes {
     | '/api/permissions'
     | '/api/settings'
     | '/api/usage'
+    | '/api/vendor-billing'
     | '/admin/'
     | '/api/$resource/$id'
     | '/api/auth/$'
@@ -768,6 +792,7 @@ export interface RootRouteChildren {
   AdminForgotRoute: typeof AdminForgotRoute
   AdminJoinRoute: typeof AdminJoinRoute
   AdminResetRoute: typeof AdminResetRoute
+  ApiBillingRoute: typeof ApiBillingRoute
   ApiCheckoutRoute: typeof ApiCheckoutRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiInsightsRoute: typeof ApiInsightsRoute
@@ -775,6 +800,7 @@ export interface RootRouteChildren {
   ApiPermissionsRoute: typeof ApiPermissionsRoute
   ApiSettingsRoute: typeof ApiSettingsRouteWithChildren
   ApiUsageRoute: typeof ApiUsageRoute
+  ApiVendorBillingRoute: typeof ApiVendorBillingRoute
   AdminIndexRoute: typeof AdminIndexRoute
   ApiResourceIdRoute: typeof ApiResourceIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -873,6 +899,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminResetRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/billing': {
+      id: '/api/billing'
+      path: '/api/billing'
+      fullPath: '/api/billing'
+      preLoaderRoute: typeof ApiBillingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/checkout': {
       id: '/api/checkout'
       path: '/api/checkout'
@@ -920,6 +953,13 @@ declare module '@tanstack/react-router' {
       path: '/api/usage'
       fullPath: '/api/usage'
       preLoaderRoute: typeof ApiUsageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/vendor-billing': {
+      id: '/api/vendor-billing'
+      path: '/api/vendor-billing'
+      fullPath: '/api/vendor-billing'
+      preLoaderRoute: typeof ApiVendorBillingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/$resource/': {
@@ -1287,6 +1327,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminForgotRoute: AdminForgotRoute,
   AdminJoinRoute: AdminJoinRoute,
   AdminResetRoute: AdminResetRoute,
+  ApiBillingRoute: ApiBillingRoute,
   ApiCheckoutRoute: ApiCheckoutRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiInsightsRoute: ApiInsightsRoute,
@@ -1294,6 +1335,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPermissionsRoute: ApiPermissionsRoute,
   ApiSettingsRoute: ApiSettingsRouteWithChildren,
   ApiUsageRoute: ApiUsageRoute,
+  ApiVendorBillingRoute: ApiVendorBillingRoute,
   AdminIndexRoute: AdminIndexRoute,
   ApiResourceIdRoute: ApiResourceIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

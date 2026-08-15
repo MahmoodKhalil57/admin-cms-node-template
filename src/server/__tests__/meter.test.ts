@@ -9,7 +9,7 @@ import * as schema from '#/db/schema'
 import { events } from '#/db/schema'
 import type { NodeEnv } from '../env'
 import { boundsOf, meter } from '../meter'
-import { PRICE_LIST, creditsFor, meterItem, periodOf } from '#/lib/price-list'
+import { creditsFor, itemsFor, meterItem, periodOf } from '#/lib/price-list'
 
 /**
  * The meter.
@@ -137,11 +137,15 @@ describe('counting a period', () => {
     expect(lineFor(reading, 'submission').pending).toBeUndefined()
   })
 
-  test('every price-list item appears, used or not', async () => {
+  test("every item the node is billed for appears, used or not", async () => {
+    // Not every item in the price list — the ones billed to vendors belong on
+    // their bill, and a node charged for its vendors' sales as well as its own
+    // orders would be paying twice for one marketplace.
     const reading = await meter(env, db, '2026-04')
     expect(reading.lines.map((line) => line.item).sort()).toEqual(
-      PRICE_LIST.map((item) => item.key).sort(),
+      itemsFor('node').map((item) => item.key).sort(),
     )
+    expect(reading.lines.some((line) => line.item === 'vendor-sale')).toBe(false)
   })
 })
 

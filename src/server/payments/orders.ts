@@ -13,6 +13,7 @@ import {
 } from '../store/fulfil'
 import { creditSale, debitRefund } from '../payouts/ledger'
 import { cancelForOrder, confirmForOrder } from '../booking/hold'
+import { grantVendorCredits } from '../vendor-billing'
 import type { OrderOutcome, ProviderConfig, VerifiedEvent } from './provider'
 
 /**
@@ -279,6 +280,11 @@ async function transition(
     */
     await confirmForOrder(db, order.id)
 
+    // And any credits a vendor bought from the operator. Awaited, next to the
+    // other two, because all three are things somebody has paid for and a
+    // Worker cancels what is still in flight when the response goes out.
+    await grantCreditLines(db, order.id)
+
     if (deliver) {
       const granted = await fulfilOrder(
         deliver.env,
@@ -354,4 +360,34 @@ async function transition(
   }
 
   return false
+}
+
+/**
+ * Credits a vendor bought, granted once the payment is real.
+ *
+ * Keyed on the order *line* rather than the order: an order could in principle
+ * carry two packages, and both should land. A retried webhook posts the same
+ * keys and the unique index refuses them — the same mechanism that stops a
+ * second download entitlement being minted.
+ */
+async function grantCreditLines(db: NodeDb, orderId: number): Promise<void> {
+  const lines = await db
+    .select()
+    .from(orderItems)
+    .where(eq(orderItems.orderId, orderId))
+
+  for (const line of lines) {
+    if (line.subjectType !== 'credits' || !line.subjectId) continue
+    const [vendorId, packageKey, credits] = String(line.subjectId).split(':')
+    if (!vendorId || !credits) continue
+
+    await grantVendorCredits(db, {
+      vendorId: Number(vendorId),
+      kind: 'purchase',
+      credits: Number(credits),
+      amount: line.amount,
+      note: `Bought ${packageKey ?? 'credits'}`,
+      dedupeKey: `order-item:${line.id}`,
+    })
+  }
 }

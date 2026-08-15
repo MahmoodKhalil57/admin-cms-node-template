@@ -5,6 +5,8 @@ import {
   CalendarClock,
   CalendarDays,
   Clock,
+  Coins,
+  CreditCard,
   FileText,
   Package,
   Receipt,
@@ -61,6 +63,8 @@ import {
 } from '#/components/resources/availability'
 import { BookingList } from '#/components/resources/bookings'
 import { Dashboard } from '#/components/dashboard'
+import { BillingPage } from '#/components/resources/billing'
+import { VendorBillingPage } from '#/components/resources/vendor-billing'
 import { SaleList } from '#/components/resources/sales'
 import {
   AutomationCreate,
@@ -305,6 +309,17 @@ export function AdminApp() {
           />
         )}
 
+        {/* One screen, two readers: a vendor sees their own credits, the
+          marketplace owner sees everybody's. Offered to both, because the
+          server decides which by what the asker acts for. */}
+        {vendors && holds(mine, 'vendors:read') && (
+          <Resource
+            name="vendor-billing"
+            options={{ label: 'Vendor credits', group: 'Vendors' }}
+            list={VendorBillingPage}
+            icon={Coins}
+          />
+        )}
         {vendors && holds(mine, 'vendors:read') && (
           <Resource
             name="vendors"
@@ -325,6 +340,17 @@ export function AdminApp() {
             options={{ label: 'Settings' }}
             list={SettingsPage}
             icon={SlidersHorizontal}
+          />
+        )}
+        {/* What this node owes the platform, which is a different thing from
+          what its own customers owe it. Behind settings, because it is the
+          operator's business rather than the team's. */}
+        {holds(mine, 'settings:read') && (
+          <Resource
+            name="billing"
+            options={{ label: 'Billing' }}
+            list={BillingPage}
+            icon={CreditCard}
           />
         )}
         {/* Always registered for anyone who may manage them — switching a

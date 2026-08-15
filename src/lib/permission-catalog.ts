@@ -446,4 +446,9 @@ export const RESOURCE_PERMISSIONS: Record<
   // Order lines, which is where `vendorId` lives — an order can have several
   // vendors on it, so "a vendor's sales" is a question about lines.
   sales: { read: 'sales:read', write: 'orders:manage' },
+  'vendor-packages': {
+    read: 'vendors:read',
+    write: 'vendors:manage',
+    delete: 'vendors:manage',
+  },
 }

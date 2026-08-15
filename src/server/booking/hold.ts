@@ -160,6 +160,7 @@ export async function holdSlot(
 
   await record(db, {
     name: free ? 'booking.confirmed' : 'booking.held',
+    vendorId: service.vendorId ?? null,
     subjectType: 'bookings',
     subjectId: booking!.id,
     detail: {
@@ -196,6 +197,7 @@ export async function confirmForOrder(
       .where(eq(bookings.id, booking.id))
     await record(db, {
       name: 'booking.confirmed',
+      vendorId: booking.vendorId,
       subjectType: 'bookings',
       subjectId: booking.id,
       detail: { reference: booking.reference, orderId },
@@ -233,6 +235,7 @@ export async function cancelBooking(
 
   await record(db, {
     name: 'booking.cancelled',
+    vendorId: booking.vendorId,
     subjectType: 'bookings',
     subjectId: bookingId,
     detail: { reference: booking.reference, reason },

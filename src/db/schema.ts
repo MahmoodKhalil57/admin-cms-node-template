@@ -1226,3 +1226,95 @@ export const bookingSlots = sqliteTable(
     index('booking_slots_booking').on(table.bookingId),
   ],
 )
+
+/**
+ * What a vendor used, and what it cost them.
+ *
+ * Feature 8 is feature 7 one level down: master bills the node, the node bills
+ * its vendors. Same meter, same credits, same replace-don't-add — the only
+ * thing that changes is who is at the top.
+ *
+ * Priced by the node's own list rather than the platform's. An operator running
+ * a marketplace decides what a listing or an appointment is worth to *them*,
+ * which may be nothing (they absorb it) or several times what it costs us. That
+ * is their margin and their business, and it is why this table stores credits
+ * rather than money — the same reason master's does.
+ */
+export const vendorMeters = sqliteTable(
+  'vendor_meters',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    vendorId: integer('vendor_id')
+      .notNull()
+      .references(() => vendors.id, { onDelete: 'cascade' }),
+    /** `YYYY-MM`, in UTC */
+    period: text().notNull(),
+    item: text().notNull(),
+    quantity: integer().notNull().default(0),
+    credits: integer().notNull().default(0),
+    priceListVersion: integer('price_list_version').notNull().default(1),
+    reportedAt: integer('reported_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [
+    uniqueIndex('vendor_meters_unique').on(table.vendorId, table.period, table.item),
+  ],
+)
+
+/**
+ * Credits a vendor bought or was given. Never usage.
+ *
+ * The same split as master's: this side is append-only because money somebody
+ * paid is a historical fact, and the meter is replaceable because a measurement
+ * is a current best answer. A balance is the difference, computed rather than
+ * stored.
+ */
+export const vendorCredits = sqliteTable(
+  'vendor_credits',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    vendorId: integer('vendor_id')
+      .notNull()
+      .references(() => vendors.id, { onDelete: 'cascade' }),
+    /** `purchase`, `grant`, `adjustment` */
+    kind: text().notNull(),
+    credits: integer().notNull(),
+    amount: integer().notNull().default(0),
+    currency: text().notNull().default('USD'),
+    note: text(),
+    dedupeKey: text('dedupe_key').unique(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [index('vendor_credits_vendor').on(table.vendorId)],
+)
+
+/**
+ * What a vendor can buy credits in.
+ *
+ * The operator's own packages, sold through the node's own payment provider —
+ * the one they already configured to sell to their customers. A vendor buying
+ * credits is a sale like any other, which is why it becomes an ordinary order
+ * and is granted by the same webhook that has already been proven not to
+ * double-fulfil.
+ */
+export const vendorPackages = sqliteTable(
+  'vendor_packages',
+  {
+    id: integer({ mode: 'number' }).primaryKey({ autoIncrement: true }),
+    key: text().notNull().unique(),
+    name: text().notNull(),
+    description: text(),
+    credits: integer().notNull(),
+    /** smallest unit, in the provider's configured currency */
+    price: integer().notNull(),
+    active: integer({ mode: 'boolean' }).notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(
+      sql`(unixepoch())`,
+    ),
+  },
+  (table) => [index('vendor_packages_active').on(table.active)],
+)

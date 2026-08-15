@@ -3,7 +3,7 @@ import { and, count, gte, lt } from 'drizzle-orm'
 import type { NodeDb } from '#/db'
 import { events } from '#/db/schema'
 import type { NodeEnv } from './env'
-import { PRICE_LIST, PRICE_LIST_VERSION, creditsFor, periodOf } from '#/lib/price-list'
+import { PRICE_LIST_VERSION, creditsFor, itemsFor, periodOf } from '#/lib/price-list'
 
 /**
  * What this node used, and what that costs in credits.
@@ -64,7 +64,10 @@ export async function meter(
   // One grouped query for every counted item, rather than one query per item.
   const counted = await countsByName(db, from, to)
 
-  for (const item of PRICE_LIST) {
+  // Only what the node itself is billed for. A vendor's own sale is a
+  // service the node provides, not one it buys, and appears on their bill
+  // rather than on this one.
+  for (const item of itemsFor('node')) {
     if (item.source === 'events') {
       const quantity = counted.get(item.eventName ?? '') ?? 0
       lines.push({
