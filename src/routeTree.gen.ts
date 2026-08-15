@@ -47,6 +47,8 @@ import { Route as ApiGithubAuthorizeRouteImport } from './routes/api.github.auth
 import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
 import { Route as ApiGithubSiteRouteImport } from './routes/api.github.site'
 import { Route as ApiGithubStatusRouteImport } from './routes/api.github.status'
+import { Route as ApiInfraAuthorizeRouteImport } from './routes/api.infra.authorize'
+import { Route as ApiInfraStatusRouteImport } from './routes/api.infra.status'
 import { Route as ApiInternalProvisionRouteImport } from './routes/api.internal.provision'
 import { Route as ApiInvitationsAcceptRouteImport } from './routes/api.invitations.accept'
 import { Route as ApiInvitationsCreateRouteImport } from './routes/api.invitations.create'
@@ -54,6 +56,8 @@ import { Route as ApiMeDownloadsRouteImport } from './routes/api.me.downloads'
 import { Route as ApiMeProfileRouteImport } from './routes/api.me.profile'
 import { Route as ApiOrdersReferenceRouteImport } from './routes/api.orders.$reference'
 import { Route as ApiPaymentsProviderRouteImport } from './routes/api.payments.provider'
+import { Route as ApiProjectsIndexRouteImport } from './routes/api.projects.index'
+import { Route as ApiProjectsSlugRouteImport } from './routes/api.projects.$slug'
 import { Route as ApiPublicSignupRouteImport } from './routes/api.public.signup'
 import { Route as ApiSettingsVerifyRouteImport } from './routes/api.settings.verify'
 import { Route as ApiShopProductsRouteImport } from './routes/api.shop.products'
@@ -263,6 +267,16 @@ const ApiGithubStatusRoute = ApiGithubStatusRouteImport.update({
   path: '/api/github/status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiInfraAuthorizeRoute = ApiInfraAuthorizeRouteImport.update({
+  id: '/api/infra/authorize',
+  path: '/api/infra/authorize',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiInfraStatusRoute = ApiInfraStatusRouteImport.update({
+  id: '/api/infra/status',
+  path: '/api/infra/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiInternalProvisionRoute = ApiInternalProvisionRouteImport.update({
   id: '/api/internal/provision',
   path: '/api/internal/provision',
@@ -296,6 +310,16 @@ const ApiOrdersReferenceRoute = ApiOrdersReferenceRouteImport.update({
 const ApiPaymentsProviderRoute = ApiPaymentsProviderRouteImport.update({
   id: '/api/payments/provider',
   path: '/api/payments/provider',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProjectsIndexRoute = ApiProjectsIndexRouteImport.update({
+  id: '/api/projects/',
+  path: '/api/projects/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProjectsSlugRoute = ApiProjectsSlugRouteImport.update({
+  id: '/api/projects/$slug',
+  path: '/api/projects/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicSignupRoute = ApiPublicSignupRouteImport.update({
@@ -429,6 +453,8 @@ export interface FileRoutesByFullPath {
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/site': typeof ApiGithubSiteRoute
   '/api/github/status': typeof ApiGithubStatusRoute
+  '/api/infra/authorize': typeof ApiInfraAuthorizeRoute
+  '/api/infra/status': typeof ApiInfraStatusRoute
   '/api/internal/provision': typeof ApiInternalProvisionRoute
   '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
   '/api/invitations/create': typeof ApiInvitationsCreateRoute
@@ -436,6 +462,7 @@ export interface FileRoutesByFullPath {
   '/api/me/profile': typeof ApiMeProfileRoute
   '/api/orders/$reference': typeof ApiOrdersReferenceRoute
   '/api/payments/provider': typeof ApiPaymentsProviderRoute
+  '/api/projects/$slug': typeof ApiProjectsSlugRoute
   '/api/public/signup': typeof ApiPublicSignupRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
   '/api/shop/products': typeof ApiShopProductsRoute
@@ -443,6 +470,7 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
+  '/api/projects/': typeof ApiProjectsIndexRoute
   '/api/static/': typeof ApiStaticIndexRoute
   '/api/team/': typeof ApiTeamIndexRoute
   '/api/products/$id/asset': typeof ApiProductsIdAssetRoute
@@ -494,6 +522,8 @@ export interface FileRoutesByTo {
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/site': typeof ApiGithubSiteRoute
   '/api/github/status': typeof ApiGithubStatusRoute
+  '/api/infra/authorize': typeof ApiInfraAuthorizeRoute
+  '/api/infra/status': typeof ApiInfraStatusRoute
   '/api/internal/provision': typeof ApiInternalProvisionRoute
   '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
   '/api/invitations/create': typeof ApiInvitationsCreateRoute
@@ -501,6 +531,7 @@ export interface FileRoutesByTo {
   '/api/me/profile': typeof ApiMeProfileRoute
   '/api/orders/$reference': typeof ApiOrdersReferenceRoute
   '/api/payments/provider': typeof ApiPaymentsProviderRoute
+  '/api/projects/$slug': typeof ApiProjectsSlugRoute
   '/api/public/signup': typeof ApiPublicSignupRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
   '/api/shop/products': typeof ApiShopProductsRoute
@@ -508,6 +539,7 @@ export interface FileRoutesByTo {
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/$resource': typeof ApiResourceIndexRoute
+  '/api/projects': typeof ApiProjectsIndexRoute
   '/api/static': typeof ApiStaticIndexRoute
   '/api/team': typeof ApiTeamIndexRoute
   '/api/products/$id/asset': typeof ApiProductsIdAssetRoute
@@ -560,6 +592,8 @@ export interface FileRoutesById {
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/site': typeof ApiGithubSiteRoute
   '/api/github/status': typeof ApiGithubStatusRoute
+  '/api/infra/authorize': typeof ApiInfraAuthorizeRoute
+  '/api/infra/status': typeof ApiInfraStatusRoute
   '/api/internal/provision': typeof ApiInternalProvisionRoute
   '/api/invitations/accept': typeof ApiInvitationsAcceptRoute
   '/api/invitations/create': typeof ApiInvitationsCreateRoute
@@ -567,6 +601,7 @@ export interface FileRoutesById {
   '/api/me/profile': typeof ApiMeProfileRoute
   '/api/orders/$reference': typeof ApiOrdersReferenceRoute
   '/api/payments/provider': typeof ApiPaymentsProviderRoute
+  '/api/projects/$slug': typeof ApiProjectsSlugRoute
   '/api/public/signup': typeof ApiPublicSignupRoute
   '/api/settings/verify': typeof ApiSettingsVerifyRoute
   '/api/shop/products': typeof ApiShopProductsRoute
@@ -574,6 +609,7 @@ export interface FileRoutesById {
   '/api/webhooks/github': typeof ApiWebhooksGithubRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/$resource/': typeof ApiResourceIndexRoute
+  '/api/projects/': typeof ApiProjectsIndexRoute
   '/api/static/': typeof ApiStaticIndexRoute
   '/api/team/': typeof ApiTeamIndexRoute
   '/api/products/$id/asset': typeof ApiProductsIdAssetRoute
@@ -627,6 +663,8 @@ export interface FileRouteTypes {
     | '/api/github/callback'
     | '/api/github/site'
     | '/api/github/status'
+    | '/api/infra/authorize'
+    | '/api/infra/status'
     | '/api/internal/provision'
     | '/api/invitations/accept'
     | '/api/invitations/create'
@@ -634,6 +672,7 @@ export interface FileRouteTypes {
     | '/api/me/profile'
     | '/api/orders/$reference'
     | '/api/payments/provider'
+    | '/api/projects/$slug'
     | '/api/public/signup'
     | '/api/settings/verify'
     | '/api/shop/products'
@@ -641,6 +680,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/github'
     | '/api/webhooks/stripe'
     | '/api/$resource/'
+    | '/api/projects/'
     | '/api/static/'
     | '/api/team/'
     | '/api/products/$id/asset'
@@ -692,6 +732,8 @@ export interface FileRouteTypes {
     | '/api/github/callback'
     | '/api/github/site'
     | '/api/github/status'
+    | '/api/infra/authorize'
+    | '/api/infra/status'
     | '/api/internal/provision'
     | '/api/invitations/accept'
     | '/api/invitations/create'
@@ -699,6 +741,7 @@ export interface FileRouteTypes {
     | '/api/me/profile'
     | '/api/orders/$reference'
     | '/api/payments/provider'
+    | '/api/projects/$slug'
     | '/api/public/signup'
     | '/api/settings/verify'
     | '/api/shop/products'
@@ -706,6 +749,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/github'
     | '/api/webhooks/stripe'
     | '/api/$resource'
+    | '/api/projects'
     | '/api/static'
     | '/api/team'
     | '/api/products/$id/asset'
@@ -757,6 +801,8 @@ export interface FileRouteTypes {
     | '/api/github/callback'
     | '/api/github/site'
     | '/api/github/status'
+    | '/api/infra/authorize'
+    | '/api/infra/status'
     | '/api/internal/provision'
     | '/api/invitations/accept'
     | '/api/invitations/create'
@@ -764,6 +810,7 @@ export interface FileRouteTypes {
     | '/api/me/profile'
     | '/api/orders/$reference'
     | '/api/payments/provider'
+    | '/api/projects/$slug'
     | '/api/public/signup'
     | '/api/settings/verify'
     | '/api/shop/products'
@@ -771,6 +818,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/github'
     | '/api/webhooks/stripe'
     | '/api/$resource/'
+    | '/api/projects/'
     | '/api/static/'
     | '/api/team/'
     | '/api/products/$id/asset'
@@ -823,6 +871,8 @@ export interface RootRouteChildren {
   ApiGithubCallbackRoute: typeof ApiGithubCallbackRoute
   ApiGithubSiteRoute: typeof ApiGithubSiteRoute
   ApiGithubStatusRoute: typeof ApiGithubStatusRoute
+  ApiInfraAuthorizeRoute: typeof ApiInfraAuthorizeRoute
+  ApiInfraStatusRoute: typeof ApiInfraStatusRoute
   ApiInternalProvisionRoute: typeof ApiInternalProvisionRoute
   ApiInvitationsAcceptRoute: typeof ApiInvitationsAcceptRoute
   ApiInvitationsCreateRoute: typeof ApiInvitationsCreateRoute
@@ -830,12 +880,14 @@ export interface RootRouteChildren {
   ApiMeProfileRoute: typeof ApiMeProfileRoute
   ApiOrdersReferenceRoute: typeof ApiOrdersReferenceRoute
   ApiPaymentsProviderRoute: typeof ApiPaymentsProviderRoute
+  ApiProjectsSlugRoute: typeof ApiProjectsSlugRoute
   ApiPublicSignupRoute: typeof ApiPublicSignupRoute
   ApiShopProductsRoute: typeof ApiShopProductsRoute
   ApiTeamIdRoute: typeof ApiTeamIdRouteWithChildren
   ApiWebhooksGithubRoute: typeof ApiWebhooksGithubRoute
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ApiResourceIndexRoute: typeof ApiResourceIndexRoute
+  ApiProjectsIndexRoute: typeof ApiProjectsIndexRoute
   ApiStaticIndexRoute: typeof ApiStaticIndexRoute
   ApiTeamIndexRoute: typeof ApiTeamIndexRoute
   ApiProductsIdAssetRoute: typeof ApiProductsIdAssetRoute
@@ -1116,6 +1168,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGithubStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/infra/authorize': {
+      id: '/api/infra/authorize'
+      path: '/api/infra/authorize'
+      fullPath: '/api/infra/authorize'
+      preLoaderRoute: typeof ApiInfraAuthorizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/infra/status': {
+      id: '/api/infra/status'
+      path: '/api/infra/status'
+      fullPath: '/api/infra/status'
+      preLoaderRoute: typeof ApiInfraStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/internal/provision': {
       id: '/api/internal/provision'
       path: '/api/internal/provision'
@@ -1163,6 +1229,20 @@ declare module '@tanstack/react-router' {
       path: '/api/payments/provider'
       fullPath: '/api/payments/provider'
       preLoaderRoute: typeof ApiPaymentsProviderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/projects/': {
+      id: '/api/projects/'
+      path: '/api/projects'
+      fullPath: '/api/projects/'
+      preLoaderRoute: typeof ApiProjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/projects/$slug': {
+      id: '/api/projects/$slug'
+      path: '/api/projects/$slug'
+      fullPath: '/api/projects/$slug'
+      preLoaderRoute: typeof ApiProjectsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/signup': {
@@ -1358,6 +1438,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGithubCallbackRoute: ApiGithubCallbackRoute,
   ApiGithubSiteRoute: ApiGithubSiteRoute,
   ApiGithubStatusRoute: ApiGithubStatusRoute,
+  ApiInfraAuthorizeRoute: ApiInfraAuthorizeRoute,
+  ApiInfraStatusRoute: ApiInfraStatusRoute,
   ApiInternalProvisionRoute: ApiInternalProvisionRoute,
   ApiInvitationsAcceptRoute: ApiInvitationsAcceptRoute,
   ApiInvitationsCreateRoute: ApiInvitationsCreateRoute,
@@ -1365,12 +1447,14 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMeProfileRoute: ApiMeProfileRoute,
   ApiOrdersReferenceRoute: ApiOrdersReferenceRoute,
   ApiPaymentsProviderRoute: ApiPaymentsProviderRoute,
+  ApiProjectsSlugRoute: ApiProjectsSlugRoute,
   ApiPublicSignupRoute: ApiPublicSignupRoute,
   ApiShopProductsRoute: ApiShopProductsRoute,
   ApiTeamIdRoute: ApiTeamIdRouteWithChildren,
   ApiWebhooksGithubRoute: ApiWebhooksGithubRoute,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   ApiResourceIndexRoute: ApiResourceIndexRoute,
+  ApiProjectsIndexRoute: ApiProjectsIndexRoute,
   ApiStaticIndexRoute: ApiStaticIndexRoute,
   ApiTeamIndexRoute: ApiTeamIndexRoute,
   ApiProductsIdAssetRoute: ApiProductsIdAssetRoute,

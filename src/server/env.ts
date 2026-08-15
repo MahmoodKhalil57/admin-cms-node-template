@@ -42,6 +42,16 @@ export interface NodeEnv {
    * The platform's Cloudflare OAuth app, for writing DNS records on an
    * operator's behalf when their domain is already on Cloudflare.
    */
+  /**
+   * The scopes asked for when connecting an account to build projects on.
+   *
+   * Overridable because the OAuth registration is ours to change and
+   * Cloudflare refuses the *whole* authorization if any requested scope is not
+   * on it — so a scope added there can be turned on here without a deploy.
+   */
+  CLOUDFLARE_INFRA_SCOPES?: string
+  /** where the public build is published; only the repo, never a key */
+  IMAGE_REPO?: string
   CLOUDFLARE_CLIENT_ID?: string
   CLOUDFLARE_CLIENT_SECRET?: string
   /**

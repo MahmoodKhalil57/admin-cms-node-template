@@ -2,6 +2,7 @@ import { Resource } from 'ra-core'
 import { tanStackRouterProvider } from 'ra-router-tanstack'
 import {
   BellRing,
+  Boxes,
   CalendarClock,
   CalendarDays,
   Clock,
@@ -66,6 +67,7 @@ import { Dashboard } from '#/components/dashboard'
 import { BillingPage } from '#/components/resources/billing'
 import { VendorBillingPage } from '#/components/resources/vendor-billing'
 import { SaleList } from '#/components/resources/sales'
+import { ProjectsPage } from '#/components/resources/projects'
 import {
   AutomationCreate,
   AutomationEdit,
@@ -134,6 +136,7 @@ export function AdminApp() {
   const vendors = enabled.includes('vendors')
   const payments = enabled.includes('payments')
   const appointments = enabled.includes('appointments')
+  const projects = enabled.includes('projects')
 
   return (
     <>
@@ -340,6 +343,16 @@ export function AdminApp() {
             options={{ label: 'Settings' }}
             list={SettingsPage}
             icon={SlidersHorizontal}
+          />
+        )}
+        {/* Built on the operator's own infrastructure, so this is the one
+          screen where the bill lands somewhere other than here. */}
+        {projects && holds(mine, 'projects:read') && (
+          <Resource
+            name="projects"
+            options={{ label: 'Projects' }}
+            list={ProjectsPage}
+            icon={Boxes}
           />
         )}
         {/* What this node owes the platform, which is a different thing from

@@ -1,439 +1,307 @@
-import type { Connection } from './infra'
-import { assetHash, base64ToBytes, contentTypeFor } from './image'
+import { eq } from 'drizzle-orm'
+
+import type { NodeDb } from '#/db'
+import { projects } from '#/db/schema'
+import type { NodeEnv } from '../env'
+import { record } from '../events'
+import { infraToken } from '../infra'
+import {
+  accountSubdomain,
+  createD1,
+  createKv,
+  deleteD1,
+  deleteKv,
+  deleteWorker,
+  enableWorkersDev,
+  explain,
+  findD1,
+  findKv,
+  queryD1,
+  uploadWorker,
+} from './cloudflare'
+import type { Account } from './cloudflare'
+import { buildUploadForm, fetchImage } from './image'
+import type { Binding } from './image'
 
 /**
- * Building a project on somebody else's Cloudflare account.
+ * Building a project on the operator's own infrastructure.
  *
- * This is master's provisioning pipeline with one thing changed: the credential.
- * Master creates nodes on our account with our token; this creates projects on
- * the operator's account with theirs. Everything else — a database, a bucket, a
- * namespace, a Worker, in that order, each step idempotent and keyed on the
- * slug — is the same sequence for the same reasons, and those reasons were paid
- * for the first time round.
+ * Layer 3. Master creates nodes on the platform's account and pays for them;
+ * this creates projects on the **operator's** account, which is what makes a
+ * whitelabel possible — layer 2 becomes somebody else's platform, people sign
+ * up to it, and what they build never touches us.
  *
- * Two things are deliberately different.
+ * Two properties hold this together, and both are load-bearing:
  *
- * **A plain Worker, not a dispatch namespace.** Master runs a fleet and Workers
- * for Platforms earns its keep there. An operator creating a handful of projects
- * does not need it and should not have to buy the add-on to use this feature at
- * all, so each project is one ordinary Worker on their account — which works on
- * the plan they already have.
- *
- * **Retries are theirs, not ours.** When master half-creates a node we notice
- * and fix it. Here the person retrying is an operator who cannot see logs, on
- * resources we cannot reach, so every step reports what it did in words they can
- * act on and every step can be run again without making a second of anything.
+ * 1. **None of the platform's keys are involved.** Every Cloudflare call
+ *    carries the operator's OAuth token, and the build comes from a public
+ *    GitHub release that needs no credential at all.
+ * 2. **It is idempotent, keyed on the slug.** Master's provisioning already had
+ *    to be, and it matters more here: the person retrying is not us, and the
+ *    resources are not ours to clean up. Everything below finds-or-creates.
  */
 
-const API = 'https://api.cloudflare.com/client/v4'
-
-export interface Step {
-  name: string
-  status: 'created' | 'already-existed' | 'failed' | 'skipped'
-  detail?: string
-}
-
-export interface ProvisionResult {
-  ok: boolean
-  slug: string
-  steps: Array<Step>
-  workerName?: string
-  hostname?: string
-  d1DatabaseId?: string
-  r2Bucket?: string
-  kvNamespaceId?: string
-  imageVersion?: string
-  ownerPassword?: string
-  error?: string
-}
-
-/** Names derived from the slug, so a retry finds what the last attempt made. */
-export function namesFor(slug: string) {
+/** `p-<slug>` throughout, so nothing here can name a resource it did not make. */
+export function resourceNames(slug: string) {
   return {
     worker: `p-${slug}`,
-    d1: `p-${slug}`,
-    r2: `p-${slug}-media`,
+    database: `p-${slug}`,
     kv: `p-${slug}-session`,
+    bucket: `p-${slug}-media`,
   }
 }
 
-interface CloudflareAnswer {
-  ok: boolean
-  status: number
-  /** Cloudflare's own flag; an HTTP 200 with `success: false` is a failure */
-  success?: boolean
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  result?: any
-  errors?: Array<{ code: number; message: string }>
-}
+export type Outcome =
+  | { ok: true; hostname: string | null; imageVersion: string }
+  | { ok: false; error: string }
 
-async function cf(
-  connection: Connection,
-  path: string,
-  init: RequestInit = {},
-): Promise<CloudflareAnswer> {
-  const response = await fetch(`${API}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${connection.token}`,
-      ...(init.body && typeof init.body === 'string'
-        ? { 'Content-Type': 'application/json' }
-        : {}),
-      ...(init.headers ?? {}),
-    },
-  })
-  const json = (await response.json().catch(() => ({}))) as CloudflareAnswer
-  return { ...json, ok: response.ok && json.success !== false, status: response.status }
+/*
+  Two to thirty-two, starting and ending on a letter or a digit.
+
+  The bounds are Cloudflare's, not ours: a Worker name and a D1 name both have
+  to survive being used as a hostname label. The earlier version of this made
+  the middle section one-or-more, which quietly refused every two-character
+  name while the message beside it promised they were fine.
+*/
+const SLUG = /^[a-z0-9][a-z0-9-]{0,30}[a-z0-9]$/
+
+export function badSlug(slug: string): string | null {
+  if (!SLUG.test(slug)) {
+    return 'A project name is lowercase letters, numbers and hyphens, between two and thirty-two characters.'
+  }
+  return null
 }
 
 /**
- * Cloudflare's own words, made answerable.
+ * Creates everything a project needs, or says why it could not.
  *
- * An operator reading this cannot see our logs and did not write our code. The
- * limits in particular are worth translating: hitting one is not a fault, it is
- * a plan, and saying which is the difference between a shrug and an action.
- */
-export function explain(answer: CloudflareAnswer): string {
-  const first = answer.errors?.[0]
-  const message = first?.message ?? `Cloudflare refused that (${answer.status}).`
-
-  if (answer.status === 403 || first?.code === 10000) {
-    return `${message} — the connection may have expired, or may not have been granted this permission. Reconnect Cloudflare and try again.`
-  }
-  if (/limit|quota|maximum/i.test(message)) {
-    return `${message} — this is a limit on your Cloudflare account rather than something here. Removing an unused project, or upgrading the plan, will clear it.`
-  }
-  return message
-}
-
-/**
- * Creates the pieces, then the Worker that uses them.
- *
- * The order matters and is the order master learned: bindings have to exist
- * before a script can name them, and a script uploaded against a binding that
- * is not there fails in a way that reads like a code problem.
+ * Errors come back as sentences rather than being thrown, because every one of
+ * them is going to be read by an operator looking at their own Cloudflare
+ * account — a plan limit they did not know about, a grant that has expired, a
+ * name already taken. See `explain`.
  */
 export async function provisionProject(
-  connection: Connection,
+  env: NodeEnv,
+  db: NodeDb,
   slug: string,
-): Promise<ProvisionResult> {
-  const steps: Array<Step> = []
-  const names = namesFor(slug)
-  const accountId = connection.accountId
-  if (!accountId) {
+  options: { ownerUserId?: string | null } = {},
+): Promise<Outcome> {
+  const connection = await infraToken(env, db, 'cloudflare')
+  if (!connection?.accountId) {
     return {
       ok: false,
-      slug,
-      steps,
-      error: 'This Cloudflare connection has no account on it. Reconnect it.',
+      error:
+        'Cloudflare is not connected, or the connection has run out. Connect it again on the Projects screen.',
     }
   }
 
-  const base = `/accounts/${accountId}`
-  const result: ProvisionResult = { ok: false, slug, steps }
+  const account: Account = {
+    token: connection.token,
+    accountId: connection.accountId,
+  }
+  const names = resourceNames(slug)
 
-  /* --- D1 ---------------------------------------------------------------- */
-  const d1 = await cf(connection, `${base}/d1/database`, {
-    method: 'POST',
-    body: JSON.stringify({ name: names.d1 }),
-  })
-  if (d1.ok) {
-    result.d1DatabaseId = d1.result?.uuid
-    steps.push({ name: 'database', status: 'created', detail: names.d1 })
-  } else {
-    // Already there is the ordinary outcome of a retry, not a failure.
-    const list = await cf(connection, `${base}/d1/database?name=${names.d1}`)
-    const found = list.result?.find?.(
-      (row: { name: string; uuid: string }) => row.name === names.d1,
-    )
-    if (found) {
-      result.d1DatabaseId = found.uuid
-      steps.push({ name: 'database', status: 'already-existed', detail: names.d1 })
-    } else {
-      steps.push({ name: 'database', status: 'failed', detail: explain(d1) })
-      return { ...result, error: explain(d1) }
+  // Before anything is created on somebody's account: if the build cannot be
+  // downloaded there is nothing to put in the Worker, and half a project is
+  // worse than none.
+  let image
+  try {
+    image = await fetchImage(env)
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'The build is unavailable.',
     }
   }
 
-  /* --- R2 ---------------------------------------------------------------- */
-  const r2 = await cf(connection, `${base}/r2/buckets`, {
-    method: 'POST',
-    body: JSON.stringify({ name: names.r2 }),
-  })
-  if (r2.ok) {
-    result.r2Bucket = names.r2
-    steps.push({ name: 'storage', status: 'created', detail: names.r2 })
-  } else if (/already exists/i.test(r2.errors?.[0]?.message ?? '')) {
-    result.r2Bucket = names.r2
-    steps.push({ name: 'storage', status: 'already-existed', detail: names.r2 })
+  /* --- the database ------------------------------------------------------ */
+
+  let databaseId: string | null = null
+  const existingD1 = await findD1(account, names.database)
+  if (existingD1.ok && existingD1.result?.length) {
+    databaseId = existingD1.result[0]!.uuid
   } else {
-    steps.push({ name: 'storage', status: 'failed', detail: explain(r2) })
-    return { ...result, error: explain(r2) }
+    const made = await createD1(account, names.database)
+    if (!made.ok || !made.result) {
+      return { ok: false, error: explain(made, 'Creating the database') }
+    }
+    databaseId = made.result.uuid
   }
 
-  /* --- KV ---------------------------------------------------------------- */
-  const kv = await cf(connection, `${base}/storage/kv/namespaces`, {
-    method: 'POST',
-    body: JSON.stringify({ title: names.kv }),
-  })
-  if (kv.ok) {
-    result.kvNamespaceId = kv.result?.id
-    steps.push({ name: 'sessions', status: 'created', detail: names.kv })
-  } else {
-    const list = await cf(connection, `${base}/storage/kv/namespaces?per_page=100`)
-    const found = list.result?.find?.(
-      (row: { title: string; id: string }) => row.title === names.kv,
-    )
-    if (found) {
-      result.kvNamespaceId = found.id
-      steps.push({ name: 'sessions', status: 'already-existed', detail: names.kv })
-    } else {
-      steps.push({ name: 'sessions', status: 'failed', detail: explain(kv) })
-      return { ...result, error: explain(kv) }
+  // Applied here rather than on the project's first request. A cold Worker that
+  // migrates at request time answers 522 while it does, which is a lesson
+  // already paid for once.
+  for (const migration of image.migrations) {
+    const applied = await queryD1(account, databaseId, migration.sql)
+    if (!applied.ok) {
+      // A migration that has already run is not a failure — this is the retry
+      // path, and idempotence is the whole point.
+      const message = applied.errors?.[0]?.message ?? ''
+      const harmless =
+        /already exists|duplicate column/i.test(message) || applied.status === 409
+      if (!harmless) {
+        return {
+          ok: false,
+          error: explain(applied, `Applying ${migration.name}`),
+        }
+      }
     }
   }
 
-  return { ...result, ok: true, workerName: names.worker }
-}
+  /* --- sessions ---------------------------------------------------------- */
 
-/**
- * Removes what this created, and only what this created.
- *
- * Names are derived from the slug and checked against that prefix before
- * anything is deleted. These are somebody else's resources on somebody else's
- * account, and the cost of a wrong name here is not ours to pay — which is
- * exactly why the check is here rather than trusted to the caller.
- */
-export async function deprovisionProject(
-  connection: Connection,
-  slug: string,
-  ids: { d1DatabaseId?: string | null; kvNamespaceId?: string | null },
-): Promise<Array<Step>> {
-  const steps: Array<Step> = []
-  const names = namesFor(slug)
-  const accountId = connection.accountId
-  if (!accountId) return steps
-  const base = `/accounts/${accountId}`
+  let kvId: string | null = null
+  const existingKv = await findKv(account, names.kv)
+  if (existingKv) {
+    kvId = existingKv.id
+  } else {
+    const made = await createKv(account, names.kv)
+    if (!made.ok || !made.result) {
+      return { ok: false, error: explain(made, 'Creating the session store') }
+    }
+    kvId = made.result.id
+  }
 
-  if (!names.worker.startsWith(`p-`)) return steps
+  /* --- the Worker -------------------------------------------------------- */
 
-  const worker = await cf(connection, `${base}/workers/scripts/${names.worker}`, {
-    method: 'DELETE',
-  })
-  steps.push({
-    name: 'worker',
-    status: worker.ok ? 'created' : 'failed',
-    detail: names.worker,
-  })
+  /*
+    No bucket, and it is not an oversight.
 
-  if (ids.d1DatabaseId) {
-    const d1 = await cf(connection, `${base}/d1/database/${ids.d1DatabaseId}`, {
-      method: 'DELETE',
+    Cloudflare's OAuth vocabulary has no R2 scope at all — there is no
+    `r2.write` to ask for — so a project built on a delegated grant cannot be
+    given storage of its own. The binding is simply absent, and the project runs
+    without it: forms, the diary, the team and the panel all work; uploading a
+    file a buyer downloads does not.
+
+    Said out loud rather than left to be discovered, and revisitable the day
+    Cloudflare adds the scope: one entry in `INFRA_SCOPES` and one binding here.
+  */
+  const bindings: Array<Binding> = [
+    { type: 'd1', name: 'DB', id: databaseId },
+    { type: 'kv_namespace', name: 'KV', namespace_id: kvId },
+    { type: 'plain_text', name: 'NODE_ID', text: slug },
+    { type: 'plain_text', name: 'NODE_NAME', text: slug },
+    // Its own signing secret, derived per project so two projects on one
+    // account cannot read each other's sessions.
+    { type: 'secret_text', name: 'BETTER_AUTH_SECRET', text: await secretFor(env, slug) },
+  ]
+
+  const upload = await uploadWorker(
+    account,
+    names.worker,
+    buildUploadForm(image, bindings),
+  )
+  if (!upload.ok) {
+    return { ok: false, error: explain(upload, 'Uploading the project') }
+  }
+
+  /* --- where it answers -------------------------------------------------- */
+
+  let hostname: string | null = null
+  const enabled = await enableWorkersDev(account, names.worker)
+  if (enabled.ok) {
+    const subdomain = await accountSubdomain(account)
+    if (subdomain) hostname = `${names.worker}.${subdomain}.workers.dev`
+  }
+
+  await db
+    .update(projects)
+    .set({
+      status: 'active',
+      cloudflareAccountId: account.accountId,
+      workerName: names.worker,
+      hostname,
+      d1DatabaseId: databaseId,
+      kvNamespaceId: kvId,
+      r2Bucket: null,
+      imageVersion: image.version,
+      lastError: null,
     })
-    steps.push({ name: 'database', status: d1.ok ? 'created' : 'failed' })
-  }
-  if (ids.kvNamespaceId) {
-    const kv = await cf(
-      connection,
-      `${base}/storage/kv/namespaces/${ids.kvNamespaceId}`,
-      { method: 'DELETE' },
-    )
-    steps.push({ name: 'sessions', status: kv.ok ? 'created' : 'failed' })
-  }
+    .where(eq(projects.slug, slug))
 
-  // The bucket is deliberately left. It holds whatever the project sold, and a
-  // delete here would be irreversible on somebody else's account.
-  steps.push({
-    name: 'storage',
-    status: 'skipped',
-    detail: `${names.r2} kept — it may hold their files`,
+  await record(db, {
+    name: 'project.created',
+    subjectType: 'projects',
+    subjectId: slug,
+    detail: { hostname, imageVersion: image.version, ownerUserId: options.ownerUserId },
   })
 
-  return steps
-}
-
-/* --- the Worker ----------------------------------------------------------- */
-
-/**
- * Uploads the static assets and returns the token the script upload needs.
- *
- * Cloudflare is told a manifest of hashes first and answers with only the ones
- * it does not already hold — so a second project on the same account uploads
- * almost nothing, and a redeploy of an unchanged build uploads nothing at all.
- *
- * The bucket uploads authenticate with the session's own JWT rather than the
- * operator's API token. That is Cloudflare's design and a good one: the
- * short-lived token is scoped to this upload and nothing else.
- */
-export async function uploadAssets(
-  connection: Connection,
-  scriptName: string,
-  assets: Record<string, string>,
-): Promise<string | null> {
-  const paths = Object.keys(assets)
-  if (paths.length === 0) return null
-
-  const byHash = new Map<string, { path: string; base64: string }>()
-  const manifest: Record<string, { hash: string; size: number }> = {}
-
-  for (const path of paths) {
-    const base64 = assets[path]!
-    const bytes = base64ToBytes(base64)
-    const hash = await assetHash(bytes)
-    manifest[path] = { hash, size: bytes.length }
-    byHash.set(hash, { path, base64 })
-  }
-
-  const session = await cf(
-    connection,
-    `/accounts/${connection.accountId}/workers/scripts/${scriptName}/assets-upload-session`,
-    { method: 'POST', body: JSON.stringify({ manifest }) },
-  )
-  if (!session.ok) throw new Error(explain(session))
-
-  const buckets: Array<Array<string>> = session.result?.buckets ?? []
-  let completion: string | null = session.result?.jwt ?? null
-
-  // Nothing missing: every byte is already held, and the session token is the
-  // completion token.
-  if (buckets.every((bucket) => bucket.length === 0)) return completion
-
-  for (const bucket of buckets) {
-    if (bucket.length === 0) continue
-
-    const form = new FormData()
-    for (const hash of bucket) {
-      const asset = byHash.get(hash)
-      if (!asset) continue
-      form.set(
-        hash,
-        new File([asset.base64], hash, { type: contentTypeFor(asset.path) }),
-      )
-    }
-
-    const response = await fetch(
-      `${API}/accounts/${connection.accountId}/workers/assets/upload?base64=true`,
-      {
-        method: 'POST',
-        // The session JWT, and no Content-Type — fetch sets the multipart
-        // boundary itself, and setting it by hand produces a body Cloudflare
-        // cannot parse.
-        headers: { Authorization: `Bearer ${session.result?.jwt}` },
-        body: form,
-      },
-    )
-    const body = (await response.json().catch(() => ({}))) as {
-      result?: { jwt?: string }
-      errors?: Array<{ code: number; message: string }>
-    }
-    if (!response.ok) {
-      throw new Error(
-        body.errors?.[0]?.message ?? 'Uploading the interface failed.',
-      )
-    }
-    if (body.result?.jwt) completion = body.result.jwt
-  }
-
-  return completion
-}
-
-export interface WorkerSecrets {
-  betterAuthSecret: string
-  provisionToken: string
+  return { ok: true, hostname, imageVersion: image.version }
 }
 
 /**
- * Uploads the Worker itself, with its bindings.
+ * Takes a project's infrastructure down.
  *
- * A plain Worker on the operator's account: no dispatch namespace, so nothing
- * here needs Workers for Platforms. The bindings name the database, bucket and
- * namespace made above — which is why those come first, since a script
- * referring to a binding that does not exist fails in a way that reads like a
- * code problem.
+ * The Worker and the session store go; **the database stays**. It holds
+ * somebody's accounts, their enquiries and possibly their orders, and deleting
+ * it is a decision nobody should be able to make by clicking Destroy on the
+ * wrong row. The row here is marked so the operator can see it happened, and
+ * removing the data is a deliberate act in their own Cloudflare dashboard.
  */
-export async function uploadWorker(
-  connection: Connection,
-  scriptName: string,
-  image: {
-    mainModule: string
-    modules: Array<{ path: string; source: string }>
-    compatibilityDate: string
-    compatibilityFlags: Array<string>
-  },
-  bindings: {
-    d1DatabaseId: string
-    r2Bucket: string
-    kvNamespaceId: string
-    assetsToken: string | null
-    secrets: WorkerSecrets
-  },
-): Promise<void> {
-  const form = new FormData()
+export async function destroyProject(
+  env: NodeEnv,
+  db: NodeDb,
+  slug: string,
+  options: { alsoDatabase?: boolean } = {},
+): Promise<{ ok: boolean; error?: string }> {
+  const connection = await infraToken(env, db, 'cloudflare')
+  if (!connection?.accountId) {
+    return { ok: false, error: 'Cloudflare is not connected, or the connection has run out.' }
+  }
+  const account: Account = { token: connection.token, accountId: connection.accountId }
+  const names = resourceNames(slug)
 
-  const metadata: Record<string, unknown> = {
-    main_module: image.mainModule,
-    compatibility_date: image.compatibilityDate,
-    compatibility_flags: image.compatibilityFlags,
-    bindings: [
-      { type: 'd1', name: 'DB', id: bindings.d1DatabaseId },
-      { type: 'r2_bucket', name: 'MEDIA', bucket_name: bindings.r2Bucket },
-      { type: 'kv_namespace', name: 'KV', namespace_id: bindings.kvNamespaceId },
-      // Its own, generated per project — a secret shared between projects would
-      // make one project's sessions valid in another.
-      {
-        type: 'secret_text',
-        name: 'BETTER_AUTH_SECRET',
-        text: bindings.secrets.betterAuthSecret,
-      },
-      {
-        type: 'secret_text',
-        name: 'PROVISION_TOKEN',
-        text: bindings.secrets.provisionToken,
-      },
-      ...(bindings.assetsToken
-        ? [{ type: 'assets', name: 'ASSETS' }]
-        : []),
-    ],
-    ...(bindings.assetsToken
-      ? { assets: { jwt: bindings.assetsToken } }
-      : {}),
+  const [row] = await db.select().from(projects).where(eq(projects.slug, slug)).limit(1)
+  if (!row) return { ok: false, error: 'No such project.' }
+
+  // Deleted by derived name only, never by anything stored — the same rule
+  // that keeps master away from resources it did not create.
+  await deleteWorker(account, names.worker)
+  if (row.kvNamespaceId) await deleteKv(account, row.kvNamespaceId)
+  if (options.alsoDatabase && row.d1DatabaseId) {
+    await deleteD1(account, row.d1DatabaseId)
   }
 
-  form.set(
-    'metadata',
-    new File([JSON.stringify(metadata)], 'metadata.json', {
-      type: 'application/json',
-    }),
-  )
+  await db
+    .update(projects)
+    .set({
+      status: 'suspended',
+      workerName: null,
+      hostname: null,
+      kvNamespaceId: null,
+      d1DatabaseId: options.alsoDatabase ? null : row.d1DatabaseId,
+    })
+    .where(eq(projects.slug, slug))
 
-  for (const module of image.modules) {
-    form.set(
-      module.path,
-      // The path is the exact string Cloudflare resolves imports by, so it is
-      // used verbatim as the part name rather than being normalised.
-      new File([module.source], module.path, {
-        type: 'application/javascript+module',
-      }),
-    )
-  }
+  await record(db, {
+    name: 'project.destroyed',
+    subjectType: 'projects',
+    subjectId: slug,
+    detail: { keptDatabase: !options.alsoDatabase },
+  })
 
-  const uploaded = await cf(
-    connection,
-    `/accounts/${connection.accountId}/workers/scripts/${scriptName}`,
-    { method: 'PUT', body: form },
-  )
-  if (!uploaded.ok) throw new Error(explain(uploaded))
+  return { ok: true }
 }
 
-/** So a project answers on the internet without a domain being set up first. */
-export async function enableWorkersDev(
-  connection: Connection,
-  scriptName: string,
-): Promise<boolean> {
-  const answer = await cf(
-    connection,
-    `/accounts/${connection.accountId}/workers/scripts/${scriptName}/subdomain`,
-    { method: 'POST', body: JSON.stringify({ enabled: true }) },
+/**
+ * A per-project signing secret, derived rather than stored.
+ *
+ * From the node's own secret and the slug, so it is stable across a rebuild —
+ * a project whose secret changed on every provision would sign everybody out
+ * each time it was rolled — and different per project without a table to keep.
+ */
+async function secretFor(env: NodeEnv, slug: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(env.BETTER_AUTH_SECRET ?? 'node'),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
   )
-  return answer.ok
+  const mac = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    new TextEncoder().encode(`project:${slug}`),
+  )
+  return btoa(String.fromCharCode(...new Uint8Array(mac)))
 }

@@ -13,8 +13,16 @@ import { getEnv } from '#/server/env'
 import { getSettings, panelOrigin } from '#/server/settings'
 
 async function back(env: NodeEnv, query: string): Promise<Response> {
+  return backTo(env, 'settings', query)
+}
+
+async function backTo(
+  env: NodeEnv,
+  screen: 'settings' | 'projects',
+  query: string,
+): Promise<Response> {
   const base = panelOrigin(env, await getSettings(getDb(env)))
-  return Response.redirect(`${base}/admin/settings?${query}`, 302)
+  return Response.redirect(`${base}/admin/${screen}?${query}`, 302)
 }
 
 /**
@@ -45,22 +53,48 @@ export const Route = createFileRoute('/api/cloudflare/callback')(
       */
       const failure = url.searchParams.get('error')
       if (failure) {
+        /*
+          Which screen the operator started from.
+
+          Read before the state is verified, because a refusal has to land
+          somewhere sensible even when it arrives without a usable one — and
+          being bounced to Settings after trying to connect an account for
+          projects is its own small confusion on top of the failure.
+        */
+        const wanted = await verifyState(
+          state ?? '',
+          env.CLOUDFLARE_CLIENT_SECRET,
+        )
+        const forProjects = wanted?.payload === `${env.NODE_ID}:infra`
+        const screen = forProjects ? 'projects' : 'settings'
+        const key = forProjects ? 'infra' : 'cloudflare'
+
         if (failure === 'access_denied') {
-          return await back(env, 'cloudflare=declined')
+          return await backTo(env, screen, `${key}=declined`)
         }
         const detail = url.searchParams.get('error_description') ?? ''
-        return await back(
+        return await backTo(
           env,
-          `cloudflare=error&detail=${encodeURIComponent(
+          screen,
+          `${key}=error&detail=${encodeURIComponent(
             `${failure}: ${detail}`.slice(0, 300),
           )}`,
         )
       }
       if (!code || !state) return await back(env, 'cloudflare=missing_code')
       const verified = await verifyState(state, env.CLOUDFLARE_CLIENT_SECRET)
-      // The state names a node; if it is not this one the flow was routed
-      // wrongly and must not be honoured here.
-      if (!verified || verified.payload !== env.NODE_ID) {
+      /*
+        The state names a node and says which of the two grants this is.
+
+        Cloudflare matches `redirect_uri` exactly, so one registered callback
+        serves both the DNS consent and the much wider one that projects are
+        built on. The suffix is what keeps them apart — without it, connecting
+        a domain and handing over the keys to an account would be
+        indistinguishable at the moment the browser comes back.
+      */
+      const payload = verified?.payload ?? ''
+      const infra = payload === `${env.NODE_ID}:infra`
+      if (!verified || (payload !== env.NODE_ID && !infra)) {
         return await back(env, 'cloudflare=bad_state')
       }
 
@@ -71,9 +105,49 @@ export const Route = createFileRoute('/api/cloudflare/callback')(
           code,
           redirectUri: cloudflareRedirectUri(env),
         })
+
+        if (infra) {
+          const { saveInfra } = await import('#/server/infra')
+          const { whoami } = await import('#/server/projects/cloudflare')
+
+          // Which account this grant is over. Recorded because it is the one
+          // thing an operator has to be able to check — a project on the wrong
+          // account is somebody else's bill.
+          const who = await whoami(tokens.accessToken)
+          const account = who?.accounts[0] ?? null
+
+          await saveInfra(env, getDb(env), {
+            provider: 'cloudflare',
+            accessToken: tokens.accessToken,
+            accountId: account?.id ?? null,
+            accountName: account?.name ?? null,
+            scopes: tokens.scopes ?? [],
+            expiresAt: tokens.expiresAt ? new Date(tokens.expiresAt * 1000) : null,
+          })
+
+          const base = panelOrigin(env, await getSettings(getDb(env)))
+          const said = account
+            ? 'infra=connected'
+            : 'infra=connected&detail=' +
+              encodeURIComponent(
+                'Connected, but no account came back — the grant may be missing account.read.',
+              )
+          return Response.redirect(`${base}/admin/projects?${said}`, 302)
+        }
+
         await saveCloudflare(getDb(env), tokens)
         return await back(env, 'cloudflare=connected')
-      } catch {
+      } catch (error) {
+        if (infra) {
+          const base = panelOrigin(env, await getSettings(getDb(env)))
+          const detail = error instanceof Error ? error.message : 'exchange failed'
+          return Response.redirect(
+            `${base}/admin/projects?infra=error&detail=${encodeURIComponent(
+              detail.slice(0, 300),
+            )}`,
+            302,
+          )
+        }
         return await back(env, 'cloudflare=exchange_failed')
       }
     },

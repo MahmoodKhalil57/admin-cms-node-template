@@ -88,6 +88,15 @@ export interface CloudflareTokens {
   refreshToken: string | null
   /** epoch seconds, or null when Cloudflare does not say */
   expiresAt: number | null
+  /**
+   * What was actually granted.
+   *
+   * Not necessarily what was asked for, and that difference is the only way to
+   * explain a capability that is missing later. A provision that fails on
+   * "creating the database" is much easier to understand next to a connection
+   * that plainly never got `d1.write`.
+   */
+  scopes: Array<string>
 }
 
 async function tokenRequest(
@@ -110,6 +119,7 @@ async function tokenRequest(
     access_token?: string
     refresh_token?: string
     expires_in?: number
+    scope?: string
     error_description?: string
     error?: string
   } | null
@@ -126,6 +136,7 @@ async function tokenRequest(
     expiresAt: parsed.expires_in
       ? Math.floor(Date.now() / 1000) + parsed.expires_in
       : null,
+    scopes: (parsed.scope ?? '').split(/\s+/).filter(Boolean),
   }
 }
 

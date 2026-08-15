@@ -1,117 +1,120 @@
 import type { NodeEnv } from '../env'
 
 /**
- * The built node artifact, fetched from somewhere public.
+ * The build a project runs, fetched from somewhere public.
  *
- * This is the piece that makes the whole feature honest. A project built on an
- * operator's own account has to get its code from somewhere, and every obvious
- * source puts a credential of ours back in the middle: our private bucket needs
- * our API token, and proxying the download through master means master is doing
- * the work and paying for it.
+ * **This is the piece that makes layer 3 cost the platform nothing.** The
+ * obvious way to give a project its code is to read the artifact out of the
+ * platform's R2 bucket with the platform's API token — and that is exactly the
+ * shortcut the feature exists to avoid, because it would put our key inside
+ * every provisioning run an operator triggers.
  *
- * A public GitHub release needs no authentication and is unmetered for public
- * repositories — so a node fetches this with nothing, and it costs nothing
- * however many projects are created. That is the only arrangement where "layer
- * three costs us zero and uses none of our keys" is a fact rather than a claim.
+ * So the artifact is published to a public, versioned location that needs no
+ * credential to read at all: a GitHub release on a public repository. Unmetered
+ * for public repos, no keys involved, and genuinely zero rather than
+ * nearly-zero.
  *
- * `releases/latest/download/...` always resolves to the newest release, so a
- * node does not have to be told a version to build a current project.
+ * `releases/latest/download/…` is a stable URL that always resolves to the most
+ * recent release, so a node provisioning a project today gets today's build
+ * without anybody updating a version number anywhere.
  */
-
-const DEFAULT_IMAGE_URL =
-  'https://github.com/MahmoodKhalil57/admincms-node-image/releases/latest/download/node-image.json'
 
 export interface NodeImage {
   version: string
   mainModule: string
-  modules: Array<{ path: string; source: string }>
-  /** repo path -> base64 */
-  assets: Record<string, string>
-  migrations: Array<{ name: string; sql: string }>
   compatibilityDate: string
   compatibilityFlags: Array<string>
+  modules: Array<{ path: string; source: string }>
+  assets: Record<string, string>
+  migrations: Array<{ name: string; sql: string }>
 }
 
-export function imageUrlFor(env: NodeEnv): string {
-  return (
-    (env as unknown as { NODE_IMAGE_URL?: string }).NODE_IMAGE_URL ??
-    DEFAULT_IMAGE_URL
-  )
+const DEFAULT_REPO = 'MahmoodKhalil57/admincms-node-image'
+const ASSET = 'node-image.json'
+
+export function imageUrl(env: NodeEnv): string {
+  const repo = env.IMAGE_REPO ?? DEFAULT_REPO
+  return `https://github.com/${repo}/releases/latest/download/${ASSET}`
+}
+
+export class ImageUnavailable extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ImageUnavailable'
+  }
 }
 
 /**
- * Fetches and checks it.
+ * Fetches the current build.
  *
- * The shape is verified rather than trusted. This is the one input to
- * provisioning that comes from outside both accounts involved, and a truncated
- * download that got as far as valid JSON would otherwise be uploaded as a
- * Worker that does not run — a failure on somebody else's infrastructure, with
- * a message about modules.
+ * No `Authorization` header, on purpose and worth keeping that way — the day
+ * this needs one is the day layer 3 stops being free, and it should be a
+ * deliberate decision rather than a quiet addition.
  */
 export async function fetchImage(env: NodeEnv): Promise<NodeImage> {
-  const url = imageUrlFor(env)
-  const response = await fetch(url, { redirect: 'follow' })
+  const url = imageUrl(env)
+  let response: Response
+  try {
+    response = await fetch(url, {
+      // Follows the release redirect to the asset itself.
+      redirect: 'follow',
+      headers: { accept: 'application/json' },
+    })
+  } catch (error) {
+    throw new ImageUnavailable(
+      `Could not reach ${url}: ${error instanceof Error ? error.message : 'network error'}`,
+    )
+  }
+
   if (!response.ok) {
-    throw new Error(
-      `Could not fetch the node image (${response.status}). The release may be missing.`,
+    throw new ImageUnavailable(
+      `The build could not be downloaded (${response.status}). It is published at ${url}.`,
     )
   }
 
   const image = (await response.json().catch(() => null)) as NodeImage | null
-  if (
-    !image ||
-    typeof image.version !== 'string' ||
-    !Array.isArray(image.modules) ||
-    image.modules.length === 0 ||
-    !Array.isArray(image.migrations) ||
-    image.migrations.length === 0 ||
-    !image.modules.some((module) => module.path === image.mainModule)
-  ) {
-    throw new Error(
-      'The node image is not in the expected shape. It may have been published incompletely.',
-    )
+  if (!image?.mainModule || !Array.isArray(image.modules)) {
+    throw new ImageUnavailable('The build that came back is not one we recognise.')
   }
-
   return image
 }
 
-/** Cloudflare hashes assets to decide which bytes it already holds. */
-export async function assetHash(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    bytes as unknown as ArrayBuffer,
+export type Binding =
+  | { type: 'd1'; name: string; id: string }
+  | { type: 'kv_namespace'; name: string; namespace_id: string }
+  | { type: 'r2_bucket'; name: string; bucket_name: string }
+  | { type: 'plain_text'; name: string; text: string }
+  | { type: 'secret_text'; name: string; text: string }
+
+/**
+ * The multipart body for a script upload.
+ *
+ * Each module is added with its path as **both** the part name and the
+ * filename. Cloudflare keys the module by the filename, so a part named
+ * `_libs/x.mjs` carrying a filename of `x.mjs` uploads cleanly and then fails
+ * at boot with `No such module` — which is a long way from the mistake.
+ */
+export function buildUploadForm(
+  image: NodeImage,
+  bindings: Array<Binding>,
+): FormData {
+  const form = new FormData()
+  form.set(
+    'metadata',
+    JSON.stringify({
+      main_module: image.mainModule,
+      compatibility_date: image.compatibilityDate,
+      compatibility_flags: image.compatibilityFlags,
+      bindings,
+    }),
   )
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
-    .slice(0, 32)
-}
-
-const TYPES: Record<string, string> = {
-  html: 'text/html; charset=utf-8',
-  js: 'text/javascript; charset=utf-8',
-  css: 'text/css; charset=utf-8',
-  json: 'application/json',
-  svg: 'image/svg+xml',
-  png: 'image/png',
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  webp: 'image/webp',
-  ico: 'image/x-icon',
-  woff2: 'font/woff2',
-  txt: 'text/plain; charset=utf-8',
-}
-
-export function contentTypeFor(path: string): string {
-  const extension = path.split('.').pop()?.toLowerCase() ?? ''
-  return TYPES[extension] ?? 'application/octet-stream'
-}
-
-export function base64ToBytes(base64: string): Uint8Array {
-  const binary = atob(base64)
-  const bytes = new Uint8Array(binary.length)
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index)
+  for (const module of image.modules) {
+    form.set(
+      module.path,
+      new File([module.source], module.path, {
+        type: 'application/javascript+module',
+      }),
+    )
   }
-  return bytes
+  return form
 }
