@@ -27,38 +27,62 @@ import { open, seal } from './secrets'
 export type InfraProvider = 'cloudflare' | 'github'
 
 /**
- * What creating infrastructure needs.
+ * What is asked for when connecting an account.
  *
- * Dotted, matching the DNS connection, because that is the vocabulary this
- * OAuth client's registration is written in — Cloudflare's own first-party
- * tooling uses a colon form for the same capabilities, which is a trap worth
- * naming since both look plausible in a config file.
+ * The naming is the permission group, kebab-cased, then the action — the same
+ * shape the DNS grant uses. Not `account.read` or `account:read`, both of which
+ * look plausible and are refused; the registration's own vocabulary is the only
+ * authority, and it can be read back one scope at a time from the authorize
+ * endpoint.
  *
  * **Cloudflare refuses the whole authorization if any requested scope is not on
- * the app's registration.** One scope too many does not degrade the connection,
- * it prevents it entirely — which is exactly how the DNS connection failed for
- * a fortnight while reporting that the operator had declined. So this list is
- * overridable from the environment: adding a scope to the registration and
- * naming it here is all it takes, with no code change.
+ * the application's registration.** One scope too many does not degrade the
+ * connection, it prevents it entirely — which is how the DNS grant failed for a
+ * fortnight while reporting that the operator had declined. That is why this
+ * list is only what is needed to *identify the account*, and why the scopes
+ * needed to *build* are listed separately below.
  *
- * **There is no R2 scope.** Cloudflare's OAuth vocabulary has no equivalent of
- * `r2:write` at all, so a project built this way cannot be given a bucket of
- * its own. Provisioning carries on without one and says so — a project with no
- * file storage is a real thing that mostly works, and a project that refused to
- * exist because one binding was unavailable is not.
+ * Splitting them means connecting succeeds on a registration that cannot yet
+ * build, and the panel can say precisely which capability is missing. The
+ * alternative — asking for everything — makes an incomplete registration look
+ * like a broken product.
  */
-export const INFRA_SCOPES = [
-  'account.read',
-  'user.read',
-  'workers.write',
-  'workers_scripts.write',
-  'workers_kv.write',
+export const INFRA_SCOPES = ['account-settings.read', 'user-details.read']
+
+/**
+ * What is needed to actually create anything.
+ *
+ * Absent from most registrations, including this platform's at the time of
+ * writing, and unavailable to add until Cloudflare offers the groups in the
+ * OAuth application's permission picker. The names follow the same convention
+ * as everything else and should be confirmed against the registration rather
+ * than trusted — asking for one that does not exist prevents connecting at all.
+ *
+ * There is **no R2 equivalent** in the vocabulary at any spelling, so a project
+ * built on a delegated grant has no storage of its own regardless.
+ */
+export const BUILD_SCOPES = [
   'd1.write',
+  'workers-scripts.write',
+  'workers-kv-storage.write',
 ]
 
 export function infraScopes(env: NodeEnv): Array<string> {
   const configured = (env.CLOUDFLARE_INFRA_SCOPES ?? '').trim()
   return configured ? configured.split(/[\s,]+/).filter(Boolean) : INFRA_SCOPES
+}
+
+/**
+ * Whether a connection can build, and what it is short of.
+ *
+ * Read from what the provider actually granted rather than from what was asked
+ * for. An empty grant list means Cloudflare said nothing about scopes, and the
+ * honest reading of silence is "assume it can" — the alternative is refusing to
+ * try on a connection that might work perfectly.
+ */
+export function missingForBuild(granted: Array<string>): Array<string> {
+  if (granted.length === 0) return []
+  return BUILD_SCOPES.filter((scope) => !granted.includes(scope))
 }
 
 export interface InfraConnection {

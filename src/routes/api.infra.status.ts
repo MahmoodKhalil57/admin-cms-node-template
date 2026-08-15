@@ -5,7 +5,13 @@ import { serverRoute } from '#/lib/server-route'
 import { getEnv } from '#/server/env'
 import { requirePermission } from '#/server/authz'
 import { getEnabledFeatures } from '#/server/features'
-import { currentInfra, forgetInfra, infraScopes } from '#/server/infra'
+import {
+  BUILD_SCOPES,
+  currentInfra,
+  forgetInfra,
+  infraScopes,
+  missingForBuild,
+} from '#/server/infra'
 import { imageUrl } from '#/server/projects/image'
 
 /**
@@ -33,6 +39,9 @@ export const Route = createFileRoute('/api/infra/status')(
         cloudflare,
         /** what would be asked for, so a refusal can be matched against it */
         scopes: infraScopes(env),
+        /** what building additionally needs, and what of it is absent */
+        buildScopes: BUILD_SCOPES,
+        missingForBuild: cloudflare ? missingForBuild(cloudflare.scopes) : BUILD_SCOPES,
         /** where the build comes from — public, and no key of ours involved */
         imageUrl: imageUrl(env),
       })

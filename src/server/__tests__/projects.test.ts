@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { badSlug, resourceNames } from '../projects/provision'
-import { INFRA_SCOPES } from '../infra'
+import { BUILD_SCOPES, INFRA_SCOPES, missingForBuild } from '../infra'
 import { CLOUDFLARE_SCOPES } from '../cloudflare-oauth'
 import { imageUrl } from '../projects/image'
 import type { NodeEnv } from '../env'
@@ -82,19 +82,45 @@ describe('the two Cloudflare grants', () => {
     }
   })
 
-  test('the wider one asks for what provisioning actually uses', () => {
-    for (const needed of ['d1.write', 'workers_scripts.write', 'workers_kv.write']) {
-      expect(INFRA_SCOPES).toContain(needed)
+  test('connecting asks only for what identifies the account', () => {
+    /*
+      Not for what building needs, and that separation is deliberate.
+      Cloudflare refuses the *whole* authorization if any requested scope is
+      absent from the application's registration — so bundling them would mean
+      a registration that cannot yet build also cannot connect, and the product
+      would look broken rather than incomplete.
+    */
+    expect(INFRA_SCOPES).toEqual(['account-settings.read', 'user-details.read'])
+    for (const build of BUILD_SCOPES) {
+      expect(INFRA_SCOPES).not.toContain(build)
     }
   })
 
-  test('and does not ask for a storage scope, because there is not one', () => {
-    // Cloudflare's OAuth vocabulary has no R2 equivalent. Asking for one would
-    // not degrade the connection — Cloudflare refuses the *whole*
-    // authorization if any requested scope is not on the registration, which
-    // is how the DNS connection failed for a fortnight while reporting that
-    // the operator had declined.
-    expect(INFRA_SCOPES.some((scope) => scope.startsWith('r2'))).toBe(false)
+  test('building names what it actually uses', () => {
+    for (const needed of ['d1.write', 'workers-scripts.write']) {
+      expect(BUILD_SCOPES).toContain(needed)
+    }
+  })
+
+  test('nothing asks for storage, because there is no such scope', () => {
+    // Cloudflare's vocabulary has no R2 equivalent at any spelling. Asking for
+    // one would not degrade the connection, it would prevent it entirely.
+    for (const list of [INFRA_SCOPES, BUILD_SCOPES]) {
+      expect(list.some((scope) => scope.includes('r2'))).toBe(false)
+    }
+  })
+
+  test('a grant short of a build permission is caught before anything is made', () => {
+    // On somebody else's account, failing halfway leaves resources they have
+    // to find and remove themselves.
+    expect(missingForBuild(['account-settings.read'])).toEqual(BUILD_SCOPES)
+    expect(missingForBuild([...BUILD_SCOPES, 'account-settings.read'])).toEqual([])
+  })
+
+  test('a provider that says nothing about scopes is given the benefit of it', () => {
+    // Silence is not a refusal, and refusing to try on a connection that might
+    // work perfectly is worse than attempting it and reporting what happened.
+    expect(missingForBuild([])).toEqual([])
   })
 })
 

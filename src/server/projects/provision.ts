@@ -4,7 +4,7 @@ import type { NodeDb } from '#/db'
 import { projects } from '#/db/schema'
 import type { NodeEnv } from '../env'
 import { record } from '../events'
-import { infraToken } from '../infra'
+import { currentInfra, infraToken, missingForBuild } from '../infra'
 import {
   accountSubdomain,
   createD1,
@@ -92,6 +92,25 @@ export async function provisionProject(
       ok: false,
       error:
         'Cloudflare is not connected, or the connection has run out. Connect it again on the Projects screen.',
+    }
+  }
+
+  /*
+    Refused here rather than by Cloudflare, three calls in.
+
+    A grant that cannot create a database fails on the first create with a 403
+    and a message about permissions, halfway through a job that has already
+    started. Checking what was actually granted before touching anything means
+    the operator is told which capability is missing, and nothing has been made
+    on their account that has to be cleaned up.
+  */
+  const short = missingForBuild(
+    (await currentInfra(db, 'cloudflare'))?.scopes ?? [],
+  )
+  if (short.length > 0) {
+    return {
+      ok: false,
+      error: `The Cloudflare connection cannot create infrastructure: it is missing ${short.join(', ')}. That is a permission this platform's Cloudflare application has to offer before it can be granted.`,
     }
   }
 

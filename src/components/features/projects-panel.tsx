@@ -30,6 +30,8 @@ interface Status {
     expired: boolean
   } | null
   scopes: Array<string>
+  buildScopes: Array<string>
+  missingForBuild: Array<string>
   imageUrl: string
 }
 
@@ -166,6 +168,36 @@ export const ProjectsPanel = ({ featureId }: { featureId: number }) => {
                 first.
               </p>
             ) : null}
+          </div>
+        ) : null}
+
+        {/*
+          Connected is not the same as able to build.
+
+          Cloudflare's OAuth application has to offer a permission before an
+          operator can grant it, so a connection can be perfectly valid and
+          still unable to create a database. Saying "connected" and then failing
+          at the moment somebody clicks Build would leave them looking for the
+          fault on their own account, which is the one place it is not.
+        */}
+        {connected && (status.missingForBuild ?? []).length > 0 ? (
+          <div className="border-border/70 bg-muted/30 flex flex-col gap-1 rounded-md border p-3">
+            <p className="text-sm font-medium">Connected, but not able to build yet</p>
+            <p className="text-muted-foreground text-xs">
+              Creating a project needs permissions this platform's Cloudflare
+              application does not offer yet. Nothing on your account will
+              change that — they have to be added to the application first.
+            </p>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {status.missingForBuild.map((scope) => (
+                <span
+                  key={scope}
+                  className="border-destructive/50 text-destructive rounded border px-1.5 py-0.5 font-mono text-[11px]"
+                >
+                  {scope}
+                </span>
+              ))}
+            </div>
           </div>
         ) : null}
 
