@@ -66,6 +66,24 @@ export async function sendMail(
     if (!response.ok || !body.ok) {
       return { sent: false, reason: body.error ?? body.note ?? 'Mail was refused.' }
     }
+
+    /*
+      One sensor for every email this node sends.
+
+      Here rather than at each call site — a receipt, an invitation, a download
+      link and a notification all come through this function, and a meter that
+      was installed per caller would miss the next kind of email somebody adds.
+      Only on success: a refused send is not a thing to be charged for.
+    */
+    const [{ record }, { getDb }] = await Promise.all([
+      import('./events'),
+      import('#/db'),
+    ])
+    await record(getDb(env), {
+      name: 'notification.sent',
+      detail: { to: Array.isArray(mail.to) ? mail.to.length : 1 },
+    })
+
     return { sent: true, from: body.from }
   } catch (error) {
     return {

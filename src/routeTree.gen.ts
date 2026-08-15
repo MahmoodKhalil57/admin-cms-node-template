@@ -18,9 +18,11 @@ import { Route as AdminJoinRouteImport } from './routes/admin.join'
 import { Route as AdminResetRouteImport } from './routes/admin.reset'
 import { Route as ApiCheckoutRouteImport } from './routes/api.checkout'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
+import { Route as ApiInsightsRouteImport } from './routes/api.insights'
 import { Route as ApiMcpRouteImport } from './routes/api.mcp'
 import { Route as ApiPermissionsRouteImport } from './routes/api.permissions'
 import { Route as ApiSettingsRouteImport } from './routes/api.settings'
+import { Route as ApiUsageRouteImport } from './routes/api.usage'
 import { Route as ApiResourceIndexRouteImport } from './routes/api.$resource.index'
 import { Route as ApiResourceIdRouteImport } from './routes/api.$resource.$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
@@ -114,6 +116,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiInsightsRoute = ApiInsightsRouteImport.update({
+  id: '/api/insights',
+  path: '/api/insights',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMcpRoute = ApiMcpRouteImport.update({
   id: '/api/mcp',
   path: '/api/mcp',
@@ -127,6 +134,11 @@ const ApiPermissionsRoute = ApiPermissionsRouteImport.update({
 const ApiSettingsRoute = ApiSettingsRouteImport.update({
   id: '/api/settings',
   path: '/api/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUsageRoute = ApiUsageRouteImport.update({
+  id: '/api/usage',
+  path: '/api/usage',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiResourceIndexRoute = ApiResourceIndexRouteImport.update({
@@ -376,9 +388,11 @@ export interface FileRoutesByFullPath {
   '/admin/reset': typeof AdminResetRoute
   '/api/checkout': typeof ApiCheckoutRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/insights': typeof ApiInsightsRoute
   '/api/mcp': typeof ApiMcpRoute
   '/api/permissions': typeof ApiPermissionsRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
+  '/api/usage': typeof ApiUsageRoute
   '/admin/': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -437,9 +451,11 @@ export interface FileRoutesByTo {
   '/admin/reset': typeof AdminResetRoute
   '/api/checkout': typeof ApiCheckoutRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/insights': typeof ApiInsightsRoute
   '/api/mcp': typeof ApiMcpRoute
   '/api/permissions': typeof ApiPermissionsRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
+  '/api/usage': typeof ApiUsageRoute
   '/admin': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -499,9 +515,11 @@ export interface FileRoutesById {
   '/admin/reset': typeof AdminResetRoute
   '/api/checkout': typeof ApiCheckoutRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/insights': typeof ApiInsightsRoute
   '/api/mcp': typeof ApiMcpRoute
   '/api/permissions': typeof ApiPermissionsRoute
   '/api/settings': typeof ApiSettingsRouteWithChildren
+  '/api/usage': typeof ApiUsageRoute
   '/admin/': typeof AdminIndexRoute
   '/api/$resource/$id': typeof ApiResourceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -562,9 +580,11 @@ export interface FileRouteTypes {
     | '/admin/reset'
     | '/api/checkout'
     | '/api/health'
+    | '/api/insights'
     | '/api/mcp'
     | '/api/permissions'
     | '/api/settings'
+    | '/api/usage'
     | '/admin/'
     | '/api/$resource/$id'
     | '/api/auth/$'
@@ -623,9 +643,11 @@ export interface FileRouteTypes {
     | '/admin/reset'
     | '/api/checkout'
     | '/api/health'
+    | '/api/insights'
     | '/api/mcp'
     | '/api/permissions'
     | '/api/settings'
+    | '/api/usage'
     | '/admin'
     | '/api/$resource/$id'
     | '/api/auth/$'
@@ -684,9 +706,11 @@ export interface FileRouteTypes {
     | '/admin/reset'
     | '/api/checkout'
     | '/api/health'
+    | '/api/insights'
     | '/api/mcp'
     | '/api/permissions'
     | '/api/settings'
+    | '/api/usage'
     | '/admin/'
     | '/api/$resource/$id'
     | '/api/auth/$'
@@ -746,9 +770,11 @@ export interface RootRouteChildren {
   AdminResetRoute: typeof AdminResetRoute
   ApiCheckoutRoute: typeof ApiCheckoutRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiInsightsRoute: typeof ApiInsightsRoute
   ApiMcpRoute: typeof ApiMcpRoute
   ApiPermissionsRoute: typeof ApiPermissionsRoute
   ApiSettingsRoute: typeof ApiSettingsRouteWithChildren
+  ApiUsageRoute: typeof ApiUsageRoute
   AdminIndexRoute: typeof AdminIndexRoute
   ApiResourceIdRoute: typeof ApiResourceIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -861,6 +887,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/insights': {
+      id: '/api/insights'
+      path: '/api/insights'
+      fullPath: '/api/insights'
+      preLoaderRoute: typeof ApiInsightsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mcp': {
       id: '/api/mcp'
       path: '/api/mcp'
@@ -880,6 +913,13 @@ declare module '@tanstack/react-router' {
       path: '/api/settings'
       fullPath: '/api/settings'
       preLoaderRoute: typeof ApiSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/usage': {
+      id: '/api/usage'
+      path: '/api/usage'
+      fullPath: '/api/usage'
+      preLoaderRoute: typeof ApiUsageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/$resource/': {
@@ -1249,9 +1289,11 @@ const rootRouteChildren: RootRouteChildren = {
   AdminResetRoute: AdminResetRoute,
   ApiCheckoutRoute: ApiCheckoutRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiInsightsRoute: ApiInsightsRoute,
   ApiMcpRoute: ApiMcpRoute,
   ApiPermissionsRoute: ApiPermissionsRoute,
   ApiSettingsRoute: ApiSettingsRouteWithChildren,
+  ApiUsageRoute: ApiUsageRoute,
   AdminIndexRoute: AdminIndexRoute,
   ApiResourceIdRoute: ApiResourceIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

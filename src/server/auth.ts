@@ -152,6 +152,29 @@ function createAuth(env: NodeEnv) {
               role: (user as { role?: string }).role || 'default',
             },
           }),
+          /**
+           * And every account that gets created is counted.
+           *
+           * Here rather than on the signup route because there is more than
+           * one way in — a form, a one-time code, an invitation — and a meter
+           * that only saw one of them would undercount from the day the second
+           * was used. `record` swallows its own failures, so this cannot be
+           * the reason somebody fails to sign up.
+           */
+          after: async (user) => {
+            // Imported here rather than at the top, like everything else this
+            // file reaches for: the database module imports the schema, which
+            // imports back this way, and a static import would close the loop.
+            const [{ record }, { getDb }] = await Promise.all([
+              import('./events'),
+              import('#/db'),
+            ])
+            await record(getDb(env), {
+              name: 'user.signed_up',
+              subjectType: 'users',
+              subjectId: (user as { id?: string }).id,
+            })
+          },
         },
       },
     },

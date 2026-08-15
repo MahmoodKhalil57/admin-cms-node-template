@@ -6,6 +6,7 @@ import { getEnv } from '#/server/env'
 import { requirePermission } from '#/server/authz'
 import { errorResponse, repoRef } from '#/server/static-context'
 import { commitFiles } from '#/server/builder-store'
+import { record } from '#/server/events'
 import type { CommitFile } from '#/server/builder-store'
 
 /**
@@ -48,6 +49,12 @@ export const Route = createFileRoute('/api/builder/commit')(
           files,
           body.message?.trim() || 'Update the page',
         )
+        await record(getDb(env), {
+          name: 'content.committed',
+          subjectType: 'content',
+          subjectId: sha,
+          detail: { files: files.length, via: 'builder' },
+        })
         return Response.json({ ok: true, commit: sha, files: files.length })
       } catch (error) {
         return errorResponse(error)

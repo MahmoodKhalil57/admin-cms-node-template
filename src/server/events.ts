@@ -166,6 +166,24 @@ export const EVENT_CATALOG: Array<EventDefinition> = [
     description: 'Its infrastructure was deleted; its storage was kept.',
   },
   {
+    key: 'booking.held',
+    area: 'Appointments',
+    name: 'A time was held',
+    description: 'Somebody picked a slot and is on their way to paying for it.',
+  },
+  {
+    key: 'booking.confirmed',
+    area: 'Appointments',
+    name: 'An appointment was made',
+    description: 'A held slot was paid for, or a free one was booked outright.',
+  },
+  {
+    key: 'booking.cancelled',
+    area: 'Appointments',
+    name: 'An appointment was called off',
+    description: 'The time went back on the diary. No money moved with it.',
+  },
+  {
     key: 'resource.created',
     area: 'Panel',
     name: 'Something was created',

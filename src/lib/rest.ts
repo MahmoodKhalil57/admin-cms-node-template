@@ -171,7 +171,7 @@ function conditionSql(
  * be wrong: an anonymous submission disappears from a list it might have been
  * allowed in, rather than appearing in one it was meant to be kept out of.
  */
-function conditionWhere(
+export function conditionWhere(
   table: LooseTable,
   principal: Principal,
   permission: string,

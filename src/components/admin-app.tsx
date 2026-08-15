@@ -60,6 +60,7 @@ import {
   AvailabilityList,
 } from '#/components/resources/availability'
 import { BookingList } from '#/components/resources/bookings'
+import { Dashboard } from '#/components/dashboard'
 import { SaleList } from '#/components/resources/sales'
 import {
   AutomationCreate,
@@ -145,6 +146,10 @@ export function AdminApp() {
         authProvider={authProvider}
         loginPage={NodeLoginPage}
         layout={NodeLayout}
+        // The log is written whatever the feature flag says; the flag decides
+        // who may read it. Registered unconditionally so the page itself can
+        // explain that, rather than the panel opening on a 404.
+        dashboard={Dashboard}
         requireAuth
         disableTelemetry
         title="Node admin"

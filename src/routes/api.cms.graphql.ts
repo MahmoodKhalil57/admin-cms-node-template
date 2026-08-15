@@ -7,6 +7,7 @@ import { principalForUserId } from '#/server/authz'
 import { can } from '#/server/authz'
 import type { Principal } from '#/server/authz'
 import { cmsTokenFrom, verifyCmsToken } from '#/server/cms-token'
+import { record } from '#/server/events'
 import {
   ProxyError,
   loadCollections,
@@ -107,6 +108,25 @@ export const Route = createFileRoute('/api/cms/graphql')(
             }
           } else if (!can(principal, 'content:read')) {
             return refuse(403, 'Your account cannot read this site.')
+          }
+
+          /*
+            A save through the CMS is a change to the site, counted the same as
+            one through the builder — the two write the same commits and there
+            is no reason a meter should be able to tell them apart.
+
+            Only when there is actually something to commit: Sveltia sends this
+            endpoint reads as well as writes.
+          */
+          if (changes && (changes.additions.length || changes.deletions.length)) {
+            await record(db, {
+              name: 'content.committed',
+              subjectType: 'content',
+              detail: {
+                files: changes.additions.length + changes.deletions.length,
+                via: 'cms',
+              },
+            })
           }
 
           return forwardGraphql(target, body, entries)
