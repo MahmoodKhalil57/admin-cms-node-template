@@ -85,6 +85,7 @@ export type Binding =
   | { type: 'r2_bucket'; name: string; bucket_name: string }
   | { type: 'plain_text'; name: string; text: string }
   | { type: 'secret_text'; name: string; text: string }
+  | { type: 'assets'; name: string }
 
 /**
  * The multipart body for a script upload.
@@ -97,17 +98,26 @@ export type Binding =
 export function buildUploadForm(
   image: NodeImage,
   bindings: Array<Binding>,
+  /**
+   * The token returned by uploading the static files.
+   *
+   * Without it the Worker runs and serves nothing: the document renders, and
+   * every stylesheet and script it asks for falls through to the same handler
+   * and comes back as HTML. The health check passes, the API answers, and the
+   * panel is a blank page — which is a great deal harder to diagnose than a
+   * Worker that failed to start.
+   */
+  assetsJwt?: string | null,
 ): FormData {
   const form = new FormData()
-  form.set(
-    'metadata',
-    JSON.stringify({
-      main_module: image.mainModule,
-      compatibility_date: image.compatibilityDate,
-      compatibility_flags: image.compatibilityFlags,
-      bindings,
-    }),
-  )
+  const metadata: Record<string, unknown> = {
+    main_module: image.mainModule,
+    compatibility_date: image.compatibilityDate,
+    compatibility_flags: image.compatibilityFlags,
+    bindings,
+  }
+  if (assetsJwt) metadata.assets = { jwt: assetsJwt }
+  form.set('metadata', JSON.stringify(metadata))
   for (const module of image.modules) {
     form.set(
       module.path,

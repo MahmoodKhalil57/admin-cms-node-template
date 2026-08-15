@@ -21,6 +21,7 @@ import {
 } from './cloudflare'
 import type { Account } from './cloudflare'
 import { buildUploadForm, fetchImage } from './image'
+import { uploadAssets } from './assets'
 import type { Binding } from './image'
 
 /**
@@ -195,9 +196,31 @@ export async function provisionProject(
     Said out loud rather than left to be discovered, and revisitable the day
     Cloudflare adds the scope: one entry in `INFRA_SCOPES` and one binding here.
   */
+  /*
+    The static files, before the script that serves them.
+
+    In this order because the upload metadata has to name the completion token,
+    and there is no way to add one afterwards without uploading the script
+    again.
+  */
+  let assetsJwt: string | null = null
+  try {
+    assetsJwt = await uploadAssets(account, names.worker, image.assets ?? {})
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? `Uploading the project's files: ${error.message}`
+          : "The project's files could not be uploaded.",
+    }
+  }
+
   const bindings: Array<Binding> = [
     { type: 'd1', name: 'DB', id: databaseId },
     { type: 'kv_namespace', name: 'KV', namespace_id: kvId },
+    // Named `ASSETS` because that is what the built Worker reaches for.
+    ...(assetsJwt ? [{ type: 'assets' as const, name: 'ASSETS' }] : []),
     { type: 'plain_text', name: 'NODE_ID', text: slug },
     { type: 'plain_text', name: 'NODE_NAME', text: slug },
     // Its own signing secret, derived per project so two projects on one
@@ -208,7 +231,7 @@ export async function provisionProject(
   const upload = await uploadWorker(
     account,
     names.worker,
-    buildUploadForm(image, bindings),
+    buildUploadForm(image, bindings, assetsJwt),
   )
   if (!upload.ok) {
     return { ok: false, error: explain(upload, 'Uploading the project') }

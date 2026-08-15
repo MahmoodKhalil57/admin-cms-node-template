@@ -103,6 +103,20 @@ export const ProjectsPage = () => {
     load()
   }
 
+  const rebuild = async (project: Project) => {
+    setBusy(true)
+    const response = await fetch(`/api/projects/${project.slug}`, { method: 'PUT' })
+    const body = await response.json().catch(() => ({}))
+    setBusy(false)
+    if (!response.ok) {
+      notify(body.error ?? 'Could not rebuild it.', { type: 'error' })
+      load()
+      return
+    }
+    notify(`${project.slug} rebuilt on the current release.`, { type: 'info' })
+    load()
+  }
+
   const destroy = async (project: Project) => {
     const response = await fetch(`/api/projects/${project.slug}`, {
       method: 'DELETE',
@@ -211,7 +225,18 @@ export const ProjectsPage = () => {
                     </p>
                   ) : null}
                 </td>
-                <td className="px-4 py-2 text-right">
+                <td className="px-4 py-2 text-right whitespace-nowrap">
+                  {/* Same call that built it — provisioning is find-or-create,
+                      so this repairs a half-finished one and moves an old one
+                      onto the current release. */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => rebuild(row)}
+                  >
+                    Rebuild
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => destroy(row)}>
                     Take down
                   </Button>
