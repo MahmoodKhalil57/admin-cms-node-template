@@ -63,6 +63,16 @@ const RESOURCES = {
   notifications: { table: notifications, feature: 'forms' },
   roles: { table: roles, feature: 'user-management' },
   policies: { table: policies, feature: 'user-management' },
+  /*
+    Readable and revocable here, never created here.
+
+    An invitation is its token — without one there is no link, and the generic
+    layer has no way to mint one. A POST to this resource inserted a row with a
+    null token and came back as a raw SQL error quoting the whole statement,
+    which is a confusing way to learn you used the wrong endpoint. Creating one
+    is `/api/invitations/create`, which mints the token, sets the expiry and
+    hands back the link.
+  */
   invitations: { table: invitations, feature: 'user-management' },
   // Written by the node, never by a caller — see `readOnly` in `guard`.
   events: { table: events, feature: 'instrumentation', readOnly: true },
@@ -89,6 +99,12 @@ const RESOURCES = {
   // What the operator sells credits in, one level down. Their commercial
   // decision, so rows rather than code — see `ensureVendorPackages`.
   'vendor-packages': { table: vendorPackages, feature: 'vendors' },
+}
+
+/** Resources whose rows only one dedicated route knows how to build. */
+const NO_CREATE: Record<string, string> = {
+  invitations:
+    'Invitations are made at /api/invitations/create, which mints the token the link is built from.',
 }
 
 // Drizzle's table types are heavily generic; the generic handlers below work
@@ -412,6 +428,19 @@ export async function createResource(
   return answering(async () => {
   const table = resolveResource(resource, features)
   if (!table) return notFound(resource)
+
+  /*
+    Some resources can be read and removed but never conjured.
+
+    An invitation *is* its token — without one there is no link, and this
+    layer has no way to mint one. Left open, a POST here inserted a row with a
+    null token and answered with a raw SQL statement quoted back at the caller,
+    which is a confusing way to find out you used the wrong endpoint.
+  */
+  const conjured = NO_CREATE[resource]
+  if (conjured) {
+    return Response.json({ error: conjured, message: conjured }, { status: 405 })
+  }
 
   const allowed = guard(resource, 'write', principal)
   if (!allowed.ok) return allowed.response

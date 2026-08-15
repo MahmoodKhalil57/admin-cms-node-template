@@ -106,7 +106,7 @@ export async function removeMember(env: NodeEnv, id: string): Promise<void> {
  * created the project on master arrives here as its rootAdmin, which is why it
  * cannot be deleted: it is the way back in.
  */
-const BUILTIN_ROLES = [
+export const BUILTIN_ROLES = [
   {
     key: 'rootAdmin',
     name: 'Root admin',
@@ -182,6 +182,39 @@ const BUILTIN_ROLES = [
       'vendors:read': { id: { mine: true } },
       'vendors:write': { id: { mine: true } },
       'payouts:withdraw': { vendorId: { mine: true } },
+    },
+  },
+  {
+    key: 'collaborator',
+    name: 'Collaborator',
+    description:
+      'Builds projects on this node’s connected infrastructure. Can create one and take their own down; cannot change which account they are built on, and cannot touch the site or the enquiries.',
+    builtin: false,
+    /**
+     * The role that exists to *not* carry one permission.
+     *
+     * Layer-3 projects are built on the **operator's own** Cloudflare and
+     * GitHub accounts — that is the whole point of the feature, and it is why
+     * `infra:connect` is deliberately absent here. That permission decides
+     * which account new projects land on, so a collaborator holding it could
+     * repoint the connection at their own and quietly take the operator's
+     * platform with them. Building on somebody's infrastructure and choosing
+     * whose infrastructure it is are different jobs, and this role is only the
+     * first.
+     *
+     * Nothing else comes with it either. A collaborator is somebody brought in
+     * to build, not a second owner: no site, no enquiries, no team, no money.
+     */
+    permissions: ['projects:read', 'projects:create', 'projects:destroy'],
+    /**
+     * Their own projects, by the same `self` rule that keeps a member to their
+     * own profile. Creating is unscoped — there is no row to narrow yet — but
+     * reading and destroying are not, so two collaborators on one node work
+     * side by side without either being able to remove the other's work.
+     */
+    conditions: {
+      'projects:read': { ownerUserId: { self: true } },
+      'projects:destroy': { ownerUserId: { self: true } },
     },
   },
   {
