@@ -18,11 +18,28 @@ async function back(env: NodeEnv, query: string): Promise<Response> {
 
 async function backTo(
   env: NodeEnv,
-  screen: 'settings' | 'projects',
+  screen: string,
   query: string,
 ): Promise<Response> {
   const base = panelOrigin(env, await getSettings(getDb(env)))
   return Response.redirect(`${base}/admin/${screen}?${query}`, 302)
+}
+
+/**
+ * Where this grant came from, read out of the signed state.
+ *
+ * The wider grant is started from the feature's own page, and landing somewhere
+ * else afterwards would leave the operator hunting for whether it worked. The
+ * payload is signed, and the id is checked for digits again here — a redirect
+ * path assembled from anything less is a way to send somebody elsewhere with
+ * our own domain in the address bar.
+ */
+function infraScreen(payload: string, nodeId: string): string | null {
+  if (payload === `${nodeId}:infra`) return 'projects'
+  const prefix = `${nodeId}:infra:`
+  if (!payload.startsWith(prefix)) return null
+  const id = payload.slice(prefix.length)
+  return /^\d{1,9}$/.test(id) ? `features/${id}` : 'projects'
 }
 
 /**
@@ -65,9 +82,9 @@ export const Route = createFileRoute('/api/cloudflare/callback')(
           state ?? '',
           env.CLOUDFLARE_CLIENT_SECRET,
         )
-        const forProjects = wanted?.payload === `${env.NODE_ID}:infra`
-        const screen = forProjects ? 'projects' : 'settings'
-        const key = forProjects ? 'infra' : 'cloudflare'
+        const where = infraScreen(wanted?.payload ?? '', env.NODE_ID)
+        const screen = where ?? 'settings'
+        const key = where ? 'infra' : 'cloudflare'
 
         if (failure === 'access_denied') {
           return await backTo(env, screen, `${key}=declined`)
@@ -93,7 +110,8 @@ export const Route = createFileRoute('/api/cloudflare/callback')(
         indistinguishable at the moment the browser comes back.
       */
       const payload = verified?.payload ?? ''
-      const infra = payload === `${env.NODE_ID}:infra`
+      const screen = infraScreen(payload, env.NODE_ID)
+      const infra = screen !== null
       if (!verified || (payload !== env.NODE_ID && !infra)) {
         return await back(env, 'cloudflare=bad_state')
       }
@@ -125,27 +143,24 @@ export const Route = createFileRoute('/api/cloudflare/callback')(
             expiresAt: tokens.expiresAt ? new Date(tokens.expiresAt * 1000) : null,
           })
 
-          const base = panelOrigin(env, await getSettings(getDb(env)))
           const said = account
             ? 'infra=connected'
             : 'infra=connected&detail=' +
               encodeURIComponent(
                 'Connected, but no account came back — the grant may be missing account.read.',
               )
-          return Response.redirect(`${base}/admin/projects?${said}`, 302)
+          return await backTo(env, screen!, said)
         }
 
         await saveCloudflare(getDb(env), tokens)
         return await back(env, 'cloudflare=connected')
       } catch (error) {
         if (infra) {
-          const base = panelOrigin(env, await getSettings(getDb(env)))
           const detail = error instanceof Error ? error.message : 'exchange failed'
-          return Response.redirect(
-            `${base}/admin/projects?infra=error&detail=${encodeURIComponent(
-              detail.slice(0, 300),
-            )}`,
-            302,
+          return await backTo(
+            env,
+            screen!,
+            `infra=error&detail=${encodeURIComponent(detail.slice(0, 300))}`,
           )
         }
         return await back(env, 'cloudflare=exchange_failed')

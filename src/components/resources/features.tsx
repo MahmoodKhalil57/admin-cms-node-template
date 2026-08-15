@@ -11,6 +11,7 @@ import {
   TextField,
 } from '#/components/admin'
 import { GithubPagesPanel } from '#/components/features/github-pages-panel'
+import { ProjectsPanel } from '#/components/features/projects-panel'
 import { featureDefinition } from '#/lib/feature-catalog'
 import { invalidateFeatures } from '#/lib/features'
 
@@ -88,6 +89,8 @@ const FeatureConfig = () => {
   switch (record.key) {
     case 'github-pages':
       return <GithubPagesPanel featureId={record.id} />
+    case 'projects':
+      return <ProjectsPanel featureId={record.id} />
     default:
       return null
   }

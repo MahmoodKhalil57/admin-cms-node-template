@@ -9,10 +9,15 @@ import { holds, useMyPermissions } from '#/lib/my-permissions'
 /**
  * Projects, built on the operator's own infrastructure.
  *
- * The screen makes one distinction visible because everything else depends on
- * it: **connecting an account and building on one are different jobs.** The
- * connect button is only offered to whoever holds `infra:connect`; a
- * collaborator sees whose account is connected, and builds on it.
+ * **Nothing here is about Cloudflare, and that is deliberate.** Connecting an
+ * account is an operator's decision made once, on the feature's own page; this
+ * is where somebody types a name and gets a site. A collaborator should never
+ * have to know what the projects they build are standing on, let alone hold an
+ * account of their own — putting a connect button here would have implied that
+ * setting it up was their job, and blamed them for its absence.
+ *
+ * When it is not set up, the only honest thing to show is that it is not ready
+ * and who can make it so.
  */
 
 interface Project {
@@ -52,8 +57,6 @@ export const ProjectsPage = () => {
   const [rows, setRows] = useState<Array<Project>>([])
   const [slug, setSlug] = useState('')
   const [busy, setBusy] = useState(false)
-  /** Cloudflare's own words, kept on screen rather than in a toast that goes */
-  const [refusal, setRefusal] = useState<string | null>(null)
 
   const load = () => {
     void fetch('/api/infra/status')
@@ -68,22 +71,8 @@ export const ProjectsPage = () => {
 
   useEffect(() => {
     load()
-    // Cloudflare sends people back here with the outcome in the query, so it
-    // is read once and then cleared — a reload should not re-announce it.
-    const params = new URLSearchParams(window.location.search)
-    const infra = params.get('infra')
-    if (infra === 'connected') {
-      notify('Cloudflare connected.', { type: 'info' })
-    } else if (infra === 'declined') {
-      notify('You declined the Cloudflare request.', { type: 'warning' })
-    } else if (infra === 'error') {
-      const detail = params.get('detail') ?? ''
-      setRefusal(detail || 'Cloudflare refused the connection.')
-      notify(detail || 'Cloudflare refused the connection.', { type: 'error' })
-    }
-    if (infra) {
-      window.history.replaceState({}, '', window.location.pathname)
-    }
+    // Connecting an account happens on the feature's page and reports itself
+    // there. Nothing about that flow lands here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -94,16 +83,6 @@ export const ProjectsPage = () => {
   const mayConnect = mine ? holds(mine, 'infra:connect') : false
   const mayCreate = mine ? holds(mine, 'projects:create') : false
   const connected = Boolean(status.cloudflare && !status.cloudflare.expired)
-
-  const connect = async () => {
-    const response = await fetch('/api/infra/authorize')
-    const body = await response.json().catch(() => ({}))
-    if (!response.ok || !body.url) {
-      notify(body.error ?? 'Could not start the connection.', { type: 'error' })
-      return
-    }
-    window.location.href = body.url
-  }
 
   const create = async () => {
     setBusy(true)
@@ -149,91 +128,30 @@ export const ProjectsPage = () => {
         </p>
       </div>
 
-      <div className="border-border/70 bg-card flex flex-col gap-3 rounded-lg border p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium">
-              {connected ? 'Cloudflare connected' : 'Cloudflare not connected'}
-            </p>
-            <p className="text-muted-foreground text-xs">
-              {connected
-                ? `Building on ${status.cloudflare?.accountName ?? status.cloudflare?.accountId ?? 'your account'}`
-                : mayConnect
-                  ? 'Projects need an account to be built on.'
-                  : 'Somebody who can connect accounts needs to set this up.'}
-            </p>
-          </div>
-          {mayConnect ? (
-            <Button size="sm" variant={connected ? 'ghost' : 'default'} onClick={connect}>
-              {connected ? 'Reconnect' : 'Connect Cloudflare'}
-            </Button>
-          ) : null}
+      {/*
+        The only thing to say when it is not set up: that it is not, and who
+        can fix it. A collaborator is not the person who connects an account,
+        so this points at the operator rather than at a button they cannot use.
+      */}
+      {!connected ? (
+        <div className="border-border/70 bg-muted/30 flex flex-col gap-1 rounded-lg border p-4">
+          <p className="text-sm font-medium">Not ready yet</p>
+          <p className="text-muted-foreground max-w-prose text-xs">
+            {mayConnect ? (
+              <>
+                Projects need somewhere to be built. Set that up once under{' '}
+                <a className="underline" href="/admin/features/7">
+                  Features → Projects
+                </a>
+                , and after that anyone you make a collaborator can build one by
+                typing a name.
+              </>
+            ) : (
+              'Whoever runs this node needs to finish setting Projects up. Once they have, you can build one by typing a name — there is nothing for you to sign up to.'
+            )}
+          </p>
         </div>
-
-        {/*
-          Cloudflare's verbatim refusal, and what to do about the one that
-          actually happens. `invalid_scope` names a permission this OAuth
-          application is not registered for — which is not something an
-          operator can fix, and telling them to try again would waste their
-          afternoon.
-        */}
-        {refusal ? (
-          <div className="border-destructive/40 bg-destructive/5 flex flex-col gap-1 rounded-md border p-3">
-            <p className="text-destructive text-xs">{refusal}</p>
-            {refusal.includes('invalid_scope') ? (
-              <p className="text-muted-foreground text-xs">
-                That is a permission this platform's Cloudflare application is
-                not registered to ask for. Nothing you can change on your
-                account will help — whoever runs the platform has to add it to
-                the application first.
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-
-        {status.cloudflare?.expired ? (
-          <p className="text-destructive text-xs">
-            The grant has run out. Cloudflare issues no refresh token, so
-            reconnecting is the only way to renew it.
-          </p>
-        ) : null}
-
-        {!status.configured ? (
-          <p className="text-muted-foreground text-xs">
-            This platform has no Cloudflare application configured, so it cannot
-            ask for access at all.
-          </p>
-        ) : null}
-
-        {/* What was asked for against what came back. The difference is the
-            only way to explain a capability that turns out to be missing. */}
-        {connected && status.cloudflare ? (
-          <div className="text-muted-foreground flex flex-wrap gap-1 text-[11px]">
-            {status.scopes.map((scope) => {
-              const granted =
-                status.cloudflare!.scopes.length === 0 ||
-                status.cloudflare!.scopes.includes(scope)
-              return (
-                <span
-                  key={scope}
-                  className={`rounded border px-1.5 py-0.5 font-mono ${
-                    granted ? 'border-border/70' : 'border-destructive/50 text-destructive'
-                  }`}
-                >
-                  {scope}
-                  {granted ? '' : ' — not granted'}
-                </span>
-              )
-            })}
-          </div>
-        ) : null}
-
-        <p className="text-muted-foreground text-[11px]">
-          Cloudflare has no R2 scope, so projects built this way have no file
-          storage of their own. Everything else works; selling a file to
-          download does not.
-        </p>
-      </div>
+      ) : null}
 
       {mayCreate ? (
         <div className="border-border/70 bg-muted/30 flex flex-wrap items-center gap-2 rounded-lg border p-4">

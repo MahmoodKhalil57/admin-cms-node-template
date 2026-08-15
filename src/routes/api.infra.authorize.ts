@@ -47,6 +47,16 @@ export const Route = createFileRoute('/api/infra/authorize')(
         )
       }
 
+      /*
+        Which feature row the operator started from, so they come back to it.
+
+        Digits only, and it is the digits that matter: this ends up in a
+        redirect path, and anything else in it would be somewhere else on the
+        internet by the time Cloudflare sent them back.
+      */
+      const from = new URL(request.url).searchParams.get('from') ?? ''
+      const returnTo = /^\d{1,9}$/.test(from) ? from : ''
+
       const scopes = infraScopes(env)
       const url = buildAuthorizeUrl({
         clientId: env.CLOUDFLARE_CLIENT_ID,
@@ -56,7 +66,7 @@ export const Route = createFileRoute('/api/infra/authorize')(
         // exactly, so both consents land on the same route.
         state: await signState(
           env.CLOUDFLARE_CLIENT_SECRET,
-          `${env.NODE_ID}:infra`,
+          returnTo ? `${env.NODE_ID}:infra:${returnTo}` : `${env.NODE_ID}:infra`,
         ),
         scopes,
       })
