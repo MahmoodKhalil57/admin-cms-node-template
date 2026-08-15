@@ -64,12 +64,39 @@ export const INFRA_SCOPES = ['account-settings.read', 'user-details.read']
 export const BUILD_SCOPES = [
   'd1.write',
   'workers-scripts.write',
+  /*
+    Binding a database and a namespace to a script.
+
+    Separate from writing the script itself in Cloudflare's model, and easy to
+    miss: an upload carrying bindings is doing two things, and a grant that can
+    only do the first fails at the point where the project would otherwise have
+    started working.
+  */
+  'workers-scripts.bind',
   'workers-kv-storage.write',
 ]
 
+/**
+ * What the consent screen asks for.
+ *
+ * Both lists. They are kept apart because a registration missing any one of
+ * them refuses the *whole* authorization — so when the build permissions were
+ * unavailable, asking only for the account ones was what let an operator
+ * connect at all and be told plainly what was still missing.
+ *
+ * Now that they are on the registration there is no reason to ask in two
+ * stages: a connection that cannot build is not much use, and a second consent
+ * screen for the same account is a worse experience than one honest one.
+ */
 export function infraScopes(env: NodeEnv): Array<string> {
   const configured = (env.CLOUDFLARE_INFRA_SCOPES ?? '').trim()
-  return configured ? configured.split(/[\s,]+/).filter(Boolean) : INFRA_SCOPES
+  if (configured) return configured.split(/[\s,]+/).filter(Boolean)
+  return [...INFRA_SCOPES, ...BUILD_SCOPES]
+}
+
+/** Only what identifies the account — the fallback if building is unavailable. */
+export function connectOnlyScopes(): Array<string> {
+  return INFRA_SCOPES
 }
 
 /**

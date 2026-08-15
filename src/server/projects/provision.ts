@@ -110,7 +110,7 @@ export async function provisionProject(
   if (short.length > 0) {
     return {
       ok: false,
-      error: `The Cloudflare connection cannot create infrastructure: it is missing ${short.join(', ')}. That is a permission this platform's Cloudflare application has to offer before it can be granted.`,
+      error: `The Cloudflare connection cannot create infrastructure: it is missing ${short.join(', ')}. Reconnect Cloudflare on the Projects feature page — a grant only carries what was asked for on the day it was made.`,
     }
   }
 

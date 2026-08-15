@@ -183,10 +183,22 @@ export const ProjectsPanel = ({ featureId }: { featureId: number }) => {
         {connected && (status.missingForBuild ?? []).length > 0 ? (
           <div className="border-border/70 bg-muted/30 flex flex-col gap-1 rounded-md border p-3">
             <p className="text-sm font-medium">Connected, but not able to build yet</p>
+            {/*
+              Reconnecting is the fix in the ordinary case, and it is worth
+              leading with: a grant carries whatever was asked for on the day it
+              was made, so a connection older than a permission simply does not
+              have it. Only if reconnecting changes nothing is it the
+              application's registration, and that is somebody else's job.
+            */}
             <p className="text-muted-foreground text-xs">
-              Creating a project needs permissions this platform's Cloudflare
-              application does not offer yet. Nothing on your account will
-              change that — they have to be added to the application first.
+              This connection was made before these permissions were asked for.
+              Reconnect to grant them — a grant only ever carries what was
+              requested on the day it was made.
+            </p>
+            <p className="text-muted-foreground text-xs">
+              If reconnecting changes nothing, they are missing from this
+              platform's Cloudflare application and have to be added there
+              first. Nothing on your account will change that.
             </p>
             <div className="mt-1 flex flex-wrap gap-1">
               {status.missingForBuild.map((scope) => (

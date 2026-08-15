@@ -3,7 +3,12 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { badSlug, resourceNames } from '../projects/provision'
-import { BUILD_SCOPES, INFRA_SCOPES, missingForBuild } from '../infra'
+import {
+  BUILD_SCOPES,
+  INFRA_SCOPES,
+  infraScopes,
+  missingForBuild,
+} from '../infra'
 import { CLOUDFLARE_SCOPES } from '../cloudflare-oauth'
 import { imageUrl } from '../projects/image'
 import type { NodeEnv } from '../env'
@@ -97,8 +102,24 @@ describe('the two Cloudflare grants', () => {
   })
 
   test('building names what it actually uses', () => {
-    for (const needed of ['d1.write', 'workers-scripts.write']) {
+    for (const needed of [
+      'd1.write',
+      'workers-scripts.write',
+      // Binding a database to a script is its own permission in Cloudflare's
+      // model, and an upload carrying bindings needs both.
+      'workers-scripts.bind',
+      'workers-kv-storage.write',
+    ]) {
       expect(BUILD_SCOPES).toContain(needed)
+    }
+  })
+
+  test('the consent screen asks for everything at once', () => {
+    // Two consent screens for one account is a worse experience than one
+    // honest one, now that the registration offers the build permissions.
+    const asked = infraScopes({} as never)
+    for (const scope of [...INFRA_SCOPES, ...BUILD_SCOPES]) {
+      expect(asked).toContain(scope)
     }
   })
 
